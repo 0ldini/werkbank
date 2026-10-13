@@ -24,6 +24,7 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "soundcraft": ("Klangwerk", "#D0457A", '<path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/>'),
     "cadcraft": ("Planwerk", "#4A5568", '<path d="M4 20V5l15 15z"/><path d="M8 17v-4l4 4z"/>'),
     "gridcraft": ("Rechenwerk", "#5E8C1A", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>'),
+    "codewerk": ("Codewerk", "#E07A1F", '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1v3M14 20h3M19.5 20h1.5"/>'),
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"

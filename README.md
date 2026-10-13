@@ -47,6 +47,15 @@ Originals nie Konflikte.
 Bricht ein Build mit «das Original hat sich geändert» ab, findet `rebrand.py` den
 Programmnamen oder die Icons nicht mehr dort, wo sie waren. Die Meldung nennt die Stelle.
 
+## Offline-Setup für Windows
+
+Reiter «Actions» → «Offline-Setup» → «Run workflow». Der Ablauf packt den neuesten Launcher und
+alle veröffentlichten Programme in ein Setup-Programm (`werkbank-setup-<Datum>.exe`, Release
+`setup-v<Datum>`). Beim Installieren wählt man die Programme; das Häkchen «nach neueren Versionen
+suchen» holt vor dem Einrichten das Aktuellste aus dem Netz, ohne Internet kommt alles aus dem Setup.
+Installiert wird ohne Administratorrechte nach `%LOCALAPPDATA%\Programs\Werkbank`, die Programme
+nach `%LOCALAPPDATA%\Werkbank`. Deinstallieren über Windows-Einstellungen → Apps.
+
 ## Launcher veröffentlichen
 
 Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versionsnummer angeben (z. B. `0.1.0`). Der Ablauf baut Windows und Linux und legt das Release `werkbank-v0.1.0` an.
@@ -61,7 +70,7 @@ und als `<id>-web-<version>.zip` (ein Ordner mit `index.html`) in ein Release `<
 ## Was (noch) fehlt
 
 - Kein macOS-Build (bräuchte Apple-Zertifikat).
-- Windows-Programme sind unsigniert; Windows zeigt beim ersten Start eine Warnung.
+- Windows-Programme und Setup sind unsigniert; Windows zeigt beim ersten Start eine Warnung.
 - Die Programmdateien heissen wie im Original (`pdfcraft.exe` usw.); sichtbar ist überall der Werk-Name.
 
 ## Lizenz

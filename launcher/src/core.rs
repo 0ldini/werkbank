@@ -35,6 +35,8 @@ pub struct App {
     pub color: Option<String>,
     /// Anfang der Release-Tags, z. B. "pdfcraft-v" (Standard: "v").
     pub tag: Option<String>,
+    /// Name des eingebauten Icons (Standard: id).
+    pub icon: Option<String>,
     /// true: nur Browser-Version (z. B. eigene HTML5-Apps), keine Desktop-Programmdatei.
     #[serde(default)]
     pub web_only: bool,
@@ -416,6 +418,67 @@ pub fn install_file(app: &App, archive: &Path, progress: Progress) -> Result<(Ki
     fs::create_dir_all(app_dir(app))?;
     activate(app, kind, v, archive, progress)?;
     Ok((kind, v))
+}
+
+/// Ein Archiv im Bündel-Ordner des Offline-Setups: Programm, Art, Version, Datei.
+pub struct BundleEntry {
+    pub app: App,
+    pub kind: Kind,
+    pub version: Version,
+    pub path: PathBuf,
+}
+
+/// Liest den Bündel-Ordner (`<app>-<ver>-…-portable.zip`, `<app>-<ver>-linux-….tar.gz`, `<app>-web-<ver>.zip`).
+pub fn bundle_entries(manifest: &Manifest, dir: &Path) -> Vec<BundleEntry> {
+    let mut out = Vec::new();
+    for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(version) = name.split('-').find_map(|part| parse_version(part.trim_end_matches(".zip"))) else { continue };
+        let kind = if name.contains("-web-") { Kind::Web } else { Kind::Native };
+        let Some(app) = manifest.app.iter().find(|a| name.starts_with(&format!("{}-", a.asset()))) else { continue };
+        if name.ends_with(".zip") || name.ends_with(".tar.gz") {
+            out.push(BundleEntry { app: app.clone(), kind, version, path });
+        }
+    }
+    out.sort_by(|a, b| a.app.id.cmp(&b.app.id).then(a.kind.key().cmp(b.kind.key())));
+    out
+}
+
+/// Richtet ein Bündel ein. Mit `online` wird pro Programm zuerst nach einer neueren Version im
+/// Netz gesucht und diese genommen; sonst (oder ohne Netz) kommt die Version aus dem Bündel.
+/// `report` erhält je Programm Fortschritt, `done` das Ergebnis. Eingerichtete Archive werden
+/// gelöscht, der leere Bündel-Ordner zum Schluss auch.
+pub fn install_bundle(
+    manifest: &Manifest,
+    dir: &Path,
+    online: bool,
+    report: &(dyn Fn(&str, &str, f32) + Sync),
+    done: &(dyn Fn(&App, Kind, Result<Version>) + Sync),
+) {
+    for e in bundle_entries(manifest, dir) {
+        let id = e.app.id.clone();
+        let progress = |msg: &str, frac: f32| report(&id, msg, frac);
+        let mut result = None;
+        if online {
+            report(&id, "Suche neuere Version …", 0.0);
+            if let Ok(latest) = latest_version(&e.app) {
+                if latest > e.version {
+                    report(&id, &format!("Neuere Version {} gefunden", fmt_version(latest)), 0.0);
+                    result = install(&e.app, e.kind, &progress).ok();
+                }
+            }
+        }
+        let result = match result {
+            Some(v) => Ok(v),
+            None => install_file(&e.app, &e.path, &progress).map(|(_, v)| v),
+        };
+        if result.is_ok() {
+            let _ = fs::remove_file(&e.path);
+        }
+        done(&e.app, e.kind, result);
+    }
+    let _ = fs::remove_dir(dir);
 }
 
 pub fn uninstall(app: &App) -> Result<()> {

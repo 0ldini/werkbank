@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod core;
+mod icons;
 
 use crate::core::{fmt_version, App, Kind, Manifest, Version};
 use eframe::egui;
@@ -17,8 +18,30 @@ fn main() {
             std::process::exit(1);
         }
     };
-    if args.is_empty() {
-        gui(manifest);
+    // Offline-Setup: ein Ordner `bundle` neben dem Launcher (oder --bundle DIR) wird beim
+    // Start eingerichtet; --offline verzichtet auf die Suche nach neueren Versionen.
+    let bundle = args
+        .iter()
+        .position(|a| a == "--bundle")
+        .and_then(|i| args.get(i + 1))
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            let dir = std::env::current_exe().ok()?.parent()?.join("bundle");
+            dir.is_dir().then_some(dir)
+        });
+    let online = !args.iter().any(|a| a == "--offline");
+    // Übrige Argumente ohne Optionen: leer → Oberfläche, sonst Kommandozeile.
+    let mut plain = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "--bundle" {
+            it.next();
+        } else if !a.starts_with("--") {
+            plain.push(a.clone());
+        }
+    }
+    if plain.is_empty() {
+        gui(manifest, bundle, online);
     } else if let Err(e) = cli(&manifest, &args) {
         eprintln!("Fehler: {e:#}");
         std::process::exit(1);
@@ -75,6 +98,20 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
                 }
             }
         }
+        "install-bundle" => {
+            let dir = args.iter().skip(1).find(|a| !a.starts_with("--")).ok_or_else(|| anyhow::anyhow!("Aufruf: install-bundle <ordner> [--offline]"))?;
+            let online = !args.iter().any(|a| a == "--offline");
+            core::install_bundle(
+                manifest,
+                std::path::Path::new(dir),
+                online,
+                &|_, _, _| {},
+                &|app, kind, r| match r {
+                    Ok(v) => println!("{}: {} eingerichtet ({kind:?})", app.id, fmt_version(v)),
+                    Err(e) => println!("{}: FEHLER {e:#}", app.id),
+                },
+            );
+        }
         "install-file" => {
             let (id, file) = (args.get(1), args.get(2));
             let (Some(id), Some(file)) = (id, file) else { anyhow::bail!("Aufruf: install-file <programm> <archiv>") };
@@ -115,7 +152,8 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
                  list                          Programme und Versionen anzeigen\n\
                  install <programm|all> [--web]  installieren\n\
                  update [programm] [--web]     aktualisieren (ohne Namen: alle installierten)\n\
-                 install-file <programm> <archiv>  selbst gebautes Archiv installieren\n\
+                 install-file <programm> <archiv>  selbst gebautes Archiv installieren
+                 install-bundle <ordner> [--offline]  Archive eines Offline-Setups einrichten\n\
                  run <programm>                starten\n\
                  web [programm]                Browser-Version(en) lokal bereitstellen\n\
                  remove <programm>             entfernen\n\
@@ -142,26 +180,32 @@ type Shared = Arc<Mutex<HashMap<String, Status>>>;
 
 struct Gui {
     manifest: Manifest,
+    textures: HashMap<String, egui::TextureHandle>,
     state: Shared,
     web_addr: Option<String>,
     notice: Option<String>,
 }
 
-fn gui(manifest: Manifest) {
+fn gui(manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
     let title = manifest.title.clone();
+    let mut viewport = egui::ViewportBuilder::default().with_inner_size([1060.0, 760.0]).with_min_inner_size([560.0, 400.0]);
+    if let Ok(icon) = eframe::icon_data::from_png_bytes(icons::WERKBANK) {
+        viewport = viewport.with_icon(icon);
+    }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1060.0, 760.0])
-            .with_min_inner_size([560.0, 400.0]),
+        viewport,
         ..Default::default()
     };
     let result = eframe::run_native(
         &title,
         options,
         Box::new(move |cc| {
-            let app = Gui { manifest, state: Shared::default(), web_addr: None, notice: None };
+            let app = Gui { manifest, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
             theme(&cc.egui_ctx);
             app.refresh(&cc.egui_ctx);
+            if let Some(dir) = bundle {
+                app.start_bundle(&cc.egui_ctx, dir, online);
+            }
             Ok(Box::new(app))
         }),
     );
@@ -305,8 +349,28 @@ fn button(ui: &mut egui::Ui, label: &str, look: Look) -> egui::Response {
     )
 }
 
-/// Farbige Kachel mit dem Anfangsbuchstaben des Programms.
-fn tile(ui: &mut egui::Ui, app: &App, size: f32) {
+/// Lädt ein eingebautes PNG als Textur (einmal pro Programm).
+fn texture(ctx: &egui::Context, cache: &mut HashMap<String, egui::TextureHandle>, name: &str, bytes: &[u8]) -> Option<egui::TextureHandle> {
+    if let Some(t) = cache.get(name) {
+        return Some(t.clone());
+    }
+    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
+    let (w, h) = img.dimensions();
+    let color = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], img.as_raw());
+    let t = ctx.load_texture(name, color, egui::TextureOptions::LINEAR);
+    cache.insert(name.to_string(), t.clone());
+    Some(t)
+}
+
+/// Programm-Icon; ohne eingebautes Icon eine farbige Kachel mit dem Anfangsbuchstaben.
+fn tile(ui: &mut egui::Ui, cache: &mut HashMap<String, egui::TextureHandle>, app: &App, size: f32) {
+    let icon = app.icon.as_deref().unwrap_or(&app.id);
+    if let Some(bytes) = icons::ICONS.iter().find(|(n, _)| *n == icon).map(|(_, b)| *b) {
+        if let Some(t) = texture(ui.ctx(), cache, icon, bytes) {
+            ui.add(egui::Image::new(&t).fit_to_exact_size(egui::vec2(size, size)));
+            return;
+        }
+    }
     let color = app.color.as_deref().and_then(|c| egui::Color32::from_hex(c).ok()).unwrap_or(OUTLINE);
     let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
     ui.painter().rect_filled(rect, (size * 0.25) as u8, color);
@@ -333,7 +397,7 @@ impl Gui {
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
-                    tile(ui, app, 52.0);
+                    tile(ui, &mut self.textures, app, 52.0);
                     ui.vertical(|ui| {
                         ui.add_space(4.0);
                         ui.label(egui::RichText::new(&app.name).size(19.0).strong());
@@ -400,6 +464,54 @@ impl Gui {
             });
     }
 
+    /// Offline-Setup: richtet die Archive aus `dir` nacheinander im Hintergrund ein.
+    fn start_bundle(&mut self, ctx: &egui::Context, dir: std::path::PathBuf, online: bool) {
+        let entries = core::bundle_entries(&self.manifest, &dir);
+        if entries.is_empty() {
+            return;
+        }
+        self.notice = Some(format!(
+            "Einrichtung: {} Programm{} aus dem Setup{}",
+            entries.len(),
+            if entries.len() == 1 { "" } else { "e" },
+            if online { ", neuere Versionen werden aus dem Netz geholt" } else { "" }
+        ));
+        {
+            let mut s = self.state.lock().unwrap();
+            for e in &entries {
+                s.entry(e.app.id.clone()).or_default().busy = Some(("Wartet …".into(), 0.0));
+            }
+        }
+        let (manifest, state, ctx) = (self.manifest.clone(), self.state.clone(), ctx.clone());
+        std::thread::spawn(move || {
+            let report = |id: &str, msg: &str, frac: f32| {
+                if let Some(st) = state.lock().unwrap().get_mut(id) {
+                    st.busy = Some((msg.to_string(), frac));
+                }
+                ctx.request_repaint();
+            };
+            let done = |app: &App, kind: Kind, r: anyhow::Result<Version>| {
+                let mut s = state.lock().unwrap();
+                let st = s.entry(app.id.clone()).or_default();
+                st.busy = None;
+                match r {
+                    Ok(v) => {
+                        match kind {
+                            Kind::Native => st.native = Some(v),
+                            Kind::Web => st.web = Some(v),
+                        }
+                        if st.latest.is_none_or(|l| l < v) {
+                            st.latest = Some(v);
+                        }
+                    }
+                    Err(e) => st.error = Some(format!("{e:#}")),
+                }
+                ctx.request_repaint();
+            };
+            core::install_bundle(&manifest, &dir, online, &report, &done);
+        });
+    }
+
     fn open_web(&mut self, ctx: &egui::Context, app: &App) {
         if let Some(addr) = self.web_addr() {
             // install() lädt nur, wenn die Web-Version fehlt oder veraltet ist.
@@ -427,13 +539,8 @@ impl eframe::App for Gui {
             .frame(egui::Frame::new().fill(HEADER).inner_margin(egui::Margin::symmetric(24, 14)))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    // Marke: Bernstein-Kachel mit vier Feldern.
-                    let (rect, _) = ui.allocate_exact_size(egui::vec2(40.0, 40.0), egui::Sense::hover());
-                    ui.painter().rect_filled(rect, 10u8, ACCENT);
-                    for (i, (dx, dy)) in [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)].into_iter().enumerate() {
-                        let min = rect.min + egui::vec2(8.0 + dx * 13.0, 8.0 + dy * 13.0);
-                        let color = if i == 3 { BG.gamma_multiply(0.45) } else { BG };
-                        ui.painter().rect_filled(egui::Rect::from_min_size(min, egui::vec2(11.0, 11.0)), 3u8, color);
+                    if let Some(t) = texture(ctx, &mut self.textures, "werkbank", icons::WERKBANK) {
+                        ui.add(egui::Image::new(&t).fit_to_exact_size(egui::vec2(40.0, 40.0)));
                     }
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(&self.manifest.title).size(22.0).strong());

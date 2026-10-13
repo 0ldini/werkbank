@@ -1,0 +1,64 @@
+name: Offline-Setup
+
+# Packt Launcher und alle veröffentlichten Programme (Windows + Browser) in ein Setup-Programm
+# für Windows und veröffentlicht es als Release setup-v<Datum>.
+# Start: Reiter «Actions» → «Offline-Setup» → «Run workflow».
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    name: Setup bauen
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Neueste Releases einsammeln
+        run: |
+          set -euo pipefail
+          mkdir -p stage/bundle
+          python3 setup/collect.py "$GITHUB_REPOSITORY" > tags.txt
+          cat tags.txt
+          LTAG=$(awk '$1=="werkbank"{print $2}' tags.txt)
+          gh release download "$LTAG" --repo "$GITHUB_REPOSITORY" --pattern 'werkbank-windows-x64.zip' --dir stage
+          (cd stage && 7z x -bso0 -y werkbank-windows-x64.zip && mv werkbank/werkbank.exe . && rm -rf werkbank werkbank-windows-x64.zip)
+          cp README.md LICENSE stage/
+          cp launcher/icons/werkbank.ico stage/werkbank.ico
+          awk '$1!="werkbank"{print $2}' tags.txt | while read -r TAG; do
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*windows-x64-portable.zip' --pattern '*-web-*.zip' --dir stage/bundle
+          done
+          ls -l stage/bundle
+
+      - name: Setup-Skript erzeugen
+        run: |
+          VERSION=$(date -u +%Y.%m.%d)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          python3 setup/make_iss.py "$VERSION" "$PWD/stage" werkbank.iss
+
+      - name: Inno Setup ausführen
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" werkbank.iss
+          Get-ChildItem out
+
+      - name: Veröffentlichen
+        run: |
+          cd out
+          sha256sum * > SHA256SUMS.txt
+          TAG="setup-v$VERSION"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+              --title "Werkbank Offline-Setup $VERSION" \
+              --notes "Setup-Programm für Windows mit allen Programmen. Beim Installieren wählbar: welche Programme, und ob vorher nach neueren Versionen gesucht wird."
+          fi

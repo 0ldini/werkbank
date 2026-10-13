@@ -18,6 +18,10 @@ tiny_http = "0.12"
 open = "5"
 directories = "6"
 anyhow = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = "s"
