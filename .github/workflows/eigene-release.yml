@@ -1,0 +1,155 @@
+name: Eigene-Release
+
+# Baut ein eigenes Programm aus eigene/<name> für Windows, Linux und den Browser und
+# veröffentlicht es als Release <name>-v<version> (Version aus seiner Cargo.toml).
+# Start: Reiter «Actions» → «Eigene-Release» → «Run workflow». Bei Änderungen an einem
+# Programm auf main läuft der Build automatisch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Programm (Ordnername unter eigene/)"
+        type: string
+        default: codewerk
+  push:
+    branches: [main]
+    paths: ["eigene/**"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  plan:
+    name: Planen
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.plan.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: plan
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            apps="${{ inputs.app }}"
+          else
+            apps=$(git diff --name-only HEAD~1 HEAD -- eigene | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
+          fi
+          list="[]"
+          for a in $apps; do
+            [ -f "eigene/$a/Cargo.toml" ] || { echo "::error::eigene/$a/Cargo.toml fehlt"; exit 1; }
+            list=$(jq -c --arg a "$a" '. + [$a]' <<<"$list")
+          done
+          echo "apps=$list" >> "$GITHUB_OUTPUT"
+          echo "Programme: $list"
+
+  build:
+    name: ${{ matrix.app }} (${{ matrix.kind }})
+    needs: plan
+    if: needs.plan.outputs.apps != '[]'
+    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || 'ubuntu-22.04' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.plan.outputs.apps) }}
+        kind: [windows, linux, web]
+    defaults:
+      run:
+        shell: bash
+        working-directory: eigene/${{ matrix.app }}
+    env:
+      APP: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version lesen
+        run: |
+          VERSION=$(awk -F'"' '/^version *=/{print $2; exit}' Cargo.toml)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "$APP $VERSION"
+      - name: Linux-Abhängigkeiten
+        if: matrix.kind != 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.kind == 'web' && 'wasm32-unknown-unknown' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: eigene/${{ matrix.app }}
+          key: ${{ matrix.kind }}
+      - name: Trunk installieren
+        if: matrix.kind == 'web'
+        uses: storytold/craft-common-actions/actions/install-trunk@main
+      - name: Bauen
+        run: |
+          set -o pipefail
+          mkdir -p out
+          case "${{ matrix.kind }}" in
+            windows)
+              cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
+              D="$APP-$VERSION-windows-x64-portable"; mkdir -p "stage/$D"
+              cp "target/release/$APP.exe" "stage/$D/"; cp README.md "stage/$D/" 2>/dev/null || true
+              (cd stage && 7z a -bso0 "../out/$D.zip" "$D") ;;
+            linux)
+              cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
+              D="$APP-$VERSION-linux-x86_64"; mkdir -p "stage/$D/bin"
+              cp "target/release/$APP" "stage/$D/bin/"; cp README.md "stage/$D/" 2>/dev/null || true
+              (cd stage && tar czf "../out/$D.tar.gz" "$D") ;;
+            web)
+              trunk build --release --public-url ./ 2>&1 | tee "$RUNNER_TEMP/build.log"
+              D="$APP-web-$VERSION"; mkdir -p stage; cp -r dist "stage/$D"
+              (cd stage && zip -qr9 "../out/$D.zip" "$D") ;;
+          esac
+          ls -l out
+      - name: Fehler melden
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/build.log"
+          [ -f "$log" ] || exit 0
+          text=$( (grep -A16 -E '^error' "$log" || tail -40 "$log") | head -150 | cut -c1-240)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::error title=$APP ${{ matrix.kind }}::$text"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eigene-${{ matrix.app }}-${{ matrix.kind }}
+          path: eigene/${{ matrix.app }}/out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: ${{ matrix.app }} veröffentlichen
+    needs: [plan, build]
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.plan.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eigene-${{ matrix.app }}-*
+          path: out
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          [ -d out ] && [ -n "$(ls -A out)" ] || { echo "::error::$APP: kein Build erfolgreich"; exit 1; }
+          VERSION=$(awk -F'"' '/^version *=/{print $2; exit}' "eigene/$APP/Cargo.toml")
+          NAME=$(awk -F'"' '/^name *=/{print $2; exit}' "eigene/$APP/Cargo.toml")
+          TAG="$APP-v$VERSION"
+          cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+              --title "${NAME^} $VERSION" --notes "Eigenes Programm ${NAME^} $VERSION für Windows, Linux und den Browser."
+          fi

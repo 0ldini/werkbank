@@ -106,3 +106,13 @@ about = "Technisches Zeichnen (CAD)"
 color = "#4A5568"
 repo = "https://github.com/0ldini/werkbank"
 tag = "cadcraft-v"
+
+# Eigene Programme (Ordner eigene/, Ablauf «Eigene-Release»)
+
+[[app]]
+id = "codewerk"
+name = "Codewerk"
+about = "QR-Codes erstellen: Text, Link, WLAN, Kontakt"
+color = "#E07A1F"
+repo = "https://github.com/0ldini/werkbank"
+tag = "codewerk-v"

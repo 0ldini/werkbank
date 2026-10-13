@@ -51,11 +51,12 @@ Programmnamen oder die Icons nicht mehr dort, wo sie waren. Die Meldung nennt di
 
 Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versionsnummer angeben (z. B. `0.1.0`). Der Ablauf baut Windows und Linux und legt das Release `werkbank-v0.1.0` an.
 
-## Eigene Apps aufnehmen
+## Eigene Programme aufnehmen
 
-HTML5-Apps kommen als Eintrag mit `web_only = true` in `launcher/apps.toml`. Die App wird als
-`<id>-web-<version>.zip` (ein Ordner mit `index.html`) in einem Release mit dem Tag
-`<id>-v<version>` abgelegt, zusammen mit `SHA256SUMS.txt`.
+Rust-Programme (egui/eframe) liegen unter `eigene/<name>/`; der Ablauf «Eigene-Release» baut sie für
+Windows, Linux und den Browser und veröffentlicht sie wie die anderen (siehe `eigene/README.md`).
+Das erste ist **Codewerk** (QR-Codes). HTML5-Apps kommen mit `web_only = true` in `launcher/apps.toml`
+und als `<id>-web-<version>.zip` (ein Ordner mit `index.html`) in ein Release `<id>-v<version>`.
 
 ## Was (noch) fehlt
 
