@@ -1,13 +1,20 @@
 name: Launcher-Release
 
 # Baut den Werkbank-Launcher für Windows und Linux.
-# Veröffentlichen: Tag werkbank-vX.Y.Z pushen. «Run workflow» und der Zweig «probe» bauen nur.
+# Veröffentlichen: Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine
+# Versionsnummer angeben (z. B. 0.1.0). Ohne Nummer wird nur gebaut.
 
 on:
-  push:
-    tags: ["werkbank-v*"]
-    branches: [probe]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Versionsnummer für die Veröffentlichung, z. B. 0.1.0 (leer: nur bauen)"
+        type: string
+        default: ""
+  # Probelauf: baut nur; mit «[probe launcher]» in der Commit-Meldung entsteht eine Vorabversion.
+  push:
+    branches: [probe]
+    paths: ["launcher/**", ".github/workflows/launcher-release.yml"]
 
 permissions:
   contents: write
@@ -19,6 +26,8 @@ jobs:
   build:
     name: Launcher (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +39,20 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - id: version
+        name: Version festlegen
+        env:
+          IN_VERSION: ${{ inputs.version }}
+        run: |
+          version="$IN_VERSION"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && git log -1 --format=%s | grep -q '\[probe launcher\]'; then
+            version="0.0.0-probe"
+          fi
+          if [ -n "$version" ]; then
+            echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$' || { echo "::error::Keine gültige Versionsnummer: $version"; exit 1; }
+            sed -i.bak "0,/^version = \".*\"/s//version = \"$version\"/" launcher/Cargo.toml && rm launcher/Cargo.toml.bak
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Linux-Abhängigkeiten
         if: runner.os == 'Linux'
         run: |
@@ -65,8 +88,9 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/werkbank-v')
+    name: Veröffentlichen
     needs: build
+    if: needs.build.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -75,9 +99,15 @@ jobs:
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           cd out && sha256sum * > SHA256SUMS.txt
+          TAG="werkbank-v$VERSION"
           # Versionen mit Zusatz (z. B. 0.1.0-test) gelten als Vorabversion.
-          case "$GITHUB_REF_NAME" in *-v*-*) kind=--prerelease ;; *) kind=--latest ;; esac
-          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" $kind \
-            --title "Werkbank ${GITHUB_REF_NAME#werkbank-v}" --notes "Werkbank-Launcher für Windows und Linux."
+          case "$VERSION" in *-*) kind=--prerelease ;; *) kind=--latest ;; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" $kind \
+              --title "Werkbank $VERSION" --notes "Werkbank-Launcher $VERSION für Windows und Linux."
+          fi

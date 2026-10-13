@@ -49,7 +49,7 @@ Programmnamen oder die Icons nicht mehr dort, wo sie waren. Die Meldung nennt di
 
 ## Launcher veröffentlichen
 
-Tag `werkbank-vX.Y.Z` pushen; «Launcher-Release» baut Windows und Linux und legt das Release an.
+Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versionsnummer angeben (z. B. `0.1.0`). Der Ablauf baut Windows und Linux und legt das Release `werkbank-v0.1.0` an.
 
 ## Eigene Apps aufnehmen
 
