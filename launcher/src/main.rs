@@ -190,7 +190,16 @@ impl Gui {
                 let st = s.entry(app.id.clone()).or_default();
                 match latest {
                     Ok(v) => st.latest = Some(v),
-                    Err(e) => st.error = Some(format!("Versionsabfrage fehlgeschlagen: {e:#}")),
+                    Err(e) => {
+                        let text = format!("{e:#}");
+                        // Kein Release für dieses Programm ist kein Fehler, nur ein Zustand.
+                        let missing = ["kein Release", "status: 401", "status: 404"].iter().any(|m| text.contains(m));
+                        st.error = Some(if missing {
+                            "Noch nicht veröffentlicht".to_string()
+                        } else {
+                            format!("Versionsabfrage fehlgeschlagen: {text}")
+                        });
+                    }
                 }
                 ctx.request_repaint();
             });
