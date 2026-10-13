@@ -58,6 +58,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$IN_APP" = "all" ]; then apps=$(ls werk/apps); else apps="$IN_APP"; fi
+          # Probelauf: «[probe pdfcraft lightcraft]» in der Commit-Meldung baut nur diese,
+          # «[probe keine]» gar keine.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            only=$(git log -1 --format=%s | sed -n 's/.*\[probe \([a-z ]*\)\].*/\1/p')
+            if [ "$only" = "keine" ]; then apps=""; elif [ -n "$only" ]; then apps="$only"; fi
+          fi
           items="[]"
           for app in $apps; do
             [ -f "werk/apps/$app/werk.json" ] || { echo "::error::Unbekanntes Programm: $app"; exit 1; }
@@ -114,16 +120,26 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then PY=python; else PY=python3; fi
           "$PY" werkbank/werk/rebrand.py "$APP" src
           UP=$(echo "$APP" | tr '[:lower:]' '[:upper:]')
-          FONTS_REF=$(sed -n 's/^ *craft-fonts-ref: *\([0-9a-f]\{7,40\}\).*/\1/p' src/.github/workflows/release.yml | head -1)
+          # Stand der Zusatzschriften, wie ihn das Original für seine Releases festlegt. Zwei Schreibweisen:
+          # über den gemeinsamen Ablauf (craft-fonts-ref) oder als eigener Checkout (ref nach repository).
+          REL=src/.github/workflows/release.yml
+          FONTS_REF=$(sed -n 's/^ *craft-fonts-ref: *\([0-9a-f]\{7,40\}\).*/\1/p' "$REL" | head -1)
+          FONTS_WEB=""
+          if [ -z "$FONTS_REF" ]; then
+            FONTS_REF=$(awk '/repository: *storytold\/craft-fonts/{f=1; next} f && /ref:/{print $2; exit}' "$REL")
+            FONTS_WEB="$FONTS_REF"
+          fi
           {
             echo "${UP}_VERSION=$VERSION"
             echo "${UP}_BUILD_DATE=$(date -u +%Y-%m-%d)"
             echo "${UP}_BUILD_SHA=$(git -C src rev-parse HEAD)"
             echo "FONTS_REF=$FONTS_REF"
+            echo "FONTS_WEB=$FONTS_WEB"
           } >> "$GITHUB_ENV"
+          echo "Schriften: ${FONTS_REF:-keine}"
 
       - name: Schriften holen
-        if: env.FONTS_REF != '' && matrix.kind != 'web'
+        if: env.FONTS_REF != '' && (matrix.kind != 'web' || env.FONTS_WEB != '')
         uses: actions/checkout@v4
         with:
           repository: storytold/craft-fonts
@@ -131,7 +147,7 @@ jobs:
           path: craft-fonts
 
       - name: Schriften einbinden
-        if: env.FONTS_REF != '' && matrix.kind != 'web'
+        if: env.FONTS_REF != '' && (matrix.kind != 'web' || env.FONTS_WEB != '')
         run: echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
@@ -150,6 +166,16 @@ jobs:
       - name: Trunk installieren
         if: matrix.kind == 'web'
         uses: storytold/craft-common-actions/actions/install-trunk@main
+
+      # Manche Programme bauen die Browser-Version ohne Trunk und brauchen dieses Werkzeug in
+      # genau der Version aus Cargo.lock.
+      - name: wasm-bindgen installieren
+        if: matrix.kind == 'web'
+        run: |
+          if grep -qs 'wasm-bindgen' src/packaging/web/package.sh && ! grep -qs 'cargo install wasm-bindgen-cli' src/packaging/web/package.sh; then
+            V=$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/[^0-9.]/, ""); print; exit}' src/Cargo.lock)
+            cargo install wasm-bindgen-cli --version "$V" --locked
+          fi
 
       - name: WiX installieren
         if: matrix.kind == 'windows'
