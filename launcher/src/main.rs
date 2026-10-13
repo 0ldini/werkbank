@@ -151,7 +151,7 @@ fn gui(manifest: Manifest) {
     let title = manifest.title.clone();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([860.0, 680.0])
+            .with_inner_size([1060.0, 760.0])
             .with_min_inner_size([560.0, 400.0]),
         ..Default::default()
     };
@@ -160,6 +160,7 @@ fn gui(manifest: Manifest) {
         options,
         Box::new(move |cc| {
             let app = Gui { manifest, state: Shared::default(), web_addr: None, notice: None };
+            theme(&cc.egui_ctx);
             app.refresh(&cc.egui_ctx);
             Ok(Box::new(app))
         }),
@@ -244,127 +245,254 @@ impl Gui {
     }
 }
 
+// Farben der Werkbank (dunkler Grund, Bernstein als Akzent).
+const BG: egui::Color32 = egui::Color32::from_rgb(0x17, 0x18, 0x1C);
+const HEADER: egui::Color32 = egui::Color32::from_rgb(0x1D, 0x1F, 0x24);
+const PANEL: egui::Color32 = egui::Color32::from_rgb(0x21, 0x23, 0x29);
+const BORDER: egui::Color32 = egui::Color32::from_rgb(0x32, 0x35, 0x3D);
+const OUTLINE: egui::Color32 = egui::Color32::from_rgb(0x45, 0x49, 0x53);
+const TEXT: egui::Color32 = egui::Color32::from_rgb(0xEC, 0xEE, 0xF2);
+const MUTED: egui::Color32 = egui::Color32::from_rgb(0xA9, 0xAE, 0xB9);
+const ACCENT: egui::Color32 = egui::Color32::from_rgb(0xF2, 0xB5, 0x44);
+const WARN: egui::Color32 = egui::Color32::from_rgb(0xF0, 0x8A, 0x6A);
+
+fn theme(ctx: &egui::Context) {
+    let mut v = egui::Visuals::dark();
+    v.panel_fill = BG;
+    v.window_fill = PANEL;
+    v.extreme_bg_color = BORDER;
+    v.override_text_color = Some(TEXT);
+    v.selection.bg_fill = ACCENT;
+    ctx.set_visuals(v);
+    ctx.style_mut(|s| {
+        s.spacing.item_spacing = egui::vec2(10.0, 8.0);
+        s.spacing.button_padding = egui::vec2(14.0, 6.0);
+    });
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Look {
+    /// Wichtigste Aktion der Karte.
+    Primary,
+    /// Update: in der Akzentfarbe.
+    Accent,
+    Outline,
+}
+
+fn button(ui: &mut egui::Ui, label: &str, look: Look) -> egui::Response {
+    let (fill, fg, stroke) = match look {
+        Look::Primary => (TEXT, BG, TEXT),
+        Look::Accent => (ACCENT, BG, ACCENT),
+        Look::Outline => (egui::Color32::TRANSPARENT, TEXT, OUTLINE),
+    };
+    let text = egui::RichText::new(label).color(fg).size(14.5);
+    let text = if look == Look::Outline { text } else { text.strong() };
+    ui.add(
+        egui::Button::new(text)
+            .fill(fill)
+            .stroke(egui::Stroke::new(1.0, stroke))
+            .corner_radius(9u8)
+            .min_size(egui::vec2(0.0, 36.0)),
+    )
+}
+
+/// Farbige Kachel mit dem Anfangsbuchstaben des Programms.
+fn tile(ui: &mut egui::Ui, app: &App, size: f32) {
+    let color = app.color.as_deref().and_then(|c| egui::Color32::from_hex(c).ok()).unwrap_or(OUTLINE);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+    ui.painter().rect_filled(rect, (size * 0.25) as u8, color);
+    let initial: String = app.name.chars().take(1).collect();
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        initial,
+        egui::FontId::proportional(size * 0.5),
+        egui::Color32::WHITE,
+    );
+}
+
+impl Gui {
+    fn card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status) {
+        let installed = if app.web_only { st.web } else { st.native };
+        let update = installed.is_some() && st.latest.is_some() && installed < st.latest;
+        let border = if update { ACCENT } else { BORDER };
+        egui::Frame::new()
+            .fill(PANEL)
+            .stroke(egui::Stroke::new(1.0, border))
+            .corner_radius(14u8)
+            .inner_margin(16.0)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    tile(ui, app, 52.0);
+                    ui.vertical(|ui| {
+                        ui.add_space(4.0);
+                        ui.label(egui::RichText::new(&app.name).size(19.0).strong());
+                        ui.label(egui::RichText::new(&app.about).size(13.0).color(MUTED));
+                    });
+                });
+                ui.add_space(4.0);
+                let (line, color) = match (installed, st.latest) {
+                    (Some(n), Some(l)) if update => {
+                        (format!("Version {} · neu verfügbar: {}", fmt_version(n), fmt_version(l)), ACCENT)
+                    }
+                    (Some(n), _) => (format!("Version {} · aktuell", fmt_version(n)), MUTED),
+                    (None, Some(l)) => (format!("Nicht installiert · verfügbar: {}", fmt_version(l)), MUTED),
+                    (None, None) => ("Nicht installiert".to_string(), MUTED),
+                };
+                if let Some((msg, frac)) = &st.busy {
+                    ui.label(egui::RichText::new(msg).size(13.0).color(MUTED));
+                    ui.add(egui::ProgressBar::new(*frac).desired_height(6.0).fill(ACCENT));
+                    ui.add_space(22.0);
+                    return;
+                }
+                ui.label(egui::RichText::new(line).size(13.0).color(color));
+                if let Some(e) = &st.error {
+                    ui.label(egui::RichText::new(e).size(12.5).color(WARN));
+                }
+                ui.add_space(4.0);
+                ui.horizontal_wrapped(|ui| {
+                    if app.web_only {
+                        if button(ui, "Öffnen", Look::Primary).clicked() {
+                            self.open_web(ctx, app);
+                        }
+                    } else {
+                        if installed.is_some() {
+                            if update && button(ui, "Aktualisieren", Look::Accent).clicked() {
+                                self.install(ctx, app, Kind::Native, None);
+                            }
+                            let look = if update { Look::Outline } else { Look::Primary };
+                            if button(ui, "Starten", look).clicked() {
+                                if let Err(e) = core::run(app) {
+                                    self.notice = Some(format!("{e:#}"));
+                                }
+                            }
+                        } else if button(ui, "Installieren", Look::Primary).clicked() {
+                            self.install(ctx, app, Kind::Native, None);
+                        }
+                        if button(ui, "Im Browser", Look::Outline)
+                            .on_hover_text("Web-Version lokal laden und im Browser öffnen")
+                            .clicked()
+                        {
+                            self.open_web(ctx, app);
+                        }
+                    }
+                    if (st.native.is_some() || st.web.is_some())
+                        && ui
+                            .add(egui::Button::new(egui::RichText::new("Entfernen").size(12.5).color(MUTED)).frame(false))
+                            .clicked()
+                    {
+                        if let Err(e) = core::uninstall(app) {
+                            self.notice = Some(format!("{e:#}"));
+                        }
+                        self.local(app);
+                    }
+                });
+            });
+    }
+
+    fn open_web(&mut self, ctx: &egui::Context, app: &App) {
+        if let Some(addr) = self.web_addr() {
+            // install() lädt nur, wenn die Web-Version fehlt oder veraltet ist.
+            self.install(ctx, app, Kind::Web, Some(format!("{addr}/{}/", app.id)));
+        }
+    }
+}
+
 impl eframe::App for Gui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let snapshot = self.state.lock().unwrap().clone();
-        let outdated: Vec<App> = self
-            .manifest
-            .app
+        let apps = self.manifest.app.clone();
+        let status = |app: &App| snapshot.get(&app.id).cloned().unwrap_or_default();
+        let installed = apps.iter().filter(|a| status(a).native.is_some() || status(a).web.is_some()).count();
+        let outdated: Vec<App> = apps
             .iter()
             .filter(|a| {
-                let st = snapshot.get(&a.id).cloned().unwrap_or_default();
-                st.busy.is_none() && st.native.is_some() && st.latest.is_some() && st.native < st.latest
+                let st = status(a);
+                !a.web_only && st.busy.is_none() && st.native.is_some() && st.latest.is_some() && st.native < st.latest
             })
             .cloned()
             .collect();
 
-        egui::TopBottomPanel::top("kopf").show(ctx, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.heading(&self.manifest.title);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Datenordner").on_hover_text("Hier liegen die Programme und apps.toml").clicked() {
-                        let _ = open::that(core::data_dir());
+        egui::TopBottomPanel::top("kopf")
+            .frame(egui::Frame::new().fill(HEADER).inner_margin(egui::Margin::symmetric(24, 14)))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    // Marke: Bernstein-Kachel mit vier Feldern.
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(40.0, 40.0), egui::Sense::hover());
+                    ui.painter().rect_filled(rect, 10u8, ACCENT);
+                    for (i, (dx, dy)) in [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)].into_iter().enumerate() {
+                        let min = rect.min + egui::vec2(8.0 + dx * 13.0, 8.0 + dy * 13.0);
+                        let color = if i == 3 { BG.gamma_multiply(0.45) } else { BG };
+                        ui.painter().rect_filled(egui::Rect::from_min_size(min, egui::vec2(11.0, 11.0)), 3u8, color);
                     }
-                    if ui.button("Browser-Übersicht").clicked() {
-                        if let Some(a) = self.web_addr() {
-                            let _ = open::that(a);
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(&self.manifest.title).size(22.0).strong());
+                        let mut info = format!("{} Programme · {} installiert", apps.len(), installed);
+                        if !outdated.is_empty() {
+                            info += &format!(" · {} Update{}", outdated.len(), if outdated.len() == 1 { "" } else { "s" });
                         }
-                    }
-                    if ui.button("Nach Updates suchen").clicked() {
-                        self.refresh(ctx);
-                    }
-                    if !outdated.is_empty()
-                        && ui.button(format!("Alle aktualisieren ({})", outdated.len())).clicked()
-                    {
-                        for app in &outdated {
-                            self.install(ctx, app, Kind::Native, None);
+                        ui.label(egui::RichText::new(info).size(12.5).color(MUTED));
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !outdated.is_empty()
+                            && button(ui, &format!("Alle aktualisieren ({})", outdated.len()), Look::Accent).clicked()
+                        {
+                            for app in &outdated {
+                                self.install(ctx, app, Kind::Native, None);
+                            }
                         }
-                    }
-                });
-            });
-            if let Some(n) = &self.notice {
-                ui.colored_label(egui::Color32::from_rgb(230, 120, 90), n);
-            }
-            ui.add_space(6.0);
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                for app in self.manifest.app.clone() {
-                    let st = snapshot.get(&app.id).cloned().unwrap_or_default();
-                    egui::Frame::group(ui.style()).inner_margin(12.0).show(ui, |ui| {
-                        ui.set_width(ui.available_width());
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(egui::RichText::new(&app.name).size(18.0).strong());
-                                ui.label(egui::RichText::new(&app.about).weak());
-                                let update = st.native.is_some() && st.latest.is_some() && st.native < st.latest;
-                                let line = match (st.native, st.latest) {
-                                    (Some(n), Some(l)) if update => {
-                                        format!("Installiert {} · neu verfügbar {}", fmt_version(n), fmt_version(l))
-                                    }
-                                    (Some(n), _) => format!("Installiert {} · aktuell", fmt_version(n)),
-                                    (None, Some(l)) => format!("Nicht installiert · verfügbar {}", fmt_version(l)),
-                                    (None, None) => "Nicht installiert".into(),
-                                };
-                                let color = if update {
-                                    egui::Color32::from_rgb(235, 170, 60)
-                                } else {
-                                    ui.visuals().weak_text_color()
-                                };
-                                ui.colored_label(color, line);
-                            });
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if st.busy.is_some() {
-                                    ui.spinner();
-                                    return;
-                                }
-                                let update = st.native.is_some() && st.latest.is_some() && st.native < st.latest;
-                                if app.web_only {
-                                    // Eigene HTML5-Apps: laufen im Browser, Knopf «Im Browser» folgt unten.
-                                } else if st.native.is_some() {
-                                    if ui.button(egui::RichText::new("  Starten  ").size(16.0)).clicked() {
-                                        if let Err(e) = core::run(&app) {
-                                            self.notice = Some(format!("{e:#}"));
-                                        }
-                                    }
-                                    if update && ui.button("Aktualisieren").clicked() {
-                                        self.install(ctx, &app, Kind::Native, None);
-                                    }
-                                } else if ui.button(egui::RichText::new("  Installieren  ").size(16.0)).clicked() {
-                                    self.install(ctx, &app, Kind::Native, None);
-                                }
-                                if ui
-                                    .button(if app.web_only { "  Öffnen  " } else { "Im Browser" })
-                                    .on_hover_text("Web-Version lokal laden und im Browser öffnen")
-                                    .clicked()
-                                {
-                                    if let Some(addr) = self.web_addr() {
-                                        // install() lädt nur, wenn die Web-Version fehlt oder veraltet ist.
-                                        self.install(ctx, &app, Kind::Web, Some(format!("{addr}/{}/", app.id)));
-                                    }
-                                }
-                                if st.native.is_some() || st.web.is_some() {
-                                    if ui.small_button("Entfernen").clicked() {
-                                        if let Err(e) = core::uninstall(&app) {
-                                            self.notice = Some(format!("{e:#}"));
-                                        }
-                                        self.local(&app);
-                                    }
-                                }
-                            });
-                        });
-                        if let Some((msg, frac)) = &st.busy {
-                            ui.add(egui::ProgressBar::new(*frac).text(msg.clone()));
+                        if button(ui, "Browser-Übersicht", Look::Outline).clicked() {
+                            if let Some(a) = self.web_addr() {
+                                let _ = open::that(a);
+                            }
                         }
-                        if let Some(e) = &st.error {
-                            ui.colored_label(egui::Color32::from_rgb(230, 120, 90), e);
+                        if button(ui, "Nach Updates suchen", Look::Outline).clicked() {
+                            self.refresh(ctx);
+                        }
+                        if button(ui, "Datenordner", Look::Outline)
+                            .on_hover_text("Hier liegen die installierten Programme")
+                            .clicked()
+                        {
+                            let _ = open::that(core::data_dir());
                         }
                     });
-                    ui.add_space(6.0);
+                });
+                if let Some(n) = &self.notice {
+                    ui.label(egui::RichText::new(n).color(WARN));
                 }
             });
-        });
+
+        egui::TopBottomPanel::bottom("fuss")
+            .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 10)))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("Die Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0).")
+                            .size(12.0)
+                            .color(MUTED),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).size(12.0).color(MUTED),
+                        );
+                    });
+                });
+            });
+
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 18)))
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+                    let columns = (((ui.available_width() + 14.0) / 330.0).floor() as usize).clamp(1, 4);
+                    ui.columns(columns, |cols| {
+                        for (i, app) in apps.iter().enumerate() {
+                            let ui = &mut cols[i % columns];
+                            self.card(ui, ctx, app, &status(app));
+                            ui.add_space(6.0);
+                        }
+                    });
+                });
+            });
     }
 }
