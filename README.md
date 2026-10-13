@@ -65,5 +65,5 @@ HTML5-Apps kommen als Eintrag mit `web_only = true` in `launcher/apps.toml`. Die
 
 ## Lizenz
 
-Launcher, Skripte und Icons in diesem Repository: MIT (siehe `LICENSE`).
+Launcher, Skripte und Icons in diesem Repository: Apache-2.0 (siehe `LICENSE`).
 Die gebauten Programme: wie das jeweilige Original, MIT oder Apache-2.0.
