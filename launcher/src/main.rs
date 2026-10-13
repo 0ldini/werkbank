@@ -200,7 +200,7 @@ fn gui(manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
         &title,
         options,
         Box::new(move |cc| {
-            let app = Gui { manifest, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
+            let mut app = Gui { manifest, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
             theme(&cc.egui_ctx);
             app.refresh(&cc.egui_ctx);
             if let Some(dir) = bundle {
