@@ -1,0 +1,8 @@
+{
+  "app": "pdfcraft",
+  "name": "Blattwerk",
+  "original": "PdfCraft",
+  "suite": "Werkbank",
+  "github": "0ldini/werkbank",
+  "upstream": "storytold/pdfcraft"
+}

@@ -1,0 +1,238 @@
+name: App-Release
+
+# Holt den Originalcode eines Programms, wendet die Werk-Ausgabe an (werk/), baut für
+# Windows, Linux und den Browser und veröffentlicht ein Release mit dem Tag <app>-v<version>.
+# Der Launcher holt Programme und Updates aus diesen Releases.
+#
+# Von Hand:    Reiter «Actions» → «App-Release» → «Run workflow»
+# Automatisch: täglich; gebaut wird nur, was es als Release noch nicht gibt.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Programm (z. B. pdfcraft) oder «all» für alle"
+        type: string
+        default: all
+      ref:
+        description: "Version des Originals, z. B. v0.7.1 (leer: neueste). Nur mit einem einzelnen Programm."
+        type: string
+        default: ""
+      force:
+        description: "Neu bauen, auch wenn es das Release schon gibt"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 4 * * *"
+  # Probelauf: baut alles, veröffentlicht aber nichts.
+  push:
+    branches: [probe]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-release-${{ github.ref }}-${{ inputs.app || 'all' }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  plan:
+    name: Planen
+    runs-on: ubuntu-latest
+    outputs:
+      items: ${{ steps.plan.outputs.items }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        name: Neue Versionen suchen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IN_APP: ${{ inputs.app || 'all' }}
+          IN_REF: ${{ inputs.ref }}
+          FORCE: ${{ inputs.force || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          if [ "$IN_APP" = "all" ]; then apps=$(ls werk/apps); else apps="$IN_APP"; fi
+          items="[]"
+          for app in $apps; do
+            [ -f "werk/apps/$app/werk.json" ] || { echo "::error::Unbekanntes Programm: $app"; exit 1; }
+            upstream=$(jq -r .upstream "werk/apps/$app/werk.json")
+            ref="$IN_REF"
+            if [ -z "$ref" ] || [ "$IN_APP" = "all" ]; then
+              ref=$(git ls-remote --tags "https://github.com/$upstream" 'v*' | grep -v '\^{}' | sed 's#.*refs/tags/##' \
+                    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            fi
+            [ -n "$ref" ] || { echo "::warning::$app: kein Versions-Tag im Original gefunden"; continue; }
+            version="${ref#v}"
+            tag="$app-v$version"
+            if [ "$FORCE" != "true" ] && gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "$app $version: Release vorhanden"
+              continue
+            fi
+            echo "$app $version: wird gebaut"
+            items=$(jq -c --arg app "$app" --arg ref "$ref" --arg version "$version" --arg upstream "$upstream" \
+                    '. + [{app: $app, ref: $ref, version: $version, upstream: $upstream}]' <<<"$items")
+          done
+          echo "items=$items" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq length <<<"$items")" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.item.app }} ${{ matrix.item.version }} (${{ matrix.kind }})
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || matrix.kind == 'linux' && 'ubuntu-22.04' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        item: ${{ fromJson(needs.plan.outputs.items) }}
+        kind: [windows, linux, web]
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP: ${{ matrix.item.app }}
+      VERSION: ${{ matrix.item.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: werkbank
+
+      - name: Originalcode holen
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.item.upstream }}
+          ref: ${{ matrix.item.ref }}
+          path: src
+
+      - name: Werk-Ausgabe anwenden
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=python; else PY=python3; fi
+          "$PY" werkbank/werk/rebrand.py "$APP" src
+          UP=$(echo "$APP" | tr '[:lower:]' '[:upper:]')
+          FONTS_REF=$(sed -n 's/^ *craft-fonts-ref: *\([0-9a-f]\{7,40\}\).*/\1/p' src/.github/workflows/release.yml | head -1)
+          {
+            echo "${UP}_VERSION=$VERSION"
+            echo "${UP}_BUILD_DATE=$(date -u +%Y-%m-%d)"
+            echo "${UP}_BUILD_SHA=$(git -C src rev-parse HEAD)"
+            echo "FONTS_REF=$FONTS_REF"
+          } >> "$GITHUB_ENV"
+
+      - name: Schriften holen
+        if: env.FONTS_REF != '' && matrix.kind != 'web'
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/craft-fonts
+          ref: ${{ env.FONTS_REF }}
+          path: craft-fonts
+
+      - name: Schriften einbinden
+        if: env.FONTS_REF != '' && matrix.kind != 'web'
+        run: echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.kind == 'web' && 'wasm32-unknown-unknown' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src
+          key: ${{ matrix.item.app }}-${{ matrix.kind }}
+
+      - name: Linux-Abhängigkeiten
+        if: matrix.kind == 'linux'
+        uses: storytold/craft-common-actions/actions/install-linux-deps@main
+
+      - name: Trunk installieren
+        if: matrix.kind == 'web'
+        uses: storytold/craft-common-actions/actions/install-trunk@main
+
+      - name: WiX installieren
+        if: matrix.kind == 'windows'
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g "WixToolset.UI.wixext/5.0.2" "WixToolset.Util.wixext/5.0.2"
+
+      - name: Bauen
+        working-directory: src
+        run: |
+          set -o pipefail
+          case "${{ matrix.kind }}" in
+            windows) pwsh ./packaging/windows/package.ps1 -Arch x64 ;;
+            linux)   packaging/linux/package.sh --formats "tar" ;;
+            web)     packaging/web/package.sh ;;
+          esac 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      # Die Protokolle selbst sind von aussen schwer zu lesen; das Ende des Fehlers kommt
+      # deshalb als Anmerkung direkt an den Lauf.
+      - name: Fehler melden
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/build.log"
+          [ -f "$log" ] || exit 0
+          text=$( (grep -n -A14 -E '^(error|Error|ERROR)|error\[E|panicked|ABBRUCH|failed with exit code' "$log" || tail -40 "$log") | tail -60 | cut -c1-300)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::error title=$APP ${{ matrix.kind }}::$text"
+
+      # Nur die Dateien, die der Launcher braucht. Der MSI-Installer bleibt draussen: er trägt
+      # dieselbe Kennung wie das Original und würde dessen Installation ersetzen.
+      - name: Dateien auswählen
+        run: |
+          mkdir -p out
+          shopt -s nullglob
+          for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/*-web-*.zip; do
+            cp "$f" out/
+          done
+          ls -l out
+          [ -n "$(ls -A out)" ] || { echo "::error::$APP: keine Release-Datei entstanden: $(ls src/dist/release 2>/dev/null | tr '\n' ' ')"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: werk-${{ matrix.item.app }}-${{ matrix.kind }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: ${{ matrix.item.app }} ${{ matrix.item.version }} veröffentlichen
+    needs: [plan, build]
+    # Auch wenn eine Plattform scheitert, erscheinen die übrigen.
+    if: ${{ !cancelled() && needs.plan.outputs.count != '0' && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        item: ${{ fromJson(needs.plan.outputs.items) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: werk-${{ matrix.item.app }}-*
+          path: out
+          merge-multiple: true
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP: ${{ matrix.item.app }}
+          VERSION: ${{ matrix.item.version }}
+          UPSTREAM: ${{ matrix.item.upstream }}
+        run: |
+          set -euo pipefail
+          [ -d out ] && [ -n "$(ls -A out)" ] || { echo "::error::$APP: kein Build erfolgreich"; exit 1; }
+          NAME=$(jq -r .name "werk/apps/$APP/werk.json")
+          TAG="$APP-v$VERSION"
+          cd out
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+              --title "$NAME $VERSION" \
+              --notes "$NAME $VERSION, gebaut aus https://github.com/$UPSTREAM (Version $VERSION). Installation und Updates über den Werkbank-Launcher."
+          fi

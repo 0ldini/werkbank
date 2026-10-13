@@ -1,0 +1,8 @@
+{
+  "app": "deckcraft",
+  "name": "Schauwerk",
+  "original": "DeckCraft",
+  "suite": "Werkbank",
+  "github": "0ldini/werkbank",
+  "upstream": "storytold/deckcraft"
+}

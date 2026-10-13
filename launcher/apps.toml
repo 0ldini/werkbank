@@ -1,0 +1,108 @@
+# Programmliste der Werkbank.
+# Der Launcher lädt diese Datei beim Start aus dem Repository; neue Einträge erscheinen
+# deshalb ohne neuen Launcher. Jede App kommt aus den Releases von "repo".
+#
+#   id        Programmdatei und Anfang der Release-Dateinamen (wie im Original)
+#   name      Anzeigename
+#   tag       Anfang der Release-Tags dieser App, z. B. "pdfcraft-v" → pdfcraft-v0.7.1
+#   pin       (optional) auf dieser Version bleiben, z. B. pin = "0.7.1"
+#   web_only  (optional) true für eigene HTML5-Apps: nur Browser-Version,
+#             Release-Datei <id>-web-<version>.zip
+
+title = "Werkbank"
+
+[[app]]
+id = "photocraft"
+name = "Bildwerk"
+about = "Bildbearbeitung mit Ebenen und Masken"
+color = "#2F6FDE"
+repo = "https://github.com/0ldini/werkbank"
+tag = "photocraft-v"
+
+[[app]]
+id = "vectorcraft"
+name = "Linienwerk"
+about = "Vektorgrafik und Illustration"
+color = "#D9601F"
+repo = "https://github.com/0ldini/werkbank"
+tag = "vectorcraft-v"
+
+[[app]]
+id = "designcraft"
+name = "Designwerk"
+about = "Layout für Flyer, Hefte und Bücher"
+color = "#B8328A"
+repo = "https://github.com/0ldini/werkbank"
+tag = "designcraft-v"
+
+[[app]]
+id = "pdfcraft"
+name = "Blattwerk"
+about = "PDFs lesen, ordnen und schützen"
+color = "#C93636"
+repo = "https://github.com/0ldini/werkbank"
+tag = "pdfcraft-v"
+
+[[app]]
+id = "lightcraft"
+name = "Lichtwerk"
+about = "Fotobibliothek und RAW-Entwicklung"
+color = "#17879E"
+repo = "https://github.com/0ldini/werkbank"
+tag = "lightcraft-v"
+
+[[app]]
+id = "filmcraft"
+name = "Filmwerk"
+about = "Videoschnitt, Farbe und Ton"
+color = "#7448D0"
+repo = "https://github.com/0ldini/werkbank"
+tag = "filmcraft-v"
+
+[[app]]
+id = "effectcraft"
+name = "Trickwerk"
+about = "Animation und visuelle Effekte"
+color = "#A97A0A"
+repo = "https://github.com/0ldini/werkbank"
+tag = "effectcraft-v"
+
+[[app]]
+id = "soundcraft"
+name = "Klangwerk"
+about = "Musik und Ton aufnehmen und mischen"
+color = "#D0457A"
+repo = "https://github.com/0ldini/werkbank"
+tag = "soundcraft-v"
+
+[[app]]
+id = "wordcraft"
+name = "Schreibwerk"
+about = "Briefe, Berichte und Dokumente"
+color = "#2A7A4B"
+repo = "https://github.com/0ldini/werkbank"
+tag = "wordcraft-v"
+
+[[app]]
+id = "gridcraft"
+name = "Rechenwerk"
+about = "Tabellen und Berechnungen"
+color = "#5E8C1A"
+repo = "https://github.com/0ldini/werkbank"
+tag = "gridcraft-v"
+
+[[app]]
+id = "deckcraft"
+name = "Schauwerk"
+about = "Präsentationen und Folien"
+color = "#3B4BA8"
+repo = "https://github.com/0ldini/werkbank"
+tag = "deckcraft-v"
+
+[[app]]
+id = "cadcraft"
+name = "Planwerk"
+about = "Technisches Zeichnen (CAD)"
+color = "#4A5568"
+repo = "https://github.com/0ldini/werkbank"
+tag = "cadcraft-v"

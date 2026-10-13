@@ -1,0 +1,25 @@
+[package]
+name = "werkbank"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Launcher: Kreativ-Programme installieren, starten und einzeln aktualisieren"
+
+[dependencies]
+eframe = "0.31"
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier", "gzip"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tar = "0.4"
+flate2 = "1"
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tiny_http = "0.12"
+open = "5"
+directories = "6"
+anyhow = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

@@ -1,0 +1,81 @@
+name: Launcher-Release
+
+# Baut den Werkbank-Launcher für Windows und Linux.
+# Veröffentlichen: Tag werkbank-vX.Y.Z pushen. «Run workflow» und der Zweig «probe» bauen nur.
+
+on:
+  push:
+    tags: ["werkbank-v*"]
+    branches: [probe]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  build:
+    name: Launcher (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, runner: windows-latest, file: werkbank.exe, asset: werkbank-windows-x64.zip }
+          - { name: Linux, runner: ubuntu-22.04, file: werkbank, asset: werkbank-linux-x86_64.tar.gz }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux-Abhängigkeiten
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher
+      - name: Bauen
+        working-directory: launcher
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Fehler melden
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/build.log"
+          [ -f "$log" ] || exit 0
+          text=$( (grep -A16 -E '^error' "$log" || tail -40 "$log") | head -150 | cut -c1-240)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::error title=Launcher ${{ matrix.name }}::$text"
+      - name: Packen
+        run: |
+          mkdir -p out/werkbank
+          cp "launcher/target/release/${{ matrix.file }}" README.md LICENSE out/werkbank/
+          cd out
+          if [ "$RUNNER_OS" = "Windows" ]; then 7z a -bso0 "${{ matrix.asset }}" werkbank; else tar czf "${{ matrix.asset }}" werkbank; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: out/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/werkbank-v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out && sha256sum * > SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --latest \
+            --title "Werkbank ${GITHUB_REF_NAME#werkbank-v}" --notes "Werkbank-Launcher für Windows und Linux."
