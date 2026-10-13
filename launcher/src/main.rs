@@ -48,7 +48,7 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
         "list" => {
             println!("{:<13} {:<11} {:<11} {}", "Programm", "Desktop", "Browser", "Neueste");
             for app in &manifest.app {
-                let latest = core::latest_version(app).map(fmt_version).unwrap_or_else(|e| format!("? ({e})"));
+                let latest = core::latest_version(app).map(fmt_version).unwrap_or_else(|e| format!("? ({e:#})"));
                 println!(
                     "{:<13} {:<11} {:<11} {}",
                     app.id,
@@ -92,7 +92,7 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
         }
         "web" => {
             let addr = core::serve_web(manifest.clone())?;
-            let url = match args.get(1) {
+            let url = match args.iter().skip(1).find(|a| !a.starts_with("--")) {
                 Some(id) => {
                     let app = find(id)?;
                     core::install(app, Kind::Web, &quiet)?;

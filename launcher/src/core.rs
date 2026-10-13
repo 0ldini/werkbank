@@ -133,12 +133,35 @@ fn agent() -> ureq::Agent {
         .tls_config(TlsConfig::builder().root_certs(RootCerts::PlatformVerifier).build())
         .user_agent(concat!("werkbank/", env!("CARGO_PKG_VERSION")))
         .timeout_connect(Some(std::time::Duration::from_secs(8)))
+        // Weiterleitungen folgt fetch() selbst, siehe dort.
+        .max_redirects(0)
+        .max_redirects_will_error(false)
         .build()
         .into()
 }
 
+/// GET mit eigener Behandlung von Weiterleitungen. GitHub leitet Release-Downloads auf einen
+/// anderen Server um; der Inhalt der Umleitungs-Antwort wird hier gar nicht erst gelesen, weil
+/// manche Proxys ihn fehlerhaft übertragen. Gefolgt wird nur zu https-Adressen.
+fn fetch(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
+    let agent = agent();
+    let mut url = url.to_string();
+    for _ in 0..6 {
+        let resp = agent.get(&url).call().with_context(|| format!("Abruf von {url}"))?;
+        if !resp.status().is_redirection() {
+            return Ok(resp);
+        }
+        let target = resp.headers().get("location").and_then(|h| h.to_str().ok()).unwrap_or_default().to_string();
+        if !target.starts_with("https://") {
+            bail!("unerwartete Weiterleitung von {url}");
+        }
+        url = target;
+    }
+    bail!("zu viele Weiterleitungen: {url}")
+}
+
 fn http_text(url: &str, limit: u64) -> Result<String> {
-    let mut resp = agent().get(url).call().with_context(|| format!("Abruf von {url}"))?;
+    let mut resp = fetch(url)?;
     let mut buf = Vec::new();
     resp.body_mut().as_reader().take(limit).read_to_end(&mut buf)?;
     Ok(String::from_utf8_lossy(&buf).into_owned())
@@ -247,7 +270,7 @@ pub fn exe_path(app: &App) -> Option<PathBuf> {
 pub type Progress<'a> = &'a (dyn Fn(&str, f32) + Sync);
 
 fn download(url: &str, dest: &Path, progress: Progress) -> Result<String> {
-    let mut resp = agent().get(url).call().with_context(|| format!("Download {url}"))?;
+    let mut resp = fetch(url)?;
     let total: f32 = resp
         .headers()
         .get("content-length")
