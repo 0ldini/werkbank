@@ -17,6 +17,7 @@ toml = "0.8"
 tiny_http = "0.12"
 open = "5"
 directories = "6"
+rfd = "0.15"
 anyhow = "1"
 image = { version = "0.25", default-features = false, features = ["png"] }
 

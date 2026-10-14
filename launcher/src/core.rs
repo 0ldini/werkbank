@@ -85,20 +85,120 @@ pub fn fmt_version(v: Version) -> String {
     format!("{}.{}.{}", v.0, v.1, v.2)
 }
 
-/// Datenordner. Liegt neben dem Launcher eine Datei `portable.txt`, bleibt alles
-/// im Ordner `data` daneben (USB-Stick); sonst im Benutzerordner des Systems.
-pub fn data_dir() -> PathBuf {
+/// Kleine Einstellungsdatei des Launchers (nicht im Datenordner, denn die legt den Datenordner fest).
+fn config_path() -> Option<PathBuf> {
+    directories::ProjectDirs::from("", "", "Werkbank").map(|p| p.config_local_dir().join("config.toml"))
+}
+
+#[derive(Deserialize, serde::Serialize, Default)]
+struct Config {
+    data_dir: Option<PathBuf>,
+}
+
+fn load_config() -> Config {
+    config_path()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|t| toml::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+/// Datenordner, der ohne Nachfrage feststeht: Umgebungsvariable, `portable.txt` neben dem
+/// Launcher (Ordner `data` daneben, z. B. USB-Stick) oder die gespeicherte Wahl des Benutzers.
+pub fn configured_data_dir() -> Option<PathBuf> {
     if let Ok(d) = std::env::var("WERKBANK_DATA") {
-        return PathBuf::from(d);
+        return Some(PathBuf::from(d));
     }
     if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
         if dir.join("portable.txt").exists() {
-            return dir.join("data");
+            return Some(dir.join("data"));
         }
+    }
+    load_config().data_dir
+}
+
+/// Vorschlag für die Ersteinrichtung.
+pub fn default_data_dir() -> PathBuf {
+    if cfg!(windows) {
+        let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
+        return PathBuf::from(pf).join("Werkbank");
     }
     directories::ProjectDirs::from("", "", "Werkbank")
         .map(|p| p.data_local_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("werkbank-data"))
+}
+
+/// Datenordner; vor der Ersteinrichtung der Vorschlag.
+pub fn data_dir() -> PathBuf {
+    configured_data_dir().unwrap_or_else(default_data_dir)
+}
+
+fn writable(dir: &Path) -> bool {
+    let probe = dir.join(".werkbank-schreibtest");
+    let ok = fs::write(&probe, b"").is_ok();
+    let _ = fs::remove_file(&probe);
+    ok
+}
+
+/// Legt den Datenordner an und merkt ihn sich. Unter Windows wird ein Ordner, den der Benutzer
+/// nicht beschreiben darf (z. B. unter C:\Program Files), einmalig mit Administratorrechten
+/// angelegt und dem Benutzer freigegeben; danach braucht der Launcher keine Rechte mehr.
+pub fn set_data_dir(dir: &Path) -> Result<()> {
+    let dir = if dir.is_absolute() { dir.to_path_buf() } else { bail!("bitte einen vollständigen Pfad angeben") };
+    if fs::create_dir_all(&dir).is_err() || !writable(&dir) {
+        if cfg!(windows) {
+            create_dir_elevated(&dir)?;
+        }
+        if !writable(&dir) {
+            bail!("{} lässt sich nicht beschreiben", dir.display());
+        }
+    }
+    let path = config_path().ok_or_else(|| anyhow!("kein Ort für die Einstellungen gefunden"))?;
+    if let Some(p) = path.parent() {
+        fs::create_dir_all(p)?;
+    }
+    fs::write(&path, toml::to_string(&Config { data_dir: Some(dir) })?)?;
+    Ok(())
+}
+
+/// Windows: startet den Launcher selbst mit Administratorrechten (UAC-Abfrage), der den Ordner
+/// anlegt und dem aktuellen Benutzer Vollzugriff gibt (`--mkdir-elevated`).
+fn create_dir_elevated(dir: &Path) -> Result<()> {
+    let exe = std::env::current_exe()?;
+    let user = format!(
+        "{}\\{}",
+        std::env::var("USERDOMAIN").unwrap_or_default(),
+        std::env::var("USERNAME").unwrap_or_default()
+    );
+    let args = format!("--mkdir-elevated \"{}\" \"{}\"", dir.display(), user);
+    let script = format!(
+        "$p = Start-Process -FilePath '{}' -ArgumentList '{}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode",
+        exe.display().to_string().replace('\'', "''"),
+        args.replace('\'', "''")
+    );
+    let status = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .status()
+        .context("PowerShell für die Rechteabfrage starten")?;
+    if !status.success() {
+        bail!("Ordner konnte nicht mit Administratorrechten angelegt werden (abgebrochen?)");
+    }
+    Ok(())
+}
+
+/// Läuft in der erhöhten Instanz: Ordner anlegen und dem Benutzer freigeben.
+pub fn mkdir_elevated(dir: &Path, user: &str) -> Result<()> {
+    fs::create_dir_all(dir)?;
+    if cfg!(windows) && !user.is_empty() && user != "\\" {
+        let status = std::process::Command::new("icacls")
+            .arg(dir)
+            .args(["/grant", &format!("{user}:(OI)(CI)F"), "/T", "/Q"])
+            .status()
+            .context("icacls")?;
+        if !status.success() {
+            bail!("icacls fehlgeschlagen");
+        }
+    }
+    Ok(())
 }
 
 /// Wo die aktuelle Programmliste liegt. Neue Programme erscheinen so ohne neuen Launcher.

@@ -47,14 +47,22 @@ Originals nie Konflikte.
 Bricht ein Build mit «das Original hat sich geändert» ab, findet `rebrand.py` den
 Programmnamen oder die Icons nicht mehr dort, wo sie waren. Die Meldung nennt die Stelle.
 
+## Ersteinrichtung
+
+Beim ersten Start fragt der Launcher, wo die Programme abgelegt werden sollen (Vorschlag unter
+Windows: `C:\Program Files\Werkbank`). Der Ordner wird angelegt; liegt er an einem geschützten Ort,
+fragt Windows einmalig nach Administratorrechten, danach gehört der Ordner dem Benutzer. Die Wahl
+steht in `%LOCALAPPDATA%\Werkbank\config\config.toml`; löschen zeigt die Frage erneut. Eine
+`portable.txt` neben `werkbank.exe` übergeht das alles (Daten im Ordner `data` daneben).
+
 ## Offline-Setup für Windows
 
 Reiter «Actions» → «Offline-Setup» → «Run workflow». Der Ablauf packt den neuesten Launcher und
 alle veröffentlichten Programme in ein Setup-Programm (`werkbank-setup-<Datum>.exe`, Release
 `setup-v<Datum>`). Beim Installieren wählt man die Programme; das Häkchen «nach neueren Versionen
 suchen» holt vor dem Einrichten das Aktuellste aus dem Netz, ohne Internet kommt alles aus dem Setup.
-Installiert wird ohne Administratorrechte nach `%LOCALAPPDATA%\Programs\Werkbank`, die Programme
-nach `%LOCALAPPDATA%\Werkbank`. Deinstallieren über Windows-Einstellungen → Apps.
+Der Launcher selbst landet in `%LOCALAPPDATA%\Programs\Werkbank`; die Programme dort, wo die
+Ersteinrichtung es festlegt. Deinstallieren über Windows-Einstellungen → Apps.
 
 ## Launcher veröffentlichen
 

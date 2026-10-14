@@ -11,7 +11,16 @@ use std::sync::{Arc, Mutex};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let manifest = match core::load_manifest() {
+    // Erhöhte Instanz (siehe core::create_dir_elevated): nur den Ordner anlegen, dann beenden.
+    if args.first().map(String::as_str) == Some("--mkdir-elevated") {
+        let (Some(dir), Some(user)) = (args.get(1), args.get(2)) else { std::process::exit(2) };
+        if let Err(e) = core::mkdir_elevated(std::path::Path::new(dir), user) {
+            eprintln!("Fehler: {e:#}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    let load = || match core::load_manifest() {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Fehler: {e:#}");
@@ -41,8 +50,8 @@ fn main() {
         }
     }
     if plain.is_empty() {
-        gui(manifest, bundle, online);
-    } else if let Err(e) = cli(&manifest, &args) {
+        gui(load, bundle, online);
+    } else if let Err(e) = cli(&load(), &args) {
         eprintln!("Fehler: {e:#}");
         std::process::exit(1);
     }
@@ -178,7 +187,17 @@ struct Status {
 
 type Shared = Arc<Mutex<HashMap<String, Status>>>;
 
+/// Ersteinrichtung: Datenordner wählen, solange keiner feststeht.
+struct Setup {
+    path: String,
+    error: Option<String>,
+    load: Box<dyn Fn() -> Manifest>,
+    bundle: Option<std::path::PathBuf>,
+    online: bool,
+}
+
 struct Gui {
+    setup: Option<Setup>,
     manifest: Manifest,
     textures: HashMap<String, egui::TextureHandle>,
     state: Shared,
@@ -186,8 +205,8 @@ struct Gui {
     notice: Option<String>,
 }
 
-fn gui(manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
-    let title = manifest.title.clone();
+fn gui(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>, online: bool) {
+    let title = "Werkbank".to_string();
     let mut viewport = egui::ViewportBuilder::default().with_inner_size([1060.0, 760.0]).with_min_inner_size([560.0, 400.0]);
     if let Ok(icon) = eframe::icon_data::from_png_bytes(icons::WERKBANK) {
         viewport = viewport.with_icon(icon);
@@ -200,11 +219,19 @@ fn gui(manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
         &title,
         options,
         Box::new(move |cc| {
-            let mut app = Gui { manifest, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
             theme(&cc.egui_ctx);
-            app.refresh(&cc.egui_ctx);
-            if let Some(dir) = bundle {
-                app.start_bundle(&cc.egui_ctx, dir, online);
+            let empty = Manifest { title: "Werkbank".into(), app: Vec::new() };
+            let mut app = Gui { setup: None, manifest: empty, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
+            if core::configured_data_dir().is_some() {
+                app.begin(&cc.egui_ctx, load(), bundle, online);
+            } else {
+                app.setup = Some(Setup {
+                    path: core::default_data_dir().display().to_string(),
+                    error: None,
+                    load: Box::new(load),
+                    bundle,
+                    online,
+                });
             }
             Ok(Box::new(app))
         }),
@@ -216,6 +243,86 @@ fn gui(manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
 }
 
 impl Gui {
+    /// Nach der Ersteinrichtung (oder sofort, wenn der Datenordner feststeht): Liste laden, los.
+    fn begin(&mut self, ctx: &egui::Context, manifest: Manifest, bundle: Option<std::path::PathBuf>, online: bool) {
+        self.manifest = manifest;
+        self.refresh(ctx);
+        if let Some(dir) = bundle {
+            self.start_bundle(ctx, dir, online);
+        }
+    }
+
+    fn setup_screen(&mut self, ctx: &egui::Context) {
+        let mut confirm = false;
+        let mut browse = false;
+        let Some(setup) = self.setup.as_mut() else { return };
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(48, 40)))
+            .show(ctx, |ui| {
+                ui.vertical_centered_justified(|ui| {
+                    ui.set_max_width(640.0);
+                    ui.horizontal(|ui| {
+                        if let Some(t) = texture(ctx, &mut self.textures, "werkbank", icons::WERKBANK) {
+                            ui.add(egui::Image::new(&t).fit_to_exact_size(egui::vec2(56.0, 56.0)));
+                        }
+                        ui.vertical(|ui| {
+                            ui.add_space(4.0);
+                            ui.label(egui::RichText::new("Willkommen in der Werkbank").size(24.0).strong());
+                            ui.label(egui::RichText::new("Einmalige Einrichtung").size(13.0).color(MUTED));
+                        });
+                    });
+                    ui.add_space(24.0);
+                    ui.label(egui::RichText::new("Wo sollen die Programme abgelegt werden?").size(16.0).strong());
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Der Ordner wird angelegt, falls er fehlt. Unter C:\\Program Files fragt Windows einmalig nach \
+                             Administratorrechten; danach braucht die Werkbank keine mehr.",
+                        )
+                        .size(13.0)
+                        .color(MUTED),
+                    );
+                    ui.add_space(12.0);
+                    ui.horizontal(|ui| {
+                        let w = ui.available_width() - 140.0;
+                        ui.add_sized([w, 36.0], egui::TextEdit::singleline(&mut setup.path).font(egui::FontId::proportional(15.0)));
+                        if button(ui, "Durchsuchen …", Look::Outline).clicked() {
+                            browse = true;
+                        }
+                    });
+                    if let Some(e) = &setup.error {
+                        ui.add_space(6.0);
+                        ui.label(egui::RichText::new(e).color(WARN));
+                    }
+                    ui.add_space(18.0);
+                    ui.horizontal(|ui| {
+                        if button(ui, "Weiter", Look::Accent).clicked() {
+                            confirm = true;
+                        }
+                        if button(ui, "Vorschlag", Look::Outline).clicked() {
+                            setup.path = core::default_data_dir().display().to_string();
+                        }
+                    });
+                });
+            });
+        if browse {
+            if let Some(dir) = rfd::FileDialog::new().set_title("Datenordner wählen").pick_folder() {
+                setup.path = dir.display().to_string();
+            }
+        }
+        if confirm {
+            let path = std::path::PathBuf::from(setup.path.trim());
+            match core::set_data_dir(&path) {
+                Ok(()) => {
+                    let setup = self.setup.take().unwrap();
+                    let manifest = (setup.load)();
+                    self.begin(ctx, manifest, setup.bundle, setup.online);
+                }
+                Err(e) => setup.error = Some(format!("{e:#}")),
+            }
+        }
+    }
+
     fn local(&self, app: &App) {
         let mut s = self.state.lock().unwrap();
         let st = s.entry(app.id.clone()).or_default();
@@ -522,6 +629,10 @@ impl Gui {
 
 impl eframe::App for Gui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.setup.is_some() {
+            self.setup_screen(ctx);
+            return;
+        }
         let snapshot = self.state.lock().unwrap().clone();
         let apps = self.manifest.app.clone();
         let status = |app: &App| snapshot.get(&app.id).cloned().unwrap_or_default();
