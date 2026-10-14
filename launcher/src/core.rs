@@ -37,6 +37,9 @@ pub struct App {
     pub tag: Option<String>,
     /// Name des eingebauten Icons (Standard: id).
     pub icon: Option<String>,
+    /// Dateitypen (".xlsx"), die das Programm öffnen kann.
+    #[serde(default)]
+    pub types: Vec<String>,
     /// true: nur Browser-Version (z. B. eigene HTML5-Apps), keine Desktop-Programmdatei.
     #[serde(default)]
     pub web_only: bool,
@@ -90,12 +93,27 @@ fn config_path() -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", "Werkbank").map(|p| p.config_local_dir().join("config.toml"))
 }
 
-#[derive(Deserialize, serde::Serialize, Default)]
-struct Config {
-    data_dir: Option<PathBuf>,
+#[derive(Deserialize, serde::Serialize, Default, Clone)]
+pub struct Config {
+    pub data_dir: Option<PathBuf>,
+    /// Zugeordnete Dateitypen je Programm (Stand, der im System eingetragen ist).
+    #[serde(default)]
+    pub types: std::collections::BTreeMap<String, Vec<String>>,
+    /// true, sobald die Ersteinrichtung die Dateitypen einmal gefragt hat.
+    #[serde(default)]
+    pub types_asked: bool,
 }
 
-fn load_config() -> Config {
+pub fn save_config(cfg: &Config) -> Result<()> {
+    let path = config_path().ok_or_else(|| anyhow!("kein Ort für die Einstellungen gefunden"))?;
+    if let Some(p) = path.parent() {
+        fs::create_dir_all(p)?;
+    }
+    fs::write(&path, toml::to_string(cfg)?)?;
+    Ok(())
+}
+
+pub fn load_config() -> Config {
     config_path()
         .and_then(|p| fs::read_to_string(p).ok())
         .and_then(|t| toml::from_str(&t).ok())
@@ -152,12 +170,9 @@ pub fn set_data_dir(dir: &Path) -> Result<()> {
             bail!("{} lässt sich nicht beschreiben", dir.display());
         }
     }
-    let path = config_path().ok_or_else(|| anyhow!("kein Ort für die Einstellungen gefunden"))?;
-    if let Some(p) = path.parent() {
-        fs::create_dir_all(p)?;
-    }
-    fs::write(&path, toml::to_string(&Config { data_dir: Some(dir) })?)?;
-    Ok(())
+    let mut cfg = load_config();
+    cfg.data_dir = Some(dir);
+    save_config(&cfg)
 }
 
 /// Windows: startet den Launcher selbst mit Administratorrechten (UAC-Abfrage), der den Ordner
@@ -590,8 +605,14 @@ pub fn uninstall(app: &App) -> Result<()> {
 }
 
 pub fn run(app: &App) -> Result<()> {
+    run_with(app, None)
+}
+
+/// Startet das Programm, optional mit einer zu öffnenden Datei.
+pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
     let exe = exe_path(app).ok_or_else(|| anyhow!("{} ist nicht installiert", app.name))?;
     std::process::Command::new(&exe)
+        .args(file)
         .current_dir(exe.parent().unwrap_or(Path::new(".")))
         .spawn()
         .with_context(|| format!("Start von {}", exe.display()))?;

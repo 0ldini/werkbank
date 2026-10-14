@@ -1,6 +1,7 @@
 // Unter Windows ohne Konsolenfenster starten.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod assoc;
 mod core;
 mod icons;
 
@@ -19,6 +20,20 @@ fn main() {
             std::process::exit(1);
         }
         return;
+    }
+    // Von Windows aufgerufen («Öffnen mit»): Datei im zugeordneten Programm öffnen.
+    if args.first().map(String::as_str) == Some("--open") {
+        let (Some(id), Some(file)) = (args.get(1), args.get(2)) else { std::process::exit(2) };
+        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new() });
+        if let Some(app) = manifest.app.iter().find(|a| &a.id == id) {
+            if core::run_with(app, Some(std::path::Path::new(file))).is_ok() {
+                return;
+            }
+            let name = app.name.clone();
+            gui(move || manifest.clone(), None, true, Some(format!("{name} ist nicht installiert. Zum Öffnen von {file} zuerst installieren.")));
+            return;
+        }
+        std::process::exit(1);
     }
     let load = || match core::load_manifest() {
         Ok(m) => m,
@@ -50,7 +65,7 @@ fn main() {
         }
     }
     if plain.is_empty() {
-        gui(load, bundle, online);
+        gui(load, bundle, online, None);
     } else if let Err(e) = cli(&load(), &args) {
         eprintln!("Fehler: {e:#}");
         std::process::exit(1);
@@ -196,8 +211,17 @@ struct Setup {
     online: bool,
 }
 
+/// Einstellungen → Dateitypen: die Auswahl, solange die Seite offen ist.
+struct Settings {
+    choice: assoc::Choice,
+    message: Option<(String, bool)>,
+    /// Teil der Ersteinrichtung (dann «Weiter» statt «Zurück»).
+    first_run: bool,
+}
+
 struct Gui {
     setup: Option<Setup>,
+    settings: Option<Settings>,
     manifest: Manifest,
     textures: HashMap<String, egui::TextureHandle>,
     state: Shared,
@@ -205,7 +229,7 @@ struct Gui {
     notice: Option<String>,
 }
 
-fn gui(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>, online: bool) {
+fn gui(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>, online: bool, notice: Option<String>) {
     let title = "Werkbank".to_string();
     let mut viewport = egui::ViewportBuilder::default().with_inner_size([1060.0, 760.0]).with_min_inner_size([560.0, 400.0]);
     if let Ok(icon) = eframe::icon_data::from_png_bytes(icons::WERKBANK) {
@@ -221,7 +245,15 @@ fn gui(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>
         Box::new(move |cc| {
             theme(&cc.egui_ctx);
             let empty = Manifest { title: "Werkbank".into(), app: Vec::new() };
-            let mut app = Gui { setup: None, manifest: empty, textures: HashMap::new(), state: Shared::default(), web_addr: None, notice: None };
+            let mut app = Gui {
+                setup: None,
+                settings: None,
+                manifest: empty,
+                textures: HashMap::new(),
+                state: Shared::default(),
+                web_addr: None,
+                notice,
+            };
             if core::configured_data_dir().is_some() {
                 app.begin(&cc.egui_ctx, load(), bundle, online);
             } else {
@@ -249,6 +281,125 @@ impl Gui {
         self.refresh(ctx);
         if let Some(dir) = bundle {
             self.start_bundle(ctx, dir, online);
+        }
+        // Schritt 2 der Ersteinrichtung: Dateitypen (nur, wo das System es kann).
+        if assoc::supported() && !core::load_config().types_asked {
+            self.settings = Some(Settings { choice: assoc::all(&self.manifest), message: None, first_run: true });
+        }
+    }
+
+    fn open_settings(&mut self) {
+        self.settings = Some(Settings { choice: core::load_config().types, message: None, first_run: false });
+    }
+
+    fn settings_screen(&mut self, ctx: &egui::Context) {
+        let mut close = false;
+        let mut apply = false;
+        let Some(settings) = self.settings.as_mut() else { return };
+        let apps: Vec<App> = self.manifest.app.iter().filter(|a| !a.types.is_empty()).cloned().collect();
+        egui::TopBottomPanel::top("einst-kopf")
+            .frame(egui::Frame::new().fill(HEADER).inner_margin(egui::Margin::symmetric(24, 14)))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        let title = if settings.first_run { "Einrichtung: Dateitypen" } else { "Einstellungen: Dateitypen" };
+                        ui.label(egui::RichText::new(title).size(22.0).strong());
+                        ui.label(
+                            egui::RichText::new("Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.")
+                                .size(12.5)
+                                .color(MUTED),
+                        );
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let label = if settings.first_run { "Weiter" } else { "Übernehmen" };
+                        if button(ui, label, Look::Accent).clicked() {
+                            apply = true;
+                        }
+                        if !settings.first_run && button(ui, "Zurück", Look::Outline).clicked() {
+                            close = true;
+                        }
+                        if settings.first_run && button(ui, "Überspringen", Look::Outline).clicked() {
+                            settings.choice.clear();
+                            apply = true;
+                        }
+                    });
+                });
+            });
+        egui::TopBottomPanel::bottom("einst-fuss")
+            .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 10)))
+            .show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(
+                        egui::RichText::new("Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:")
+                            .size(12.5)
+                            .color(MUTED),
+                    );
+                    if ui.add(egui::Button::new(egui::RichText::new("Standard-Apps in Windows öffnen").size(12.5)).frame(false)).clicked() {
+                        assoc::open_system_settings();
+                    }
+                });
+                if let Some((m, ok)) = &settings.message {
+                    ui.label(egui::RichText::new(m).color(if *ok { ACCENT } else { WARN }));
+                }
+            });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 18)))
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+                    for app in &apps {
+                        let exts = assoc::offered(app);
+                        let chosen = settings.choice.entry(app.id.clone()).or_default();
+                        egui::Frame::new()
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .corner_radius(12u8)
+                            .inner_margin(14.0)
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    tile(ui, &mut self.textures, app, 36.0);
+                                    ui.label(egui::RichText::new(&app.name).size(17.0).strong());
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if ui.small_button("Keine").clicked() {
+                                            chosen.clear();
+                                        }
+                                        if ui.small_button("Alle").clicked() {
+                                            *chosen = exts.clone();
+                                        }
+                                    });
+                                });
+                                ui.horizontal_wrapped(|ui| {
+                                    for ext in &exts {
+                                        let mut on = chosen.contains(ext);
+                                        if ui.checkbox(&mut on, ext).changed() {
+                                            if on {
+                                                chosen.push(ext.clone());
+                                            } else {
+                                                chosen.retain(|e| e != ext);
+                                            }
+                                        }
+                                    }
+                                });
+                            });
+                        ui.add_space(6.0);
+                    }
+                });
+            });
+        if apply {
+            let mut cfg = core::load_config();
+            let wanted: assoc::Choice = settings.choice.iter().filter(|(_, v)| !v.is_empty()).map(|(k, v)| (k.clone(), v.clone())).collect();
+            match assoc::apply(&self.manifest, &cfg.types, &wanted) {
+                Ok(()) => {
+                    cfg.types = wanted;
+                    cfg.types_asked = true;
+                    let _ = core::save_config(&cfg);
+                    close = true;
+                }
+                Err(e) => settings.message = Some((format!("{e:#}"), false)),
+            }
+        }
+        if close {
+            self.settings = None;
         }
     }
 
@@ -633,6 +784,10 @@ impl eframe::App for Gui {
             self.setup_screen(ctx);
             return;
         }
+        if self.settings.is_some() {
+            self.settings_screen(ctx);
+            return;
+        }
         let snapshot = self.state.lock().unwrap().clone();
         let apps = self.manifest.app.clone();
         let status = |app: &App| snapshot.get(&app.id).cloned().unwrap_or_default();
@@ -676,6 +831,9 @@ impl eframe::App for Gui {
                         }
                         if button(ui, "Nach Updates suchen", Look::Outline).clicked() {
                             self.refresh(ctx);
+                        }
+                        if assoc::supported() && button(ui, "Dateitypen", Look::Outline).clicked() {
+                            self.open_settings();
                         }
                         if button(ui, "Datenordner", Look::Outline)
                             .on_hover_text("Hier liegen die installierten Programme")

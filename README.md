@@ -55,6 +55,15 @@ fragt Windows einmalig nach Administratorrechten, danach gehört der Ordner dem 
 steht in `%LOCALAPPDATA%\Werkbank\config\config.toml`; löschen zeigt die Frage erneut. Eine
 `portable.txt` neben `werkbank.exe` übergeht das alles (Daten im Ordner `data` daneben).
 
+## Dateitypen
+
+Knopf «Dateitypen» im Launcher (und Schritt 2 der Ersteinrichtung): pro Programm die Endungen
+anhaken, die es öffnen soll. Die Werkbank trägt sich dafür im Benutzerprofil ein; die Programme
+erscheinen danach unter Rechtsklick → «Öffnen mit» und in den Windows-Einstellungen «Standard-Apps».
+Welches Programm Standard ist, bestätigt man dort selbst (Windows erlaubt das keinem Programm).
+Die Zuordnung zeigt auf `werkbank.exe --open <app> <datei>`, überlebt also jedes Update. Welche
+Endungen ein Programm anbietet, steht in `launcher/apps.toml` (`types`).
+
 ## Offline-Setup für Windows
 
 Reiter «Actions» → «Offline-Setup» → «Run workflow». Der Ablauf packt den neuesten Launcher und
