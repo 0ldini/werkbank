@@ -383,7 +383,7 @@ pub fn to_svg(data: &str, st: &Style) -> Result<String, String> {
     let code = build_code(data, st.ec)?;
     let w = code.width() as u32;
     let px = (w + 2 * st.quiet) * st.scale.max(1);
-    let s = code
+    let mut s = code
         .render::<svg::Color>()
         .min_dimensions(px, px)
         .quiet_zone(st.quiet > 0)

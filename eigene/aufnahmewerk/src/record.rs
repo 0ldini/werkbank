@@ -141,8 +141,9 @@ impl GraphicsCaptureApiHandler for Grab {
 
         let fw = frame.width();
         let fh = frame.height();
-        let mut fb = frame.buffer()?;
-        let src = fb.as_raw_nopadding_buffer()?;
+        let fb = frame.buffer()?;
+        let mut unpadded = Vec::new();
+        let src = fb.as_nopadding_buffer(&mut unpadded);
         let src_stride = fw as usize * 4;
 
         // 1) Zuschnitt oder Vollbild in einen eigenen Puffer.
@@ -157,8 +158,8 @@ impl GraphicsCaptureApiHandler for Grab {
         if self.f.webcam {
             if let Ok(guard) = self.f.webcam_frame.lock() {
                 if let Some(wf) = guard.as_ref() {
-                    let mut cam_w = frame::even(ow * self.f.webcam_percent / 100).max(2);
-                    let mut cam_h = frame::even(cam_w * wf.h / wf.w.max(1)).max(2);
+                    let mut cam_w = crate::model::even(ow * self.f.webcam_percent / 100).max(2);
+                    let mut cam_h = crate::model::even(cam_w * wf.h / wf.w.max(1)).max(2);
                     cam_w = cam_w.min(ow);
                     cam_h = cam_h.min(oh);
                     let scaled = frame::scale_nn(&wf.data, wf.w, wf.h, cam_w, cam_h);

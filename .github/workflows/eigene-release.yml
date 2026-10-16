@@ -47,7 +47,10 @@ jobs:
             [ -f "eigene/$a/Cargo.toml" ] || { echo "::error::eigene/$a/Cargo.toml fehlt"; exit 1; }
             list=$(jq -c --arg a "$a" '. + [$a]' <<<"$list")
             # Browser-Version nur, wenn das Programm eine index.html für Trunk mitbringt.
-            kinds="windows linux"; [ -f "eigene/$a/index.html" ] && kinds="$kinds web"
+            # Nur Windows: in der Cargo.toml «[package.metadata.werkbank]» mit «linux = false».
+            kinds="windows"
+            grep -Eq '^linux *= *false' "eigene/$a/Cargo.toml" || kinds="$kinds linux"
+            [ -f "eigene/$a/index.html" ] && kinds="$kinds web"
             for k in $kinds; do jobs=$(jq -c --arg a "$a" --arg k "$k" '. + [{app: $a, kind: $k}]' <<<"$jobs"); done
           done
           echo "apps=$list" >> "$GITHUB_OUTPUT"
@@ -117,7 +120,9 @@ jobs:
         run: |
           log="$RUNNER_TEMP/build.log"
           [ -f "$log" ] || exit 0
-          text=$( (grep -A16 -E '^error' "$log" || tail -40 "$log") | head -150 | cut -c1-240)
+          # Kurzliste aller Fehler (Meldung + Stelle), danach die ersten ausführlich.
+          short=$(grep -E -A1 '^error(\[E[0-9]+\])?:' "$log" | grep -E '^error|-->' | grep -v 'could not compile' | paste - - | cut -c1-230 | head -60)
+          text=$( (echo "$short"; echo "----"; grep -A12 -E '^error' "$log" | head -60) | cut -c1-240)
           text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
           echo "::error title=$APP ${{ matrix.kind }}::$text"
       - uses: actions/upload-artifact@v4

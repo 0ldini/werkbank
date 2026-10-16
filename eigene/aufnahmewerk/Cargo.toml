@@ -30,3 +30,7 @@ features = [
 opt-level = 3
 lto = true
 strip = true
+
+[package.metadata.werkbank]
+# Nur Windows (Bildschirmaufnahme über die Windows-Grafik-Schnittstelle).
+linux = false
