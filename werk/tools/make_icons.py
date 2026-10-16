@@ -25,6 +25,12 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "cadcraft": ("Planwerk", "#4A5568", '<path d="M4 20V5l15 15z"/><path d="M8 17v-4l4 4z"/>'),
     "gridcraft": ("Rechenwerk", "#5E8C1A", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>'),
     "codewerk": ("Codewerk", "#E07A1F", '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1v3M14 20h3M19.5 20h1.5"/>'),
+    "umbenennwerk": ("Umbenennwerk", "#0F8B8D", '<path d="M4 7h9M4 12h6M4 17h9"/><path d="M16 8l4 4-4 4"/>'),
+    "speicherwerk": ("Speicherwerk", "#6B4FA0", '<circle cx="12" cy="12" r="8"/><path d="M12 4v8h8"/>'),
+    "aufnahmewerk": ("Aufnahmewerk", "#B23A48", '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5" fill="#fff"/>'),
+    "wandelwerk": ("Wandelwerk", "#2B8A6E", '<path d="M5 9a7.5 7.5 0 0 1 13-2.5L20 8M19 15a7.5 7.5 0 0 1-13 2.5L4 16"/><path d="M20 3.5V8h-4.5M4 20.5V16h4.5"/>'),
+    "schutzwerk": ("Schutzwerk", "#3D6B8C", '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
+    "mediathekwerk": ("Mediathekwerk", "#8C5A2B", '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9l2.5-5h3L6 9M9 9l2.5-5h3L12 9M15 9l2.5-5h3"/>'),
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"

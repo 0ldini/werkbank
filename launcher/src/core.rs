@@ -40,6 +40,9 @@ pub struct App {
     /// Dateitypen (".xlsx"), die das Programm öffnen kann.
     #[serde(default)]
     pub types: Vec<String>,
+    /// true: keine Browser-Version.
+    #[serde(default)]
+    pub no_web: bool,
     /// true: nur Browser-Version (z. B. eigene HTML5-Apps), keine Desktop-Programmdatei.
     #[serde(default)]
     pub web_only: bool,

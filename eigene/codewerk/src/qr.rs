@@ -42,6 +42,7 @@ pub struct Style {
     pub scale: u32, // Pixel je Modul
     pub quiet: u32, // Rand in Modulen
     pub ec: Ec,
+    pub cross: bool, // Schweizer Kreuz in der Mitte (für Swiss QR Bill)
 }
 
 impl Default for Style {
@@ -52,6 +53,7 @@ impl Default for Style {
             scale: 10,
             quiet: 4,
             ec: Ec::M,
+            cross: false,
         }
     }
 }
@@ -77,6 +79,107 @@ pub enum Content {
         email: String,
         org: String,
     },
+    Swiss(Box<SwissQr>),
+}
+
+/// Felder einer Schweizer QR-Rechnung (Swiss QR Bill, Version 2.0).
+#[derive(Clone, PartialEq, Default)]
+pub struct SwissQr {
+    pub iban: String,
+    pub amount: String,
+    pub currency: String, // "CHF" / "EUR" (leer = CHF)
+    pub cr_name: String,
+    pub cr_street: String,
+    pub cr_bno: String,
+    pub cr_zip: String,
+    pub cr_city: String,
+    pub cr_country: String,
+    pub db_name: String,
+    pub db_street: String,
+    pub db_bno: String,
+    pub db_zip: String,
+    pub db_city: String,
+    pub db_country: String,
+    pub ref_type: String, // "QRR" / "SCOR" / "NON"
+    pub reference: String,
+    pub message: String,
+}
+
+fn s_trunc(s: &str, n: usize) -> String {
+    s.chars().take(n).collect()
+}
+fn s_clean(s: &str) -> String {
+    s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase()
+}
+fn s_country(s: &str) -> String {
+    let t = s.trim().to_uppercase();
+    if t.is_empty() {
+        "CH".into()
+    } else {
+        s_trunc(&t, 2)
+    }
+}
+fn s_amount(s: &str) -> String {
+    let t = s.trim().replace(',', ".");
+    if t.is_empty() {
+        return String::new();
+    }
+    match t.parse::<f64>() {
+        Ok(v) if v >= 0.0 => format!("{:.2}", v),
+        _ => String::new(),
+    }
+}
+
+/// Baut die Nutzlast der Schweizer QR-Rechnung (31 Elemente, CRLF-getrennt).
+pub fn swiss_payload(b: &SwissQr) -> String {
+    let mut v: Vec<String> = Vec::with_capacity(31);
+    v.push("SPC".into());
+    v.push("0200".into());
+    v.push("1".into());
+    v.push(s_clean(&b.iban));
+    v.push("S".into());
+    v.push(s_trunc(&b.cr_name, 70));
+    v.push(s_trunc(&b.cr_street, 70));
+    v.push(s_trunc(&b.cr_bno, 16));
+    v.push(s_trunc(&b.cr_zip, 16));
+    v.push(s_trunc(&b.cr_city, 35));
+    v.push(s_country(&b.cr_country));
+    for _ in 0..7 {
+        v.push(String::new()); // Ultimate Creditor (reserviert, leer)
+    }
+    v.push(s_amount(&b.amount));
+    v.push(if b.currency.trim().is_empty() {
+        "CHF".into()
+    } else {
+        s_trunc(&b.currency.trim().to_uppercase(), 3)
+    });
+    if b.db_name.trim().is_empty() {
+        for _ in 0..7 {
+            v.push(String::new());
+        }
+    } else {
+        v.push("S".into());
+        v.push(s_trunc(&b.db_name, 70));
+        v.push(s_trunc(&b.db_street, 70));
+        v.push(s_trunc(&b.db_bno, 16));
+        v.push(s_trunc(&b.db_zip, 16));
+        v.push(s_trunc(&b.db_city, 35));
+        v.push(s_country(&b.db_country));
+    }
+    let rt = if b.ref_type.trim().is_empty() {
+        "NON".to_string()
+    } else {
+        b.ref_type.trim().to_uppercase()
+    };
+    v.push(rt.clone());
+    v.push(if rt == "NON" {
+        String::new()
+    } else {
+        s_clean(&b.reference)
+    });
+    v.push(s_trunc(&b.message, 140));
+    v.push("EPD".into());
+    v.join("\r\n")
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -191,6 +294,7 @@ impl Content {
                 s.push_str("END:VCARD");
                 s
             }
+            Content::Swiss(b) => swiss_payload(b),
         }
     }
 }
@@ -227,7 +331,36 @@ pub fn to_rgba(data: &str, st: &Style) -> Result<(Vec<u8>, u32), String> {
             }
         }
     }
+    if st.cross {
+        draw_swiss_cross(&mut img, size, w as u32 * scale);
+    }
     Ok((img.into_raw(), size))
+}
+
+fn fill_rect(img: &mut RgbaImage, x0: i64, y0: i64, w: i64, h: i64, c: [u8; 3]) {
+    let (iw, ih) = (img.width() as i64, img.height() as i64);
+    let px = Rgba([c[0], c[1], c[2], 255]);
+    for y in y0.max(0)..(y0 + h).min(ih) {
+        for x in x0.max(0)..(x0 + w).min(iw) {
+            img.put_pixel(x as u32, y as u32, px);
+        }
+    }
+}
+
+/// Schweizer Kreuz (weisses Kreuz auf schwarzem Quadrat, mit weissem Rand) in
+/// die Mitte zeichnen – wie für die Swiss QR Bill vorgeschrieben.
+fn draw_swiss_cross(img: &mut RgbaImage, size: u32, codearea: u32) {
+    let cs = ((codearea as i64 * 152 / 1000).max(14)) & !1; // ~7mm von 46mm
+    let b = (cs / 12).max(2);
+    let cx = size as i64 / 2;
+    let cy = size as i64 / 2;
+    let ws = cs + 2 * b;
+    fill_rect(img, cx - ws / 2, cy - ws / 2, ws, ws, [255, 255, 255]);
+    fill_rect(img, cx - cs / 2, cy - cs / 2, cs, cs, [0, 0, 0]);
+    let t = ((cs * 20 / 100).max(2)) & !1;
+    let l = (cs * 66 / 100) & !1;
+    fill_rect(img, cx - l / 2, cy - t / 2, l, t, [255, 255, 255]);
+    fill_rect(img, cx - t / 2, cy - l / 2, t, l, [255, 255, 255]);
 }
 
 /// Erzeugt die PNG-Bytes.
@@ -257,5 +390,30 @@ pub fn to_svg(data: &str, st: &Style) -> Result<String, String> {
         .dark_color(svg::Color(&hex(st.fg)))
         .light_color(svg::Color(&hex(st.bg)))
         .build();
+    if st.cross {
+        let overlay = svg_cross(px as f64, (w * st.scale.max(1)) as f64);
+        if let Some(pos) = s.rfind("</svg>") {
+            s.insert_str(pos, &overlay);
+        }
+    }
     Ok(s)
+}
+
+fn svg_cross(px: f64, codearea: f64) -> String {
+    let cs = (codearea * 0.152).max(14.0);
+    let b = (cs / 12.0).max(2.0);
+    let c = px / 2.0;
+    let ws = cs + 2.0 * b;
+    let t = (cs * 0.20).max(2.0);
+    let l = cs * 0.66;
+    format!(
+        "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" fill=\"#ffffff\"/>\
+         <rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" fill=\"#000000\"/>\
+         <rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" fill=\"#ffffff\"/>\
+         <rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" fill=\"#ffffff\"/>",
+        c - ws / 2.0, c - ws / 2.0, ws, ws,
+        c - cs / 2.0, c - cs / 2.0, cs, cs,
+        c - l / 2.0, c - t / 2.0, l, t,
+        c - t / 2.0, c - l / 2.0, t, l,
+    )
 }

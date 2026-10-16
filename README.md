@@ -81,7 +81,7 @@ Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versio
 
 Rust-Programme (egui/eframe) liegen unter `eigene/<name>/`; der Ablauf «Eigene-Release» baut sie für
 Windows, Linux und den Browser und veröffentlicht sie wie die anderen (siehe `eigene/README.md`).
-Das erste ist **Codewerk** (QR-Codes). HTML5-Apps kommen mit `web_only = true` in `launcher/apps.toml`
+Dazu gehören Codewerk, Umbenennwerk, Speicherwerk, Aufnahmewerk, Wandelwerk, Schutzwerk und Mediathekwerk (Übersicht: `eigene/WERKE-UEBERSICHT.md`). HTML5-Apps kommen mit `web_only = true` in `launcher/apps.toml`
 und als `<id>-web-<version>.zip` (ein Ordner mit `index.html`) in ein Release `<id>-v<version>`.
 
 ## Was (noch) fehlt

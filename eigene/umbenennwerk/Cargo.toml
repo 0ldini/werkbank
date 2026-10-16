@@ -1,0 +1,14 @@
+[package]
+name = "umbenennwerk"
+version = "0.1.0"
+edition = "2021"
+description = "Umbenennwerk – Dateien stapelweise umbenennen (Teil der Werkbank-Suite)"
+authors = ["Oli"]
+
+[dependencies]
+egui = "0.29"
+eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow"] }
+rfd = "0.14"
+
+[profile.release]
+opt-level = 2

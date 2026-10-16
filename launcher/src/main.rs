@@ -701,7 +701,7 @@ impl Gui {
                         } else if button(ui, "Installieren", Look::Primary).clicked() {
                             self.install(ctx, app, Kind::Native, None);
                         }
-                        if button(ui, "Im Browser", Look::Outline)
+                        if !app.no_web && button(ui, "Im Browser", Look::Outline)
                             .on_hover_text("Web-Version lokal laden und im Browser öffnen")
                             .clicked()
                         {

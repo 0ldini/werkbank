@@ -9,9 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: "Programm (Ordnername unter eigene/)"
+        description: "Programm(e), Ordnername unter eigene/ (mehrere mit Leerzeichen, «all» für alle)"
         type: string
         default: codewerk
+      # Mehrere Programme: durch Leerzeichen getrennt, z. B. «codewerk wandelwerk».
   push:
     branches: [main]
     paths: ["eigene/**"]
@@ -28,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       apps: ${{ steps.plan.outputs.apps }}
+      jobs: ${{ steps.plan.outputs.jobs }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,15 +38,20 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             apps="${{ inputs.app }}"
+            [ "$apps" = "all" ] && apps=$(ls -d eigene/*/ | xargs -n1 basename)
           else
             apps=$(git diff --name-only HEAD~1 HEAD -- eigene | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi
-          list="[]"
+          list="[]"; jobs="[]"
           for a in $apps; do
             [ -f "eigene/$a/Cargo.toml" ] || { echo "::error::eigene/$a/Cargo.toml fehlt"; exit 1; }
             list=$(jq -c --arg a "$a" '. + [$a]' <<<"$list")
+            # Browser-Version nur, wenn das Programm eine index.html für Trunk mitbringt.
+            kinds="windows linux"; [ -f "eigene/$a/index.html" ] && kinds="$kinds web"
+            for k in $kinds; do jobs=$(jq -c --arg a "$a" --arg k "$k" '. + [{app: $a, kind: $k}]' <<<"$jobs"); done
           done
           echo "apps=$list" >> "$GITHUB_OUTPUT"
+          echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
           echo "Programme: $list"
 
   build:
@@ -55,8 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ fromJson(needs.plan.outputs.apps) }}
-        kind: [windows, linux, web]
+        include: ${{ fromJson(needs.plan.outputs.jobs) }}
     defaults:
       run:
         shell: bash

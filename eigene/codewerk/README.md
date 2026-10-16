@@ -4,8 +4,9 @@ QR-Codes erstellen – Teil der Werkbank-Suite. Reines Rust mit **egui/eframe**
 (wie die ArtCraft-Programme): läuft nativ auf Windows/Linux/macOS **und** im
 Browser (WebAssembly). Mit einer kleinen Kommandozeile im selben Stil.
 
-Inhalte: Text/Link, WLAN-Zugang, E-Mail, Kontakt (vCard). Farben, Grösse,
-Rand und Fehlerkorrektur wählbar. Export als **PNG** und **SVG**.
+Inhalte: Text/Link, WLAN-Zugang, E-Mail, Kontakt (vCard) und **Schweizer
+QR-Rechnung** (Swiss QR Bill 2.0 mit Schweizer Kreuz). Farben, Grösse, Rand
+und Fehlerkorrektur wählbar. Export als **PNG** und **SVG**.
 
 ## Bauen und starten
 
@@ -52,7 +53,8 @@ Oberfläche.
 
 ## Noch offen (nächste Schritte)
 
-- Schweizer QR-Rechnung (Swiss QR Bill) als eigener Inhaltstyp.
-- Runde Punkte und Logo in der Mitte (wie in der Oldinios Toolbox).
+- Schweizer QR-Rechnung: ganzer Zahlteil als A6-PDF (zurzeit nur der QR-Code
+  mit Schweizer Kreuz).
+- Runde Punkte und eigenes Logo in der Mitte (wie in der Oldinios Toolbox).
 - Einbindung in den Werkbank-Launcher (Metadaten, Update-Mechanismus) –
   richtet sich nach dem Launcher.

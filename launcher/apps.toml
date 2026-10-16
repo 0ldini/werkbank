@@ -7,6 +7,7 @@
 #   tag       Anfang der Release-Tags dieser App, z. B. "pdfcraft-v" → pdfcraft-v0.7.1
 #   pin       (optional) auf dieser Version bleiben, z. B. pin = "0.7.1"
 #   types     Dateitypen, die das Programm öffnen kann (Einstellungen → Dateitypen)
+#   no_web    (optional) true: keine Browser-Version
 #   web_only  (optional) true für eigene HTML5-Apps: nur Browser-Version,
 #             Release-Datei <id>-web-<version>.zip
 
@@ -124,7 +125,61 @@ types = [".dxf", ".dwg"]
 [[app]]
 id = "codewerk"
 name = "Codewerk"
-about = "QR-Codes erstellen: Text, Link, WLAN, Kontakt"
+about = "QR-Codes erstellen, auch Swiss QR Bill"
 color = "#E07A1F"
 repo = "https://github.com/0ldini/werkbank"
 tag = "codewerk-v"
+
+[[app]]
+id = "umbenennwerk"
+name = "Umbenennwerk"
+about = "Dateien stapelweise umbenennen"
+color = "#0F8B8D"
+repo = "https://github.com/0ldini/werkbank"
+tag = "umbenennwerk-v"
+no_web = true
+
+[[app]]
+id = "speicherwerk"
+name = "Speicherwerk"
+about = "Speicherplatz analysieren"
+color = "#6B4FA0"
+repo = "https://github.com/0ldini/werkbank"
+tag = "speicherwerk-v"
+no_web = true
+
+[[app]]
+id = "aufnahmewerk"
+name = "Aufnahmewerk"
+about = "Bildschirm aufnehmen als MP4"
+color = "#B23A48"
+repo = "https://github.com/0ldini/werkbank"
+tag = "aufnahmewerk-v"
+no_web = true
+
+[[app]]
+id = "wandelwerk"
+name = "Wandelwerk"
+about = "Ton, Bild und Video umwandeln"
+color = "#2B8A6E"
+repo = "https://github.com/0ldini/werkbank"
+tag = "wandelwerk-v"
+no_web = true
+
+[[app]]
+id = "schutzwerk"
+name = "Schutzwerk"
+about = "Sicherheit prüfen (defensiv)"
+color = "#3D6B8C"
+repo = "https://github.com/0ldini/werkbank"
+tag = "schutzwerk-v"
+no_web = true
+
+[[app]]
+id = "mediathekwerk"
+name = "Mediathekwerk"
+about = "Filme und Serien verwalten (TMDB)"
+color = "#8C5A2B"
+repo = "https://github.com/0ldini/werkbank"
+tag = "mediathekwerk-v"
+no_web = true
