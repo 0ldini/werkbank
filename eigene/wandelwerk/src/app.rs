@@ -199,7 +199,8 @@ impl App {
             ui.horizontal(|ui| {
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
                 let (col, txt) = if self.ffmpeg.is_some() {
-                    (egui::Color32::from_rgb(0x16, 0xa3, 0x4a), "ffmpeg gefunden")
+                    let txt = if convert::HAS_EMBEDDED_FFMPEG { "ffmpeg eingebaut" } else { "ffmpeg gefunden" };
+                    (egui::Color32::from_rgb(0x16, 0xa3, 0x4a), txt)
                 } else {
                     (egui::Color32::from_rgb(0xe5, 0x34, 0x2e), "ffmpeg fehlt (nur Bilder möglich)")
                 };

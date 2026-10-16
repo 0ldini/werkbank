@@ -94,6 +94,13 @@ jobs:
       - name: Trunk installieren
         if: matrix.kind == 'web'
         uses: storytold/craft-common-actions/actions/install-trunk@main
+      # Optional pro Programm: werk-prebuild.sh holt Zusätzliches (z. B. ffmpeg für Wandelwerk).
+      - name: Vorbereiten
+        if: hashFiles(format('eigene/{0}/werk-prebuild.sh', matrix.app)) != ''
+        env:
+          KIND: ${{ matrix.kind }}
+        run: bash ./werk-prebuild.sh
+
       - name: Bauen
         run: |
           set -o pipefail
@@ -102,12 +109,12 @@ jobs:
             windows)
               cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-$VERSION-windows-x64-portable"; mkdir -p "stage/$D"
-              cp "target/release/$APP.exe" "stage/$D/"; cp README.md "stage/$D/" 2>/dev/null || true
+              cp "target/release/$APP.exe" "stage/$D/"; cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
               (cd stage && 7z a -bso0 "../out/$D.zip" "$D") ;;
             linux)
               cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-$VERSION-linux-x86_64"; mkdir -p "stage/$D/bin"
-              cp "target/release/$APP" "stage/$D/bin/"; cp README.md "stage/$D/" 2>/dev/null || true
+              cp "target/release/$APP" "stage/$D/bin/"; cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
               (cd stage && tar czf "../out/$D.tar.gz" "$D") ;;
             web)
               trunk build --release --public-url ./ 2>&1 | tee "$RUNNER_TEMP/build.log"

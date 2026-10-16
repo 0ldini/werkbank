@@ -58,3 +58,15 @@ Motor-Verdrahtung sind gegen die dokumentierten APIs von egui 0.29 und der
 image-Crate 0.25 geschrieben, liessen sich in meiner Umgebung aber nicht bauen
 (kein Zugriff auf crates.io). Wenn `cargo` beim ersten Bauen meckert, schick mir
 die Meldung – dann passe ich es an.
+
+
+## ffmpeg eingebaut
+
+Die Werkbank-Ausgabe von Wandelwerk bringt ffmpeg mit: Es steckt in der Programmdatei und wird
+beim ersten Ton- oder Video-Auftrag einmalig nach `%LOCALAPPDATA%\Wandelwerk` entpackt. Nichts
+muss installiert werden. Liegt eine eigene `ffmpeg.exe` neben dem Programm, hat diese Vorrang.
+
+ffmpeg ist ein eigenständiges Programm des FFmpeg-Projekts (https://ffmpeg.org), hier als
+GPL-Build von https://github.com/BtbN/FFmpeg-Builds. Es steht unter der GNU GPL Version 3
+(siehe `LICENSE-ffmpeg.txt`); den Quellcode gibt es unter https://ffmpeg.org/download.html und
+https://github.com/BtbN/FFmpeg-Builds.
