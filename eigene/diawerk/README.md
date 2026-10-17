@@ -26,7 +26,7 @@ Rust + egui, passend zu Codewerk, Wandelwerk und den anderen Werken.
   weggelassen, Videos nehmen an den Übergängen teil. Andere Seitenverhältnisse als der
   Film bekommen schwarze Balken.
 - **Reihenfolge von Hand**: Zeilen anklicken (Strg = einzeln dazu, Umschalt = Bereich),
-  dann **↑ ↓**, **⇈ Anfang**, **⇊ Ende**, **Nr. … dorthin** – oder die Auswahl einfach mit der
+  dann **▲ ▼**, **An den Anfang**, **Ans Ende**, **Nr. … dorthin** – oder die Auswahl einfach mit der
   Maus an eine neue Stelle ziehen (die violette Linie zeigt, wo sie landet; am Rand scrollt
   die Liste mit). Dazu „Nach Namen" (natürlich: IMG_2 vor IMG_10) und „Nach Datum".
 - **Einstreuen**: **Videos einstreuen**, **Panoramen einstreuen** oder **Beides einstreuen**

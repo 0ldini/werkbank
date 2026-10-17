@@ -519,16 +519,16 @@ impl eframe::App for App {
                 let can_edit = !running && self.probing.is_none();
                 let has_sel = can_edit && !self.sel.is_empty();
                 ui.label(format!("{} gewählt", self.sel.len()));
-                if ui.add_enabled(has_sel, egui::Button::new("↑")).on_hover_text("Eine Stelle nach oben").clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("▲")).on_hover_text("Eine Stelle nach oben").clicked() {
                     self.move_sel(true);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("↓")).on_hover_text("Eine Stelle nach unten").clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("▼")).on_hover_text("Eine Stelle nach unten").clicked() {
                     self.move_sel(false);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⇈ Anfang")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("An den Anfang")).clicked() {
                     self.to_start();
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⇊ Ende")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("Ans Ende")).clicked() {
                     self.to_end();
                 }
                 ui.add(egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)).prefix("Nr. "));
@@ -731,7 +731,7 @@ impl eframe::App for App {
                                 i + 1,
                                 m.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
                             ));
-                            if i > 0 && ui.small_button("↑").clicked() {
+                            if i > 0 && ui.small_button("▲").clicked() {
                                 up = Some(i);
                             }
                             if ui.small_button("✕").clicked() {
