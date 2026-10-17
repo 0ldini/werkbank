@@ -1,6 +1,6 @@
 # Werke – eigene Rust-Programme für die Werkbank
 
-Sieben eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
+Acht eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
 ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 (`cargo run --release`); Details stehen im jeweiligen README.
 
@@ -16,6 +16,8 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    System-Schutz, Papierkorb). Keine Angriffs-/Auslese-Funktionen.
 7. **mediathekwerk** – Filme & Serien über TMDB (Suche, Sammlung mit Status &
    eigener Bewertung). Braucht einen kostenlosen TMDB-API-Schlüssel.
+8. **diawerk** – Diashows als Video aus Fotos und Drohnenvideos (Panoramen mit
+   Schwenk, Übergänge, Musik als MP3, Vor-/Abspann; Formate wie Wandelwerk)
 
 ## Stand
 
@@ -30,5 +32,7 @@ meckert: Meldung zurückgeben, dann wird es punktgenau angepasst.
 - **aufnahmewerk**: windows-capture 2.0.1, nokhwa (Webcam), windows-Crate
 - **wandelwerk**: image-Crate; für Ton/Video ein `ffmpeg.exe` (daneben legen
   oder auf dem PATH)
+- **diawerk**: rfd; ffmpeg wird beim Release-Build eingebettet (sonst neben die
+  .exe legen oder auf den PATH)
 - **mediathekwerk**: egui_extras (Poster), ureq, serde; TMDB-API-Schlüssel
 - die übrigen: nur egui/eframe (schutzwerk nutzt bordeigene Windows-Befehle)
