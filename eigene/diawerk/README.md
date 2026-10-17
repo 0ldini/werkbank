@@ -45,6 +45,15 @@ Rust + egui, passend zu Codewerk, Wandelwerk und den anderen Werken.
 - **Ausgabeformate** wie in Wandelwerk: MP4 (H.264), MKV (H.264), MOV (H.264), WebM (VP9 + Opus).
 - **Auflösung** Full HD, 4K, HD oder 640×360 zum schnellen Ausprobieren; 24–60 Bilder
   pro Sekunde; Qualität Entwurf / Gut / Sehr gut.
+- **Instagram und Hochformat**: Reel/Story 1080×1920, Beitrag 1080×1350 (4:5) oder Quadrat
+  1080×1080. Querformat-Fotos und -Videos stehen dann ganz im Bild vor einem unscharfen
+  Hintergrund, Hochformat-Fotos füllen den Schirm, Panoramen fahren als Schwenk durch. Vor-
+  und Abspann sind gestapelt: Porträt oben, Text darunter. Knopf **Für Instagram einstellen**
+  setzt alles für einen kurzen Werbefilm (1080×1920, 3 s pro Bild, 0,6 s Übergang, Videos
+  höchstens 6 s, MP4). Ab 3 Minuten warnt Diawerk, dass der Film für ein Reel zu lang ist.
+- **Film aus einer Auswahl**: Einträge wählen und unten **nur Auswahl** anhaken – dann
+  kommen nur diese in den Film (in Listenreihenfolge), samt Vor- und Abspann. So entsteht
+  aus der grossen Liste ein kurzer Werbefilm, ohne die Liste umzubauen.
 
 ## Bedienung
 

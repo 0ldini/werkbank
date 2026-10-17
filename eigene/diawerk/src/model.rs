@@ -717,9 +717,15 @@ pub fn with_cards(items: &[Item], s: &Settings, intro: bool, outro: bool) -> Vec
 /// Kleine Einstellungen für die Vorschau im Programmfenster (schnell zu rechnen).
 pub fn preview_settings(s: &Settings) -> Settings {
     let mut p = s.clone();
-    p.width = 640;
-    let h = (640.0 * s.height as f32 / s.width.max(1) as f32 / 2.0).round() as u32 * 2;
-    p.height = h.max(2);
+    // Die längere Seite wird 640 Pixel (Hochformat: 640 hoch).
+    let even = |v: f32| ((v / 2.0).round() as u32 * 2).max(2);
+    if s.height > s.width {
+        p.height = 640;
+        p.width = even(640.0 * s.width as f32 / s.height.max(1) as f32);
+    } else {
+        p.width = 640;
+        p.height = even(640.0 * s.height as f32 / s.width.max(1) as f32);
+    }
     p.fps = s.fps.clamp(10, 25);
     p.music.clear();
     p
@@ -839,8 +845,9 @@ pub struct CardLayout {
     pub blocks: Vec<TextBlock>,
     /// Goldene Linie: (x, y, Breite, Höhe)
     pub rule: Option<(i32, i32, i32, i32)>,
-    /// Porträt: (grösste Breite, Höhe, Rand rechts)
-    pub portrait: Option<(i32, i32, i32)>,
+    /// Porträt: (grösste Breite, Höhe, x, y) – x/y als ffmpeg-Ausdrücke für overlay
+    /// (W/H = Karte, w/h = Porträt).
+    pub portrait: Option<(i32, i32, String, String)>,
 }
 
 pub const CARD_BG: &str = "0x0d0d0d";
@@ -873,6 +880,9 @@ pub fn wrap_text(text: &str, max: usize) -> Vec<String> {
 /// Aufteilung der Karte wie auf der Webseite des Fotografen: links kleine
 /// Titelzeile, grosser Name, goldene Linie, Text; rechts das Porträt.
 pub fn card_layout(w: u32, h: u32, has_portrait: bool, kicker: &str, name: &str, text: &str) -> CardLayout {
+    if h as f32 > w as f32 * 1.1 {
+        return card_layout_tall(w, h, has_portrait, kicker, name, text);
+    }
     let (wf, hf) = (w as f32, h as f32);
     let x0 = if has_portrait { 0.05 * wf } else { 0.10 * wf };
     let colw = if has_portrait { 0.42 * wf } else { 0.80 * wf };
@@ -925,7 +935,71 @@ pub fn card_layout(w: u32, h: u32, has_portrait: bool, kicker: &str, name: &str,
         y += g3;
         blocks.push(TextBlock { text: text_l.join("\n"), x: x0 as i32, y: y as i32, size: ft, color: "0xb4b4b4", spacing: (ft as f32 * 0.2) as i32 });
     }
-    let portrait = if has_portrait { Some(((0.46 * wf) as i32, (0.84 * hf) as i32, (0.05 * wf) as i32)) } else { None };
+    let portrait = if has_portrait {
+        Some(((0.46 * wf) as i32, (0.84 * hf) as i32, format!("W-w-{}", (0.05 * wf) as i32), "(H-h)/2".to_string()))
+    } else {
+        None
+    };
+    CardLayout { blocks, rule, portrait }
+}
+
+/// Hochformat (z. B. Instagram 1080×1920 oder 4:5): Porträt oben in der Mitte, Text darunter,
+/// alle Grössen nach der Bildbreite.
+pub fn card_layout_tall(w: u32, h: u32, has_portrait: bool, kicker: &str, name: &str, text: &str) -> CardLayout {
+    let (wf, hf) = (w as f32, h as f32);
+    let x0 = 0.08 * wf;
+    let colw = 0.84 * wf;
+    let fs = |f: f32| ((f * wf) as i32).max(10);
+    let (fk, fnm, ft) = (fs(0.034), fs(0.10), fs(0.044));
+    let kicker_l = wrap_text(&kicker.to_uppercase(), (colw / (fk as f32 * 0.70)) as usize);
+    let name_l = wrap_text(&name.to_uppercase(), (colw / (fnm as f32 * 0.70)) as usize);
+    let text_l = wrap_text(text, (colw / (ft as f32 * 0.52)) as usize);
+    let lh = |size: i32, n: usize| (size as f32 * 1.45) * n as f32;
+    let (g1, g2, g3) = (0.035 * wf, 0.03 * wf, 0.035 * wf);
+    let rule_h = (0.004 * wf).max(3.0);
+    // Porträt im oberen Teil; der Text bekommt den Rest.
+    let (top, portrait) = if has_portrait {
+        let ph = 0.42 * hf;
+        (0.07 * hf + ph + 0.04 * hf, Some(((0.76 * wf) as i32, ph as i32, "(W-w)/2".to_string(), format!("{}", (0.07 * hf) as i32))))
+    } else {
+        (0.0, None)
+    };
+    let mut total = 0.0;
+    let mut parts = 0;
+    if !kicker_l.is_empty() {
+        total += lh(fk, kicker_l.len());
+        parts += 1;
+    }
+    if !name_l.is_empty() {
+        total += if parts > 0 { g1 } else { 0.0 } + lh(fnm, name_l.len());
+    }
+    total += g2 + rule_h;
+    if !text_l.is_empty() {
+        total += g3 + lh(ft, text_l.len());
+    }
+    let bottom = 0.95 * hf;
+    let mut y = (top + ((bottom - top - total) / 2.0).max(0.0)).max(0.04 * hf);
+    let mut blocks = Vec::new();
+    let mut first = true;
+    if !kicker_l.is_empty() {
+        blocks.push(TextBlock { text: kicker_l.join("\n"), x: x0 as i32, y: y as i32, size: fk, color: "0xe6e6e6", spacing: (fk as f32 * 0.2) as i32 });
+        y += lh(fk, kicker_l.len());
+        first = false;
+    }
+    if !name_l.is_empty() {
+        if !first {
+            y += g1;
+        }
+        blocks.push(TextBlock { text: name_l.join("\n"), x: x0 as i32, y: y as i32, size: fnm, color: "0xffffff", spacing: (fnm as f32 * 0.2) as i32 });
+        y += lh(fnm, name_l.len());
+    }
+    y += g2;
+    let rule = Some((x0 as i32, y as i32, (0.12 * wf) as i32, rule_h as i32));
+    y += rule_h;
+    if !text_l.is_empty() {
+        y += g3;
+        blocks.push(TextBlock { text: text_l.join("\n"), x: x0 as i32, y: y as i32, size: ft, color: "0xb4b4b4", spacing: (ft as f32 * 0.2) as i32 });
+    }
     CardLayout { blocks, rule, portrait }
 }
 
@@ -974,13 +1048,13 @@ pub fn card_graph(layout: &CardLayout, font: &Path, files: &[PathBuf], portrait_
     if let Some((x, y, w, h)) = layout.rule {
         chain.push_str(&format!("drawbox=x={x}:y={y}:w={w}:h={h}:color={CARD_GOLD}:t=fill,"));
     }
-    match layout.portrait {
-        Some((maxw, ph, margin)) => {
+    match &layout.portrait {
+        Some((maxw, ph, px, py)) => {
             let o = orient_filter(portrait_orient);
             let pre = if o.is_empty() { String::new() } else { format!("{o},") };
             format!(
                 "[1:v]{pre}scale={maxw}:{ph}:force_original_aspect_ratio=decrease,format=rgb24[p];\
-                 {chain}format=rgb24[bg];[bg][p]overlay=x=W-w-{margin}:y=(H-h)/2:format=rgb,format=rgb24"
+                 {chain}format=rgb24[bg];[bg][p]overlay=x={px}:y={py}:format=rgb,format=rgb24"
             )
         }
         None => format!("{chain}format=rgb24"),
@@ -1078,8 +1152,22 @@ pub fn image_filter(it: &Item, s: &Settings) -> (String, u32, u32) {
     }
 }
 
-/// Filter, der ein Video auf Ausgabegrösse und Bildrate bringt (schwarze Balken bei anderem Format).
+/// Filter, der ein Video auf Ausgabegrösse und Bildrate bringt. Quer: schwarze Balken bei
+/// anderem Format. Hochformat (Instagram): das Video vor einer unscharfen, abgedunkelten
+/// Vergrösserung von sich selbst, wie bei den Fotos.
 pub fn video_filter(s: &Settings) -> String {
+    if s.height > s.width {
+        let (w, h) = (s.width, s.height);
+        let (sw, sh) = ((w / 8).max(2), (h / 8).max(2));
+        return format!(
+            "fps={fps},format=rgb24,split=2[a][b];\
+             [a]scale={sw}:{sh}:force_original_aspect_ratio=increase,crop={sw}:{sh},gblur=sigma=5,\
+             scale={w}:{h},lutrgb=r=val*0.55:g=val*0.55:b=val*0.55[bg];\
+             [b]scale={w}:{h}:force_original_aspect_ratio=decrease:flags=bicubic[fg];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2:format=rgb,format=rgb24",
+            fps = s.fps
+        );
+    }
     format!(
         "scale={w}:{h}:force_original_aspect_ratio=decrease:flags=bicubic,\
          pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,fps={fps},format=rgb24",
@@ -1253,8 +1341,8 @@ mod tests {
         assert_eq!(l.blocks.len(), 3);
         assert_eq!(l.blocks[1].text, "SAMUEL\nBÜTTLER");
         assert!(l.blocks[0].text.contains('\n')); // Titelzeile bricht um
-        let (maxw, ph, margin) = l.portrait.unwrap();
-        assert!(maxw > 800 && ph == 907 && margin == 96);
+        let (maxw, ph, px, _) = l.portrait.unwrap();
+        assert!(maxw > 800 && ph == 907 && px == "W-w-96");
         // Reihenfolge von oben nach unten, alles im Bild
         let ys: Vec<i32> = l.blocks.iter().map(|b| b.y).collect();
         assert!(ys[0] < ys[1] && ys[1] < l.rule.unwrap().1 && l.rule.unwrap().1 < ys[2]);
@@ -1262,6 +1350,33 @@ mod tests {
         let o = card_layout(1920, 1080, false, "", "Samuel Büttler", "Vielen Dank");
         assert_eq!(o.blocks.len(), 2);
         assert!(o.portrait.is_none());
+    }
+
+    #[test]
+    fn karte_im_hochformat() {
+        let l = card_layout(1080, 1920, true, "Fotograf und Gestalter HF, Kommunikationsdesign", "Samuel Büttler", "Der Mann hinter der Kamera");
+        let (maxw, ph, px, py) = l.portrait.clone().unwrap();
+        assert_eq!((px.as_str(), py.as_str()), ("(W-w)/2", "134"));
+        assert!(maxw <= 1080 && ph < 1920 / 2);
+        // Text unterhalb des Porträts, alles im Bild und innerhalb der Breite
+        let ys: Vec<i32> = l.blocks.iter().map(|b| b.y).collect();
+        assert!(ys[0] > 134 + ph && ys.iter().all(|y| *y < 1920));
+        assert!(ys.windows(2).all(|w| w[0] < w[1]));
+        for b in &l.blocks {
+            for line in b.text.lines() {
+                assert!((line.chars().count() as f32) * b.size as f32 * 0.55 < 1080.0 * 0.92, "zu breit: {line}");
+            }
+        }
+        let o = card_layout(1080, 1350, false, "", "Samuel Büttler", "Vielen Dank");
+        assert!(o.portrait.is_none() && o.blocks.len() == 2);
+    }
+
+    #[test]
+    fn video_im_hochformat_ohne_balken() {
+        let quer = video_filter(&Settings::default());
+        assert!(quer.contains("pad=1920:1080"));
+        let hoch = video_filter(&Settings { width: 1080, height: 1920, ..Settings::default() });
+        assert!(hoch.contains("gblur") && hoch.contains("overlay") && !hoch.contains("pad="));
     }
 
     #[test]
@@ -1377,6 +1492,9 @@ mod tests {
         let s = Settings::default();
         let p = preview_settings(&s);
         assert_eq!((p.width, p.height), (640, 360));
+        let hoch = Settings { width: 1080, height: 1920, ..Settings::default() };
+        let ph = preview_settings(&hoch);
+        assert_eq!((ph.width, ph.height), (360, 640));
         assert!(p.fps <= 25 && p.music.is_empty());
         let items = vec![img("a.jpg", 6000, 4000)];
         assert_eq!(with_cards(&items, &p, false, false).len(), 1);

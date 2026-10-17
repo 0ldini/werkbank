@@ -26,12 +26,19 @@ fn red() -> egui::Color32 {
     egui::Color32::from_rgb(0xdc, 0x26, 0x26)
 }
 
-const RES: [(&str, u32, u32); 4] = [
+const RES: [(&str, u32, u32); 7] = [
     ("Full HD 1920×1080", 1920, 1080),
     ("4K 3840×2160", 3840, 2160),
     ("HD 1280×720", 1280, 720),
     ("Vorschau 640×360", 640, 360),
+    ("Instagram Reel/Story 1080×1920 (hoch)", 1080, 1920),
+    ("Instagram Beitrag 1080×1350 (4:5)", 1080, 1350),
+    ("Quadrat 1080×1080", 1080, 1080),
 ];
+/// Index von «Instagram Reel/Story» in RES.
+const RES_REEL: usize = 4;
+/// Instagram-Reels dürfen höchstens so lang sein (Sekunden).
+const REEL_MAX_SECS: f32 = 180.0;
 
 /// Ergebnis des Ausmessens einer Datei, vom Hilfsthread gemeldet.
 enum ProbeMsg {
@@ -69,6 +76,8 @@ pub struct App {
     pv_mode: Option<PvMode>,
     s: Settings,
     res: usize,
+    /// true: «Diashow erstellen» nimmt nur die gewählten Einträge.
+    only_sel: bool,
     ffmpeg: Option<String>,
     out_path: String,
     recursive: bool,
@@ -107,6 +116,7 @@ impl App {
             pv_mode: None,
             s: Settings::default(),
             res: 0,
+            only_sel: false,
             ffmpeg,
             out_path: tool::default_output().display().to_string(),
             recursive: true,
@@ -246,7 +256,52 @@ impl App {
         self.started = Instant::now();
         self.status = "Diashow wird gerechnet …".into();
         self.status_ok = true;
-        self.job = Some(render::start(ff, model::with_credits(&self.items, &self.s), self.s.clone(), out));
+        let list = self.render_list();
+        if list.is_empty() {
+            self.status = "Keine Einträge gewählt.".into();
+            self.status_ok = false;
+            return;
+        }
+        self.job = Some(render::start(ff, model::with_credits(&list, &self.s), self.s.clone(), out));
+    }
+
+    /// Was in den Film kommt: alles, oder nur die Auswahl (in Listenreihenfolge).
+    fn render_list(&self) -> Vec<Item> {
+        if self.only_sel && !self.sel.is_empty() {
+            self.sel.iter().filter_map(|&i| self.items.get(i).cloned()).collect()
+        } else {
+            self.items.clone()
+        }
+    }
+
+    /// Kurzer Werbefilm fürs Handy: Hochformat, kürzere Standzeit, schnellere Übergänge.
+    fn instagram_preset(&mut self) {
+        self.res = RES_REEL;
+        self.s.width = RES[RES_REEL].1;
+        self.s.height = RES[RES_REEL].2;
+        self.s.fps = 30;
+        self.s.still_secs = 3.0;
+        self.s.trans_secs = 0.6;
+        self.s.format = model::OutFmt::Mp4;
+        self.s.quality = model::Quality::Good;
+        self.s.pano_min_secs = 5.0;
+        self.s.pano_max_secs = 10.0;
+        if self.s.video_max_secs == 0.0 {
+            self.s.video_max_secs = 6.0;
+        }
+        self.s.credits.card_secs = self.s.credits.card_secs.min(3.0);
+        if !self.sel.is_empty() {
+            self.only_sel = true;
+        }
+        let out = PathBuf::from(self.out_path.trim());
+        if let (Some(dir), Some(stem)) = (out.parent(), out.file_stem()) {
+            let stem = stem.to_string_lossy();
+            if !stem.ends_with("-Instagram") {
+                self.out_path = dir.join(format!("{stem}-Instagram.mp4")).display().to_string();
+            }
+        }
+        self.status = "Für Instagram eingestellt: Hochformat 1080×1920, 3 s pro Bild, MP4.".into();
+        self.status_ok = true;
     }
 
     fn poll_job(&mut self) {
@@ -370,8 +425,10 @@ impl App {
             .default_width(680.0)
             .resizable(true)
             .show(ctx, |ui| {
-                let w = ui.available_width().clamp(320.0, 1400.0);
-                let size = egui::vec2(w, w * pv.h as f32 / pv.w as f32);
+                // Hochformat: nach der Höhe richten, damit das Fenster nicht zu lang wird.
+                let ratio = pv.h as f32 / pv.w.max(1) as f32;
+                let w = ui.available_width().clamp(320.0, 1400.0).min(if ratio > 1.0 { 640.0 / ratio } else { f32::MAX });
+                let size = egui::vec2(w, w * ratio);
                 match &self.pv_tex {
                     Some(t) => {
                         ui.add(egui::Image::new((t.id(), size)));
@@ -451,11 +508,14 @@ impl eframe::App for App {
         }
 
         let running = self.job.is_some();
-        let tl = model::build_timeline(&self.items, &self.s);
-        let total_len = model::build_timeline(&model::with_credits(&self.items, &self.s), &self.s).total_secs(self.s.fps);
-        let n_vid = self.items.iter().filter(|i| i.kind == Kind::Video).count();
+        let film = self.render_list();
+        let tl = model::build_timeline(&film, &self.s);
+        // Für die Liste: Zeitplan aller Einträge (Index = Zeile).
+        let tl_all = model::build_timeline(&self.items, &self.s);
+        let total_len = model::build_timeline(&model::with_credits(&film, &self.s), &self.s).total_secs(self.s.fps);
+        let n_vid = film.iter().filter(|i| i.kind == Kind::Video).count();
         let n_pano = tl.slots.iter().filter(|s| s.pano).count();
-        let n_img = self.items.len() - n_vid - n_pano;
+        let n_img = film.len() - n_vid - n_pano;
 
         let ffmpeg_ok = self.ffmpeg.is_some();
         let mut pv_req: Option<PvMode> = None;
@@ -600,9 +660,12 @@ impl eframe::App for App {
                     let can_start = self.ffmpeg.is_some() && !self.items.is_empty() && self.probing.is_none();
                     let btn = egui::Button::new(egui::RichText::new("Diashow erstellen").strong().color(egui::Color32::WHITE))
                         .fill(vio());
+                    let can_start = can_start && (!self.only_sel || !self.sel.is_empty());
                     if ui.add_enabled(can_start, btn).clicked() {
                         self.start_render();
                     }
+                    ui.checkbox(&mut self.only_sel, format!("nur Auswahl ({})", self.sel.len()))
+                        .on_hover_text("Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm).");
                     if !self.items.is_empty() {
                         ui.label(format!(
                             "{} Bilder · {} Panoramen · {} Videos · Länge ca. {}",
@@ -611,6 +674,9 @@ impl eframe::App for App {
                             n_vid,
                             model::fmt_hms(total_len)
                         ));
+                        if self.s.height > self.s.width && total_len > REEL_MAX_SECS {
+                            ui.colored_label(red(), "Länger als 3 Minuten: zu lang für ein Instagram-Reel.");
+                        }
                     }
                 }
             });
@@ -635,6 +701,13 @@ impl eframe::App for App {
                 ui.add_enabled_ui(!running, |ui| {
                     ui.add_space(4.0);
                     ui.heading("Film");
+                    if ui
+                        .button("Für Instagram einstellen")
+                        .on_hover_text("Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge.")
+                        .clicked()
+                    {
+                        self.instagram_preset();
+                    }
                     egui::ComboBox::from_label("Auflösung")
                         .selected_text(RES[self.res].0)
                         .show_ui(ui, |ui| {
@@ -825,7 +898,7 @@ impl eframe::App for App {
             }
             let row_h = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y + 4.0;
             let items = &self.items;
-            let slots = &tl.slots;
+            let slots = &tl_all.slots;
             let fps = self.s.fps as f32;
             let sel = &self.sel;
             let dragging = self.drag.is_some();
