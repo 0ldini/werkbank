@@ -192,3 +192,12 @@ color = "#7C2D52"
 repo = "https://github.com/0ldini/werkbank"
 tag = "diawerk-v"
 no_web = true
+
+[[app]]
+id = "diawerk"
+name = "Diawerk"
+about = "Diashows aus Fotos und Drohnenvideos"
+color = "#2E9BD6"
+repo = "https://github.com/0ldini/werkbank"
+tag = "diawerk-v"
+no_web = true

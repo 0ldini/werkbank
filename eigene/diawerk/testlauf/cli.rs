@@ -19,6 +19,8 @@ fn main() {
     let mut out = PathBuf::from("diashow.mp4");
     let mut ffmpeg = "ffmpeg".to_string();
     let mut spread = false;
+    let mut spread_pano = false;
+    let mut preview_secs: Option<f32> = None;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         let mut val = |n: &str| args.next().unwrap_or_else(|| panic!("{n} braucht einen Wert"));
@@ -58,6 +60,8 @@ fn main() {
             }
             "--no-crop" => s.crop_to_fill = false,
             "--spread" => spread = true,
+            "--spread-pano" => spread_pano = true,
+            "--preview" => preview_secs = Some(val("--preview").parse().unwrap()),
             "--transition" => {
                 s.transition = match val("--transition").as_str() {
                     "fade" => model::Transition::Crossfade,
@@ -85,8 +89,36 @@ fn main() {
             Err(e) => eprintln!("übersprungen {}: {e}", f.display()),
         }
     }
-    if spread {
-        items = model::spread_videos(items);
+    if spread || spread_pano {
+        items = model::spread_items(items, &s, spread, spread_pano);
+    }
+    if let Some(secs) = preview_secs {
+        // Vorschau: lässt sie `secs` Sekunden laufen, speichert den letzten Frame als PPM.
+        let items = model::with_cards(&items, &s, true, false);
+        let pv = render::preview(ffmpeg.clone(), items, &s, 400);
+        let t0 = std::time::Instant::now();
+        let mut n = 0u32;
+        let mut last = None;
+        while pv.running() && t0.elapsed().as_secs_f32() < secs {
+            if let Some((i, f)) = pv.take_frame() {
+                n += 1;
+                last = Some((i, f));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        pv.stop();
+        eprintln!("Vorschau {}x{}: {} Frames abgeholt in {:.1}s, Länge {:.1}s, Position {:.1}s", pv.w, pv.h, n, t0.elapsed().as_secs_f32(), pv.length(), pv.position());
+        if let Some((i, f)) = last {
+            let mut o = format!("P6\n{} {}\n255\n", pv.w, pv.h).into_bytes();
+            o.extend_from_slice(&f);
+            std::fs::write(out.with_extension("ppm"), o).unwrap();
+            eprintln!("letzter Frame Nr. {i}");
+        }
+        while pv.running() {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        eprintln!("Vorschau beendet, sauber: {:?}", pv.ctl.result.lock().unwrap().as_ref().map(|r| r.is_ok()));
+        return;
     }
     let items = model::with_credits(&items, &s);
     let tl = model::build_timeline(&items, &s);

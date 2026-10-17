@@ -3,6 +3,7 @@
 //! ffmpeg-Filter. Nur Standardbibliothek – eigenständig mit `rustc` testbar.
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -687,6 +688,11 @@ pub fn transition_for(pair: usize, s: &Settings, pano_a: bool, pano_b: bool) -> 
 
 /// Ergänzt Vor- und Abspann (falls eingeschaltet) um die Liste.
 pub fn with_credits(items: &[Item], s: &Settings) -> Vec<Item> {
+    with_cards(items, s, s.credits.intro, s.credits.outro)
+}
+
+/// Wie `with_credits`, aber mit frei gewählten Karten (für Vorschau-Ausschnitte).
+pub fn with_cards(items: &[Item], s: &Settings, intro: bool, outro: bool) -> Vec<Item> {
     let card = |kind: Kind, name: &str| Item {
         path: PathBuf::new(),
         name: name.into(),
@@ -698,14 +704,121 @@ pub fn with_credits(items: &[Item], s: &Settings) -> Vec<Item> {
         modified: None,
     };
     let mut v = Vec::with_capacity(items.len() + 2);
-    if s.credits.intro && !items.is_empty() {
+    if intro && !items.is_empty() {
         v.push(card(Kind::Intro, "Vorspann"));
     }
     v.extend_from_slice(items);
-    if s.credits.outro && !items.is_empty() {
+    if outro && !items.is_empty() {
         v.push(card(Kind::Outro, "Abspann"));
     }
     v
+}
+
+/// Kleine Einstellungen für die Vorschau im Programmfenster (schnell zu rechnen).
+pub fn preview_settings(s: &Settings) -> Settings {
+    let mut p = s.clone();
+    p.width = 640;
+    let h = (640.0 * s.height as f32 / s.width.max(1) as f32 / 2.0).round() as u32 * 2;
+    p.height = h.max(2);
+    p.fps = s.fps.clamp(10, 25);
+    p.music.clear();
+    p
+}
+
+// ---------------------------------------------------------------- Liste von Hand ordnen
+
+/// Verschiebt die gewählten Einträge um eine Stelle nach oben/unten (als Block, Reihenfolge bleibt).
+/// Gibt die neue Auswahl zurück.
+pub fn move_selected<T>(v: &mut Vec<T>, sel: &BTreeSet<usize>, up: bool) -> BTreeSet<usize> {
+    let mut out = BTreeSet::new();
+    let n = v.len();
+    if up {
+        for &i in sel.iter().filter(|&&i| i < n) {
+            if i == 0 || out.contains(&(i - 1)) {
+                out.insert(i);
+            } else {
+                v.swap(i - 1, i);
+                out.insert(i - 1);
+            }
+        }
+    } else {
+        for &i in sel.iter().rev().filter(|&&i| i < n) {
+            if i + 1 >= n || out.contains(&(i + 1)) {
+                out.insert(i);
+            } else {
+                v.swap(i, i + 1);
+                out.insert(i + 1);
+            }
+        }
+    }
+    out
+}
+
+/// Nimmt die gewählten Einträge heraus und setzt sie (in ihrer Reihenfolge) so wieder ein,
+/// dass der erste an Stelle `at` steht (0 = ganz vorn, grosse Zahl = ans Ende).
+pub fn place_at<T>(v: &mut Vec<T>, sel: &BTreeSet<usize>, at: usize) -> BTreeSet<usize> {
+    let mut taken: Vec<T> = Vec::new();
+    let len = v.len();
+    for &i in sel.iter().rev().filter(|&&i| i < len) {
+        taken.push(v.remove(i));
+    }
+    taken.reverse();
+    let at = at.min(v.len());
+    let k = taken.len();
+    for (j, t) in taken.into_iter().enumerate() {
+        v.insert(at + j, t);
+    }
+    (at..at + k).collect()
+}
+
+/// Wie `place_at`, aber `before` ist die Einfügemarke in der **alten** Liste
+/// (0 = vor dem ersten Eintrag, `len` = hinter dem letzten) – so, wie man beim Ziehen zielt.
+pub fn move_before<T>(v: &mut Vec<T>, sel: &BTreeSet<usize>, before: usize) -> BTreeSet<usize> {
+    let removed_above = sel.iter().filter(|&&i| i < before).count();
+    place_at(v, sel, before.saturating_sub(removed_above))
+}
+
+/// Verteilt `groups` gleichmässig zwischen die Einträge von `base` (deren Reihenfolge bleibt).
+pub fn spread_groups<T>(base: Vec<T>, groups: Vec<Vec<T>>) -> Vec<T> {
+    let n = base.len();
+    if n == 0 {
+        return groups.into_iter().flatten().collect();
+    }
+    // (nach welchem Basis-Eintrag, Gruppe, Nummer in der Gruppe, Eintrag)
+    let mut events: Vec<(usize, usize, usize, T)> = Vec::new();
+    for (g, grp) in groups.into_iter().enumerate() {
+        let m = grp.len();
+        for (k, it) in grp.into_iter().enumerate() {
+            let after = ((k + 1) as f32 * n as f32 / (m + 1) as f32).round() as usize;
+            events.push((after.saturating_sub(1).min(n - 1), g, k, it));
+        }
+    }
+    events.sort_by_key(|e| (e.0, e.1, e.2));
+    let mut out = Vec::with_capacity(n + events.len());
+    let mut ev = events.into_iter().peekable();
+    for (i, b) in base.into_iter().enumerate() {
+        out.push(b);
+        while ev.peek().map(|e| e.0 == i).unwrap_or(false) {
+            out.push(ev.next().unwrap().3);
+        }
+    }
+    out
+}
+
+/// Streut Videos und/oder Panoramen gleichmässig zwischen die übrigen Bilder.
+pub fn spread_items(items: Vec<Item>, s: &Settings, videos: bool, panos: bool) -> Vec<Item> {
+    let mut base = Vec::new();
+    let (mut vids, mut pans) = (Vec::new(), Vec::new());
+    for it in items {
+        if videos && it.kind == Kind::Video {
+            vids.push(it);
+        } else if panos && is_pano(&it, s) {
+            pans.push(it);
+        } else {
+            base.push(it);
+        }
+    }
+    spread_groups(base, vec![vids, pans])
 }
 
 // ---------------------------------------------------------------- Vor-/Abspann: Gestaltung
@@ -978,27 +1091,8 @@ pub fn video_filter(s: &Settings) -> String {
 
 /// Verschiebt Videos gleichmässig zwischen die Bilder (Reihenfolge der Bilder bleibt).
 pub fn spread_videos(items: Vec<Item>) -> Vec<Item> {
-    let (vids, imgs): (Vec<Item>, Vec<Item>) = items.into_iter().partition(|i| i.kind == Kind::Video);
-    if vids.is_empty() || imgs.is_empty() {
-        return imgs.into_iter().chain(vids).collect();
-    }
-    let (n, m) = (imgs.len(), vids.len());
-    let mut out = Vec::with_capacity(n + m);
-    let mut vi = vids.into_iter().enumerate().peekable();
-    for (i, img) in imgs.into_iter().enumerate() {
-        out.push(img);
-        // Video k kommt nach dem Bild mit Index round((k+1)*n/(m+1)) - 1
-        while let Some(&(k, _)) = vi.peek() {
-            let after = ((k + 1) as f32 * n as f32 / (m + 1) as f32).round() as usize;
-            if after.saturating_sub(1) <= i {
-                out.push(vi.next().unwrap().1);
-            } else {
-                break;
-            }
-        }
-    }
-    out.extend(vi.map(|(_, v)| v));
-    out
+    let (vids, base): (Vec<Item>, Vec<Item>) = items.into_iter().partition(|i| i.kind == Kind::Video);
+    spread_groups(base, vec![vids])
 }
 
 pub fn fmt_hms(secs: f32) -> String {
@@ -1199,5 +1293,93 @@ mod tests {
         let m = OutFmt::Mkv.codec_args(Quality::Good, false);
         assert!(!m.contains(&"-movflags".to_string()) && !m.contains(&"-c:a".to_string()));
         assert!(OutFmt::Mp4.codec_args(Quality::Draft, true).contains(&"-movflags".to_string()));
+    }
+
+    fn set(v: &[usize]) -> BTreeSet<usize> {
+        v.iter().copied().collect()
+    }
+
+    #[test]
+    fn block_verschieben() {
+        let mut v = vec!['a', 'b', 'c', 'd', 'e'];
+        let sel = move_selected(&mut v, &set(&[1, 2]), true);
+        assert_eq!(v, vec!['b', 'c', 'a', 'd', 'e']);
+        assert_eq!(sel, set(&[0, 1]));
+        let sel = move_selected(&mut v, &sel, true); // schon oben: bleibt
+        assert_eq!((v.clone(), sel), (vec!['b', 'c', 'a', 'd', 'e'], set(&[0, 1])));
+        let sel = move_selected(&mut v, &set(&[3, 4]), false); // schon unten
+        assert_eq!((v.clone(), sel), (vec!['b', 'c', 'a', 'd', 'e'], set(&[3, 4])));
+        let sel = move_selected(&mut v, &set(&[0, 2]), false);
+        assert_eq!(v, vec!['c', 'b', 'd', 'a', 'e']);
+        assert_eq!(sel, set(&[1, 3]));
+    }
+
+    #[test]
+    fn an_stelle_setzen() {
+        let mut v: Vec<usize> = (0..8).collect();
+        let sel = place_at(&mut v, &set(&[1, 5]), 0);
+        assert_eq!(v, vec![1, 5, 0, 2, 3, 4, 6, 7]);
+        assert_eq!(sel, set(&[0, 1]));
+        let sel = place_at(&mut v, &set(&[0, 1]), 100); // ans Ende
+        assert_eq!(v, vec![0, 2, 3, 4, 6, 7, 1, 5]);
+        assert_eq!(sel, set(&[6, 7]));
+    }
+
+    #[test]
+    fn ziehen_vor_marke() {
+        let mut v: Vec<usize> = (0..6).collect();
+        // Eintrag 1 vor Marke 4 (= zwischen 3 und 4) ziehen
+        let sel = move_before(&mut v, &set(&[1]), 4);
+        assert_eq!(v, vec![0, 2, 3, 1, 4, 5]);
+        assert_eq!(sel, set(&[3]));
+        // Eintrag 4 vor Marke 1
+        let mut w: Vec<usize> = (0..6).collect();
+        move_before(&mut w, &set(&[4]), 1);
+        assert_eq!(w, vec![0, 4, 1, 2, 3, 5]);
+        // hinter den letzten
+        let mut x: Vec<usize> = (0..4).collect();
+        move_before(&mut x, &set(&[0]), 4);
+        assert_eq!(x, vec![1, 2, 3, 0]);
+    }
+
+    #[test]
+    fn panoramen_und_videos_streuen() {
+        let s = Settings::default();
+        let mut items: Vec<Item> = (0..12).map(|i| img(&format!("i{i:02}.jpg"), 6000, 4000)).collect();
+        items.extend((0..3).map(|i| img(&format!("p{i}.jpg"), 12000, 2000)));
+        items.push(vid("v0.mp4", 10.0));
+        items.push(vid("v1.mp4", 10.0));
+        let out = spread_items(items.clone(), &s, true, true);
+        assert_eq!(out.len(), 17);
+        let pos = |pred: &dyn Fn(&Item) -> bool| -> Vec<usize> {
+            out.iter().enumerate().filter(|(_, i)| pred(i)).map(|(p, _)| p).collect()
+        };
+        let pp = pos(&|i| is_pano(i, &s));
+        let vp = pos(&|i| i.kind == Kind::Video);
+        assert_eq!(pp.len(), 3);
+        assert_eq!(vp.len(), 2);
+        // nie zwei Panoramen/Videos direkt hintereinander, nicht ganz vorn/hinten
+        assert!(pp.windows(2).all(|w| w[1] - w[0] >= 3), "{pp:?}");
+        assert!(vp[1] - vp[0] >= 4, "{vp:?}");
+        assert!(pp[0] > 0 && *pp.last().unwrap() < 16);
+        // normale Bilder behalten Reihenfolge
+        let norm: Vec<&str> = out.iter().filter(|i| !is_pano(i, &s) && i.kind == Kind::Image).map(|i| i.name.as_str()).collect();
+        let expect: Vec<String> = (0..12).map(|i| format!("i{i:02}.jpg")).collect();
+        assert_eq!(norm, expect.iter().map(|x| x.as_str()).collect::<Vec<_>>());
+        // nur Panoramen streuen: Videos bleiben wo sie waren (am Ende)
+        let o2 = spread_items(items, &s, false, true);
+        assert_eq!(o2[o2.len() - 1].kind, Kind::Video);
+        assert_eq!(o2.iter().filter(|i| is_pano(i, &s)).count(), 3);
+    }
+
+    #[test]
+    fn vorschau_einstellungen() {
+        let s = Settings::default();
+        let p = preview_settings(&s);
+        assert_eq!((p.width, p.height), (640, 360));
+        assert!(p.fps <= 25 && p.music.is_empty());
+        let items = vec![img("a.jpg", 6000, 4000)];
+        assert_eq!(with_cards(&items, &p, false, false).len(), 1);
+        assert_eq!(with_cards(&items, &p, true, true).len(), 3);
     }
 }

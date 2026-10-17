@@ -235,9 +235,6 @@ pub fn render(ffmpeg: &str, items: &[Item], s: &Settings, out: &Path, ctl: &Cont
     let tl: Timeline = model::build_timeline(items, s);
     ctl.total.store(tl.total, Ordering::SeqCst);
     ctl.done.store(0, Ordering::SeqCst);
-    let (w, h) = (s.width as usize, s.height as usize);
-    let frame_len = w * h * 3;
-    let edge = model::pano_edge_frames(s);
 
     // --- Musik: Reihenfolge der Titel, bei Bedarf wiederholt
     let total_secs = tl.total_secs(s.fps);
@@ -318,6 +315,41 @@ pub fn render(ffmpeg: &str, items: &[Item], s: &Settings, out: &Path, ctl: &Cont
         }
         Ok(())
     });
+
+    // --- Frames rechnen und an den Schreiber geben
+    let run = run_frames(ffmpeg, items, s, &tl, ctl, &mut |f| ftx.send(f).is_ok());
+    drop(ftx);
+    let write_res = writer.join().map_err(|_| "Schreibthread abgestürzt".to_string())?;
+    if ctl.cancelled() {
+        let _ = child.kill();
+    }
+    let status = child.wait().map_err(|e| format!("ffmpeg: {e}"))?;
+    let err_text = err_thread.join().unwrap_or_default();
+
+    if ctl.cancelled() {
+        return Err("Abgebrochen.".into());
+    }
+    run?;
+    if !status.success() || write_res.is_err() {
+        let last = err_text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("unbekannter Fehler");
+        return Err(format!("ffmpeg hat beim Kodieren abgebrochen: {last}"));
+    }
+    Ok(())
+}
+
+/// Rechnet alle Frames der Zeitleiste der Reihe nach und gibt sie an `sink`.
+/// `sink` meldet `false`, wenn nicht weiter gerechnet werden soll (Ziel ausgefallen / Vorschau beendet).
+fn run_frames(
+    ffmpeg: &str,
+    items: &[Item],
+    s: &Settings,
+    tl: &Timeline,
+    ctl: &Control,
+    sink: &mut dyn FnMut(Vec<u8>) -> bool,
+) -> Result<(), String> {
+    let (w, h) = (s.width as usize, s.height as usize);
+    let frame_len = w * h * 3;
+    let edge = model::pano_edge_frames(s);
 
     // --- Lader: bereitet die Bilder der Reihe nach vor
     let (ltx, lrx) = sync_channel::<(usize, Result<Source, String>)>(2);
@@ -419,33 +451,107 @@ pub fn render(ffmpeg: &str, items: &[Item], s: &Settings, out: &Path, ctl: &Cont
             frames::fade(&mut out, w, (tl.total - f) as f32 / fade_frames as f32);
         }
 
-        if ftx.send(out).is_err() {
-            break; // Schreiber ist ausgefallen, Fehler unten
+        if !sink(out) {
+            break; // Ziel ausgefallen oder Vorschau beendet
         }
         ctl.done.store(f + 1, Ordering::Relaxed);
     }
 
+
     drop(active);
     drop(lrx);
-    drop(ftx);
-    let write_res = writer.join().map_err(|_| "Schreibthread abgestürzt".to_string())?;
-    if ctl.cancelled() {
-        let _ = child.kill();
+    match failure {
+        Some(e) => Err(e),
+        None => Ok(()),
     }
-    let status = child.wait().map_err(|e| format!("ffmpeg: {e}"))?;
-    let err_text = err_thread.join().unwrap_or_default();
+}
 
-    if ctl.cancelled() {
-        return Err("Abgebrochen.".into());
+// ---------------------------------------------------------------- Vorschau
+
+/// Laufende Vorschau: rechnet die Frames in kleiner Auflösung in Echtzeit und
+/// legt den jeweils neuesten zum Abholen bereit (Oberfläche zeichnet ihn).
+pub struct Preview {
+    pub ctl: Arc<Control>,
+    pub w: usize,
+    pub h: usize,
+    pub fps: u32,
+    /// Abspielgeschwindigkeit in Hundertsteln (100 = normal, 200 = doppelt).
+    pub speed: AtomicU32,
+    /// Neuester Frame samt Nummer (RGB).
+    pub frame: Mutex<Option<(u32, Vec<u8>)>>,
+}
+
+impl Preview {
+    pub fn stop(&self) {
+        self.ctl.cancel.store(true, Ordering::SeqCst);
     }
-    if let Some(e) = failure {
-        return Err(e);
+    pub fn running(&self) -> bool {
+        !self.ctl.finished.load(Ordering::SeqCst)
     }
-    if !status.success() || write_res.is_err() {
-        let last = err_text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("unbekannter Fehler");
-        return Err(format!("ffmpeg hat beim Kodieren abgebrochen: {last}"));
+    /// Abspielposition in Sekunden.
+    pub fn position(&self) -> f32 {
+        self.ctl.done.load(Ordering::Relaxed) as f32 / self.fps.max(1) as f32
     }
-    Ok(())
+    pub fn length(&self) -> f32 {
+        self.ctl.total.load(Ordering::Relaxed) as f32 / self.fps.max(1) as f32
+    }
+    pub fn take_frame(&self) -> Option<(u32, Vec<u8>)> {
+        self.frame.lock().ok().and_then(|mut f| f.take())
+    }
+}
+
+/// Startet eine Vorschau der übergebenen Einträge (Karten bereits eingefügt, siehe
+/// `model::with_cards`). `s` sind die normalen Einstellungen; verkleinert wird hier.
+pub fn preview(ffmpeg: String, items: Vec<Item>, s: &Settings, speed_pct: u32) -> Arc<Preview> {
+    let ps = model::preview_settings(s);
+    let pv = Arc::new(Preview {
+        ctl: Control::new(),
+        w: ps.width as usize,
+        h: ps.height as usize,
+        fps: ps.fps,
+        speed: AtomicU32::new(speed_pct.max(10)),
+        frame: Mutex::new(None),
+    });
+    let p2 = pv.clone();
+    thread::spawn(move || {
+        let r = if items.is_empty() {
+            Err("Nichts zum Anzeigen.".to_string())
+        } else {
+            let tl = model::build_timeline(&items, &ps);
+            p2.ctl.total.store(tl.total, Ordering::SeqCst);
+            // Zeitgeber: Sollzeit des nächsten Frames, so läuft die Vorschau mit
+            // richtiger Geschwindigkeit, auch wenn die Geschwindigkeit unterwegs wechselt.
+            let mut due = std::time::Instant::now();
+            let mut n: u32 = 0;
+            run_frames(&ffmpeg, &items, &ps, &tl, &p2.ctl, &mut |f| {
+                if p2.ctl.cancelled() {
+                    return false;
+                }
+                let sp = p2.speed.load(Ordering::Relaxed).max(10) as f64 / 100.0;
+                due += std::time::Duration::from_secs_f64(1.0 / (p2.fps.max(1) as f64 * sp));
+                let now = std::time::Instant::now();
+                if due > now {
+                    thread::sleep(due - now);
+                } else if now - due > std::time::Duration::from_millis(500) {
+                    due = now; // Rechner kommt nicht nach: nicht aufholen, weiterlaufen
+                }
+                if let Ok(mut slot) = p2.frame.lock() {
+                    *slot = Some((n, f));
+                }
+                n += 1;
+                p2.ctl.done.store(n, Ordering::Relaxed);
+                true
+            })
+        };
+        if let Err(e) = &r {
+            if !p2.ctl.cancelled() {
+                p2.ctl.say(e.clone());
+            }
+        }
+        *p2.ctl.result.lock().unwrap() = Some(r);
+        p2.ctl.finished.store(true, Ordering::SeqCst);
+    });
+    pv
 }
 
 /// Mindestens 0,8 s Ein-/Ausblenden, auch wenn der Übergang kürzer oder 0 ist.

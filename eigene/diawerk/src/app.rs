@@ -2,7 +2,7 @@
 //! Einstellungen, unten Ausgabedatei, Start und Fortschritt. Das Rendern läuft
 //! in einem Hintergrundthread (render.rs); die Oberfläche fragt den Stand ab.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Receiver};
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::model::{self, Item, Kind, OutFmt, Quality, Settings, Transition};
-use crate::render::{self, Control};
+use crate::render::{self, Control, Preview};
 use crate::tool;
 
 fn vio() -> egui::Color32 {
@@ -45,9 +45,28 @@ struct Probing {
     got: usize,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum PvMode {
+    Start,
+    FromSel,
+    OnlySel,
+}
+
 pub struct App {
     items: Vec<Item>,
-    sel: Option<usize>,
+    /// Gewählte Zeilen (Mehrfachwahl mit Strg/Umschalt).
+    sel: BTreeSet<usize>,
+    anchor: Option<usize>,
+    /// Zeile, an der gerade gezogen wird (Umsortieren per Maus).
+    drag: Option<usize>,
+    /// Zielnummer für „An Nr. verschieben“ (1-basiert).
+    goto: usize,
+    preview: Option<Arc<Preview>>,
+    pv_open: bool,
+    pv_label: String,
+    pv_speed: u32,
+    pv_tex: Option<egui::TextureHandle>,
+    pv_mode: Option<PvMode>,
     s: Settings,
     res: usize,
     ffmpeg: Option<String>,
@@ -76,7 +95,16 @@ impl App {
         };
         App {
             items: Vec::new(),
-            sel: None,
+            sel: BTreeSet::new(),
+            anchor: None,
+            drag: None,
+            goto: 1,
+            preview: None,
+            pv_open: false,
+            pv_label: String::new(),
+            pv_speed: 100,
+            pv_tex: None,
+            pv_mode: None,
             s: Settings::default(),
             res: 0,
             ffmpeg,
@@ -213,6 +241,7 @@ impl App {
                 return;
             }
         }
+        self.stop_preview();
         self.notes.clear();
         self.started = Instant::now();
         self.status = "Diashow wird gerechnet …".into();
@@ -247,23 +276,160 @@ impl App {
     // ---------------------------------------------------------- Liste bearbeiten
 
     fn move_sel(&mut self, up: bool) {
-        if let Some(i) = self.sel {
-            let j = if up { i.checked_sub(1) } else { Some(i + 1) };
-            if let Some(j) = j {
-                if j < self.items.len() {
-                    self.items.swap(i, j);
-                    self.sel = Some(j);
-                }
-            }
-        }
+        self.sel = model::move_selected(&mut self.items, &self.sel, up);
+    }
+
+    fn to_start(&mut self) {
+        self.sel = model::place_at(&mut self.items, &self.sel, 0);
+    }
+
+    fn to_end(&mut self) {
+        self.sel = model::place_at(&mut self.items, &self.sel, usize::MAX);
+    }
+
+    /// Der erste gewählte Eintrag soll danach die Nummer `nr` (ab 1) haben.
+    fn to_number(&mut self, nr: usize) {
+        self.sel = model::place_at(&mut self.items, &self.sel, nr.saturating_sub(1));
     }
 
     fn remove_sel(&mut self) {
-        if let Some(i) = self.sel {
-            if i < self.items.len() {
-                self.items.remove(i);
+        let first = self.sel.iter().next().copied().unwrap_or(0);
+        let mut i = 0;
+        let sel = std::mem::take(&mut self.sel);
+        self.items.retain(|_| {
+            let keep = !sel.contains(&i);
+            i += 1;
+            keep
+        });
+        self.sel = if self.items.is_empty() { BTreeSet::new() } else { [first.min(self.items.len() - 1)].into() };
+        self.anchor = None;
+    }
+
+    fn spread(&mut self, videos: bool, panos: bool) {
+        let items = std::mem::take(&mut self.items);
+        self.items = model::spread_items(items, &self.s, videos, panos);
+        self.sel.clear();
+        self.anchor = None;
+    }
+
+    // ---------------------------------------------------------- Vorschau
+
+    fn stop_preview(&mut self) {
+        if let Some(p) = self.preview.take() {
+            p.stop();
+        }
+    }
+
+    fn start_preview(&mut self, mode: PvMode) {
+        let Some(ff) = self.ffmpeg.clone() else { return };
+        if self.items.is_empty() {
+            return;
+        }
+        let first = self.sel.iter().next().copied().unwrap_or(0).min(self.items.len() - 1);
+        let c = &self.s.credits;
+        let (list, intro, outro, label): (Vec<Item>, bool, bool, String) = match mode {
+            PvMode::Start => (self.items.clone(), c.intro, c.outro, "ab Anfang".into()),
+            PvMode::FromSel => (self.items[first..].to_vec(), false, c.outro, format!("ab Nr. {}", first + 1)),
+            PvMode::OnlySel => (
+                self.sel.iter().filter_map(|&i| self.items.get(i).cloned()).collect(),
+                false,
+                false,
+                format!("{} gewählte", self.sel.len()),
+            ),
+        };
+        self.stop_preview();
+        let items = model::with_cards(&list, &self.s, intro, outro);
+        self.preview = Some(render::preview(ff, items, &self.s, self.pv_speed));
+        self.pv_mode = Some(mode);
+        self.pv_label = label;
+        self.pv_open = true;
+    }
+
+    fn show_preview(&mut self, ctx: &egui::Context) {
+        let Some(pv) = self.preview.clone() else {
+            self.pv_open = false;
+            return;
+        };
+        // neuesten Frame als Bild übernehmen
+        if let Some((_, rgb)) = pv.take_frame() {
+            let img = egui::ColorImage::from_rgb([pv.w, pv.h], &rgb);
+            match &mut self.pv_tex {
+                Some(t) => t.set(img, egui::TextureOptions::LINEAR),
+                None => self.pv_tex = Some(ctx.load_texture("vorschau", img, egui::TextureOptions::LINEAR)),
             }
-            self.sel = if self.items.is_empty() { None } else { Some(i.min(self.items.len() - 1)) };
+        }
+        let running = pv.running();
+        if running {
+            ctx.request_repaint_after(Duration::from_millis(20));
+        }
+        let mut open = self.pv_open;
+        let mut restart = false;
+        let mut stop = false;
+        egui::Window::new(format!("Vorschau – {}", self.pv_label))
+            .open(&mut open)
+            .default_width(680.0)
+            .resizable(true)
+            .show(ctx, |ui| {
+                let w = ui.available_width().clamp(320.0, 1400.0);
+                let size = egui::vec2(w, w * pv.h as f32 / pv.w as f32);
+                match &self.pv_tex {
+                    Some(t) => {
+                        ui.add(egui::Image::new((t.id(), size)));
+                    }
+                    None => {
+                        let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+                        ui.painter().rect_filled(rect, 0.0, egui::Color32::BLACK);
+                        if running {
+                            ui.painter().text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                "Bilder werden vorbereitet …",
+                                egui::FontId::proportional(16.0),
+                                egui::Color32::GRAY,
+                            );
+                        }
+                    }
+                }
+                let (pos, len) = (pv.position(), pv.length());
+                ui.add(egui::ProgressBar::new(if len > 0.0 { (pos / len).clamp(0.0, 1.0) } else { 0.0 }).text(format!(
+                    "{} / {}",
+                    model::fmt_hms(pos),
+                    model::fmt_hms(len)
+                )));
+                ui.horizontal(|ui| {
+                    if ui.button("Neu starten").clicked() {
+                        restart = true;
+                    }
+                    if ui.add_enabled(running, egui::Button::new("Stopp")).clicked() {
+                        stop = true;
+                    }
+                    ui.separator();
+                    ui.label("Tempo:");
+                    for (lab, v) in [("1×", 100u32), ("2×", 200), ("4×", 400)] {
+                        if ui.selectable_label(self.pv_speed == v, lab).clicked() {
+                            self.pv_speed = v;
+                            pv.speed.store(v, Ordering::Relaxed);
+                        }
+                    }
+                });
+                if let Ok(l) = pv.ctl.log.lock() {
+                    if let Some(last) = l.last() {
+                        ui.colored_label(orange(), last.as_str());
+                    }
+                }
+                ui.small("Verkleinerte Vorschau (640 Pixel breit) – Übergänge, Schwenks und Dauer wie im fertigen Film, ohne Musik.");
+            });
+        self.pv_open = open;
+        if stop {
+            pv.stop();
+        }
+        if restart {
+            if let Some(m) = self.pv_mode {
+                self.start_preview(m);
+            }
+        }
+        if !self.pv_open {
+            self.stop_preview();
         }
     }
 }
@@ -273,6 +439,7 @@ impl eframe::App for App {
         self.poll_probe();
         self.poll_job();
         let busy = self.job.is_some() || self.probing.is_some();
+        self.sel.retain(|&i| i < self.items.len());
         if busy {
             ctx.request_repaint_after(Duration::from_millis(250));
         }
@@ -290,6 +457,8 @@ impl eframe::App for App {
         let n_pano = tl.slots.iter().filter(|s| s.pano).count();
         let n_img = self.items.len() - n_vid - n_pano;
 
+        let ffmpeg_ok = self.ffmpeg.is_some();
+        let mut pv_req: Option<PvMode> = None;
         // ---------------- oben: Liste verwalten
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.add_space(4.0);
@@ -317,35 +486,76 @@ impl eframe::App for App {
                 ui.separator();
                 if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new("Nach Namen")).clicked() {
                     self.items.sort_by(|a, b| model::natural_cmp(&a.path.to_string_lossy(), &b.path.to_string_lossy()));
-                    self.sel = None;
+                    self.sel.clear();
                 }
                 if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new("Nach Datum")).clicked() {
                     self.items.sort_by_key(|i| i.modified);
-                    self.sel = None;
+                    self.sel.clear();
                 }
+                let n_base = self.items.len() - n_vid - n_pano;
                 if ui
                     .add_enabled(can_edit && n_vid > 0 && self.items.len() > n_vid, egui::Button::new("Videos einstreuen"))
                     .on_hover_text("Verteilt die Videos gleichmässig zwischen die Bilder")
                     .clicked()
                 {
-                    let items = std::mem::take(&mut self.items);
-                    self.items = model::spread_videos(items);
-                    self.sel = None;
+                    self.spread(true, false);
                 }
-                ui.separator();
-                let has_sel = can_edit && self.sel.is_some();
-                if ui.add_enabled(has_sel, egui::Button::new("↑")).clicked() {
+                if ui
+                    .add_enabled(can_edit && n_pano > 0 && n_base + n_vid > 0, egui::Button::new("Panoramen einstreuen"))
+                    .on_hover_text("Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge")
+                    .clicked()
+                {
+                    self.spread(false, true);
+                }
+                if ui
+                    .add_enabled(can_edit && n_pano > 0 && n_vid > 0 && n_base > 0, egui::Button::new("Beides einstreuen"))
+                    .on_hover_text("Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen")
+                    .clicked()
+                {
+                    self.spread(true, true);
+                }
+            });
+            ui.horizontal_wrapped(|ui| {
+                let can_edit = !running && self.probing.is_none();
+                let has_sel = can_edit && !self.sel.is_empty();
+                ui.label(format!("{} gewählt", self.sel.len()));
+                if ui.add_enabled(has_sel, egui::Button::new("↑")).on_hover_text("Eine Stelle nach oben").clicked() {
                     self.move_sel(true);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("↓")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("↓")).on_hover_text("Eine Stelle nach unten").clicked() {
                     self.move_sel(false);
+                }
+                if ui.add_enabled(has_sel, egui::Button::new("⇈ Anfang")).clicked() {
+                    self.to_start();
+                }
+                if ui.add_enabled(has_sel, egui::Button::new("⇊ Ende")).clicked() {
+                    self.to_end();
+                }
+                ui.add(egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)).prefix("Nr. "));
+                if ui.add_enabled(has_sel, egui::Button::new("dorthin")).on_hover_text("Gewählte Einträge an diese Nummer setzen").clicked() {
+                    let nr = self.goto;
+                    self.to_number(nr);
                 }
                 if ui.add_enabled(has_sel, egui::Button::new("Entfernen")).clicked() {
                     self.remove_sel();
                 }
+                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new("Alle wählen")).clicked() {
+                    self.sel = (0..self.items.len()).collect();
+                }
                 if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new("Liste leeren")).clicked() {
                     self.items.clear();
-                    self.sel = None;
+                    self.sel.clear();
+                }
+                ui.separator();
+                let can_prev = ffmpeg_ok && !running && !self.items.is_empty() && self.probing.is_none();
+                if ui.add_enabled(can_prev, egui::Button::new("▶ Vorschau ab Anfang")).clicked() {
+                    pv_req = Some(PvMode::Start);
+                }
+                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new("▶ ab Auswahl")).clicked() {
+                    pv_req = Some(PvMode::FromSel);
+                }
+                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new("▶ nur Auswahl")).clicked() {
+                    pv_req = Some(PvMode::OnlySel);
                 }
             });
             ui.add_space(4.0);
@@ -614,13 +824,30 @@ impl eframe::App for App {
                 return;
             }
             let row_h = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y + 4.0;
-            let mut new_sel = self.sel;
             let items = &self.items;
             let slots = &tl.slots;
             let fps = self.s.fps as f32;
+            let sel = &self.sel;
+            let dragging = self.drag.is_some();
+            let area = ui.available_rect_before_wrap();
+            let ptr = ctx.input(|i| i.pointer.hover_pos());
+            let mods = ctx.input(|i| i.modifiers);
+            let mut clicked: Option<usize> = None;
+            let mut drag_started: Option<usize> = None;
+            let mut rects: Vec<(usize, egui::Rect)> = Vec::new();
+            let can_edit = !running && self.probing.is_none();
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show_rows(ui, row_h, items.len(), |ui, range| {
+                    if dragging {
+                        if let Some(p) = ptr {
+                            if p.y < area.top() + 28.0 {
+                                ui.scroll_with_delta(egui::vec2(0.0, 16.0));
+                            } else if p.y > area.bottom() - 28.0 {
+                                ui.scroll_with_delta(egui::vec2(0.0, -16.0));
+                            }
+                        }
+                    }
                     for i in range {
                         let it = &items[i];
                         let sl = &slots[i];
@@ -633,20 +860,84 @@ impl eframe::App for App {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(format!("{:>4}", i + 1)).monospace().weak());
                             ui.label(egui::RichText::new(tag).monospace().strong().color(col));
-                            let text = format!(
-                                "{}    {}×{}    {:.1} s",
-                                it.name,
-                                it.w,
-                                it.h,
-                                sl.frames as f32 / fps
-                            );
-                            if ui.selectable_label(new_sel == Some(i), text).clicked() {
-                                new_sel = Some(i);
+                            let text = format!("{}    {}×{}    {:.1} s", it.name, it.w, it.h, sl.frames as f32 / fps);
+                            let r = ui.selectable_label(sel.contains(&i), text);
+                            let r = r.interact(egui::Sense::click_and_drag());
+                            rects.push((i, r.rect));
+                            if r.clicked() {
+                                clicked = Some(i);
+                            }
+                            if can_edit && r.drag_started() {
+                                drag_started = Some(i);
                             }
                         });
                     }
                 });
-            self.sel = new_sel;
+
+            // Auswahl: Klick, Strg+Klick, Umschalt+Klick
+            if let Some(i) = clicked {
+                if mods.shift {
+                    let a = self.anchor.unwrap_or(i);
+                    let range = a.min(i)..=a.max(i);
+                    if !(mods.ctrl || mods.command) {
+                        self.sel.clear();
+                    }
+                    self.sel.extend(range);
+                } else if mods.ctrl || mods.command {
+                    if !self.sel.remove(&i) {
+                        self.sel.insert(i);
+                    }
+                    self.anchor = Some(i);
+                } else {
+                    self.sel.clear();
+                    self.sel.insert(i);
+                    self.anchor = Some(i);
+                }
+            }
+
+            // Umsortieren per Ziehen
+            if let Some(i) = drag_started {
+                if !self.sel.contains(&i) {
+                    self.sel.clear();
+                    self.sel.insert(i);
+                    self.anchor = Some(i);
+                }
+                self.drag = Some(i);
+            }
+            if self.drag.is_some() {
+                ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+                // Einfügemarke: vor der Zeile unter dem Zeiger (obere Hälfte) oder dahinter
+                let mut target: Option<(usize, f32)> = None;
+                if let (Some(p), Some(first), Some(last)) = (ptr, rects.first(), rects.last()) {
+                    if p.y <= first.1.top() {
+                        target = Some((first.0, first.1.top()));
+                    } else if p.y >= last.1.bottom() {
+                        target = Some((last.0 + 1, last.1.bottom()));
+                    } else if let Some((i, r)) = rects.iter().find(|(_, r)| p.y >= r.top() && p.y < r.bottom()) {
+                        target = Some(if p.y < r.center().y { (*i, r.top()) } else { (*i + 1, r.bottom()) });
+                    }
+                }
+                if let Some((_, y)) = target {
+                    ui.painter().hline(area.x_range(), y, egui::Stroke::new(2.0, vio()));
+                }
+                if ctx.input(|i| i.pointer.any_released()) {
+                    if let Some((before, _)) = target {
+                        let sel = self.sel.clone();
+                        self.sel = model::move_before(&mut self.items, &sel, before);
+                        self.anchor = self.sel.iter().next().copied();
+                    }
+                    self.drag = None;
+                } else {
+                    ctx.request_repaint();
+                }
+            }
         });
+
+        if let Some(m) = pv_req {
+            self.start_preview(m);
+        }
+        if self.preview.is_some() {
+            self.show_preview(ctx);
+        }
     }
 }

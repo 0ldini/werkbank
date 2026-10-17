@@ -25,9 +25,17 @@ Rust + egui, passend zu Codewerk, Wandelwerk und den anderen Werken.
 - **Videos** (Drohne): Standard ganze Länge (einstellbar: höchstens x s je Video), Ton wird
   weggelassen, Videos nehmen an den Übergängen teil. Andere Seitenverhältnisse als der
   Film bekommen schwarze Balken.
-- **Reihenfolge**: nach Namen (natürlich: IMG_2 vor IMG_10) oder Datum, einzelne
-  Einträge verschieben/entfernen, **Videos einstreuen** verteilt die Videos
-  gleichmässig zwischen die Bilder.
+- **Reihenfolge von Hand**: Zeilen anklicken (Strg = einzeln dazu, Umschalt = Bereich),
+  dann **↑ ↓**, **⇈ Anfang**, **⇊ Ende**, **Nr. … dorthin** – oder die Auswahl einfach mit der
+  Maus an eine neue Stelle ziehen (die violette Linie zeigt, wo sie landet; am Rand scrollt
+  die Liste mit). Dazu „Nach Namen" (natürlich: IMG_2 vor IMG_10) und „Nach Datum".
+- **Einstreuen**: **Videos einstreuen**, **Panoramen einstreuen** oder **Beides einstreuen**
+  verteilt sie gleichmässig zwischen die übrigen Bilder (die Reihenfolge der normalen
+  Bilder bleibt). Danach lässt sich von Hand weiter feinschieben.
+- **Vorschau** im Programmfenster: **▶ Vorschau ab Anfang** (mit Vorspann), **▶ ab Auswahl**
+  oder **▶ nur Auswahl**. Läuft verkleinert (640 Pixel breit, höchstens 25 Bilder/s) mit
+  denselben Übergängen, Schwenks und Zeiten wie der fertige Film, ohne Musik; Tempo 1×/2×/4×,
+  Stopp und Neustart im Vorschaufenster.
 - **Vor- und Abspann** für den Fotografen: Vorspann im Aufbau seiner Webseite (links kleine
   Titelzeile, grosser Name, goldene Linie, Text; rechts das Porträt), Abspann mit Dank.
   Alle Texte, das Porträt und die Dauer sind einstellbar, beides abschaltbar. Die Schrift
@@ -44,7 +52,7 @@ Rust + egui, passend zu Codewerk, Wandelwerk und den anderen Werken.
 2. Rechts Einstellungen prüfen. Unten steht die berechnete Länge und die Zahl der erkannten Panoramen.
 3. Ausgabedatei wählen, **Diashow erstellen**. Fortschritt und Restzeit werden angezeigt, Abbrechen ist jederzeit möglich.
 
-Tipp: erst mit „Vorschau 640×360" und Qualität „Entwurf" einen Probelauf machen, dann in Full HD / 4K.
+Tipp: Reihenfolge mit der Vorschau prüfen; für einen Probefilm „Vorschau 640×360" und Qualität „Entwurf" einen Probelauf machen, dann in Full HD / 4K.
 
 ## Rechenzeit
 
@@ -83,7 +91,7 @@ Videos liest ein eigener ffmpeg-Dekoder. Es braucht keine Crates ausser egui/efr
 ## Hinweis zum Stand
 
 `model.rs`, `frames.rs` und der Motor (`render.rs`) sind hier ohne externe Crates
-gebaut und geprüft: 19 Tests mit `rustc --test`, dazu Läufe mit Testbildern (4:3, 3:2,
+gebaut und geprüft: 24 Tests mit `rustc --test`, dazu Läufe mit Testbildern (4:3, 3:2,
 16:9, Hochformat mit EXIF-Drehung, Panoramen 6:1, PNG, kaputte Dateien) und
 Videos (Full HD, 4K, Hochformat) in allen Übergangsarten, mit und ohne Musik. Die
 Länge des fertigen Films stimmte jeweils bis auf den Frame mit dem Zeitplan. Vor-/Abspann, Musik-Titelfolge und alle vier Ausgabeformate wurden ebenfalls durchgespielt.
