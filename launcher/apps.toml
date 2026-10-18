@@ -254,3 +254,37 @@ category = "buero"
 color = "#2F5FB3"
 repo = "https://github.com/0ldini/werkbank"
 tag = "organiwerk-v"
+
+[[app]]
+id = "ladewerk"
+name = "Ladewerk"
+about = "Download-Manager mit Warteschlange und Entpacken"
+about_en = "Download manager with queue and extracting"
+category = "system"
+color = "#0E7490"
+repo = "https://github.com/0ldini/werkbank"
+tag = "ladewerk-v"
+no_web = true
+
+[[app]]
+id = "sicherwerk"
+name = "Sicherwerk"
+about = "Ordner regelmässig sichern (Backup)"
+about_en = "Back up folders regularly"
+category = "system"
+color = "#3D5A80"
+repo = "https://github.com/0ldini/werkbank"
+tag = "sicherwerk-v"
+no_web = true
+
+[[app]]
+id = "packwerk"
+name = "Packwerk"
+about = "ZIP, 7z und TAR packen und entpacken"
+about_en = "Create and extract ZIP, 7z and TAR"
+category = "system"
+color = "#B7791F"
+repo = "https://github.com/0ldini/werkbank"
+tag = "packwerk-v"
+types = [".zip", ".7z", ".tar", ".gz", ".tgz"]
+no_web = true

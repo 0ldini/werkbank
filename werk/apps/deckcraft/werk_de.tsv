@@ -1,0 +1,2017 @@
+# Werkbank: deutsche Oberfläche für DeckCraft (werk_de.rs). Englisch TAB Deutsch;
+# \n \t \\ sind maskiert. {} sind Platzhalter (Reihenfolge wie im Englischen).
+Home	Start
+New	Neu
+Open	Öffnen
+Info	Informationen
+Save As	Speichern unter
+Print	Drucken
+Export	Exportieren
+Account	Konto
+Save	Speichern
+Close	Schliessen
+Options	Optionen
+Back	Zurück
+Back (Esc)	Zurück (Esc)
+Blank Presentation	Leere Präsentation
+Sample deck: Northern Lights	Beispielpräsentation: Northern Lights
+Presentations you open show up here. Use Open to browse for one.	Hier erscheinen die geöffneten Präsentationen. Mit «Öffnen» lässt sich eine suchen.
+Remove from Recent	Aus «Zuletzt verwendet» entfernen
+More themes	Weitere Designs
+Templates	Vorlagen
+More templates	Weitere Vorlagen
+Recent	Zuletzt verwendet
+Search for a file	Datei suchen
+More presentations	Weitere Präsentationen
+Join the ArtCraft community on Discord	Zur ArtCraft-Community (Discord)
+Search for themes and templates	Designs und Vorlagen suchen
+Browse	Durchsuchen
+Open a presentation from a folder (Ctrl+O)	Präsentation aus einem Ordner öffnen (Ctrl+O)
+Recover Unsaved Presentations	Nicht gespeicherte Präsentationen wiederherstellen
+There are no unsaved presentations to recover	Es gibt keine nicht gespeicherten Präsentationen zum Wiederherstellen
+Presentations	Präsentationen
+No presentation is open.	Keine Präsentation geöffnet.
+Not saved yet	Noch nicht gespeichert
+Copy path	Pfad kopieren
+Copied the path	Pfad kopiert
+Open file location	Dateispeicherort öffnen
+There are no unsaved changes.	Es gibt keine ungespeicherten Änderungen.
+This presentation has unsaved changes. Revert goes back to the saved file.	Diese Präsentation hat ungespeicherte Änderungen. «Zurücksetzen» kehrt zur gespeicherten Datei zurück.
+This presentation has never been saved.	Diese Präsentation wurde noch nie gespeichert.
+Revert	Zurücksetzen
+Manage Presentation	Präsentation verwalten
+Properties	Eigenschaften
+Size	Grösse
+Slides	Folien
+Hidden slides	Ausgeblendete Folien
+Location	Speicherort
+Download	Herunterladen
+Download the file	Datei herunterladen
+Choose where to save	Speicherort wählen
+Settings	Einstellungen
+Print All Slides	Alle Folien drucken
+Print Current Slide	Aktuelle Folie drucken
+Custom Range	Benutzerdefinierter Bereich
+Slides:	Folien:
+Landscape Orientation	Querformat
+Portrait Orientation	Hochformat
+Print Hidden Slides	Ausgeblendete Folien drucken
+Frame Slides	Folien mit Rahmen
+Edit Header & Footer	Kopf- und Fusszeile bearbeiten
+Nothing to print: every slide in the range is hidden.	Nichts zu drucken: Alle Folien im Bereich sind ausgeblendet.
+Previous Page	Vorherige Seite
+Next Page	Nächste Seite
+Create PDF Document	PDF-Dokument erstellen
+Create Handouts	Handzettel erstellen
+Change File Type	Dateityp ändern
+Create a PDF Document	Ein PDF-Dokument erstellen
+Include hidden slides	Ausgeblendete Folien einschliessen
+Create PDF	PDF erstellen
+Several slides on each page of a PDF	Mehrere Folien auf jeder Seite eines PDF
+Three a page leaves lines for notes	Drei pro Seite lassen Linien für Notizen
+Print them for your audience	Zum Ausdrucken für das Publikum
+Appearance	Darstellung
+Dark	Dunkel
+Light	Hell
+User Information	Benutzerinformationen
+DeckCraft has no accounts: there is nothing to sign in to, and your presentations stay on your device.	DeckCraft hat keine Konten: Es gibt nichts, wo man sich anmelden müsste, und die Präsentationen bleiben auf dem Gerät.
+Product Information	Produktinformationen
+Open source under MIT OR Apache-2.0. Not affiliated with Microsoft.	Open Source unter MIT OR Apache-2.0. Nicht mit Microsoft verbunden.
+Join our community on Discord	Zur Community (Discord)
+Source on GitHub	Quellcode auf GitHub
+Click to add first slide	Klicken, um die erste Folie hinzuzufügen
+ left of centre	 links der Mitte
+ right of centre	 rechts der Mitte
+ above centre	 über der Mitte
+ below centre	 unter der Mitte
+Smooth Point	Punkt glätten
+Straight Point	Gerades Segment
+Corner Point	Eckpunkt
+Delete Point	Punkt löschen
+Exit Edit Points	Punktbearbeitung beenden
+Delete Repeated Word	Wiederholtes Wort löschen
+(no spelling suggestions)	(keine Rechtschreibvorschläge)
+Ignore All	Alle ignorieren
+Add to Dictionary	Zum Wörterbuch hinzufügen
+Cut	Ausschneiden
+Copy	Kopieren
+Paste	Einfügen
+Paragraph…	Absatz…
+Bullets	Aufzählungszeichen
+Numbering	Nummerierung
+Link…	Link…
+Format Shape…	Form formatieren…
+Edit Text	Text bearbeiten
+Edit Points	Punkte bearbeiten
+Font…	Schriftart…
+Bring to Front	In den Vordergrund
+Send to Back	In den Hintergrund
+Group	Gruppieren
+Unlock	Entsperren
+Lock	Sperren
+Change Picture…	Bild ändern…
+Edit Alt Text…	Alternativtext bearbeiten…
+Set as Default Shape	Als Standardform festlegen
+Size and Position…	Grösse und Position…
+Layout	Layout
+Grid and Guides	Raster und Führungslinien
+Guides	Führungslinien
+Add Vertical Guide	Vertikale Führungslinie hinzufügen
+Add Horizontal Guide	Horizontale Führungslinie hinzufügen
+Reset Slide	Folie zurücksetzen
+Format Background…	Hintergrund formatieren…
+New Comment	Neuer Kommentar
+Username	Benutzername
+Display name	Anzeigename
+Real name	Echter Name
+Name (A–Z)	Name (A–Z)
+Name	Name
+Merged PRs	Zusammengeführte PRs
+PRs	PRs
+Commits	Commits
+Lines added	Zeilen hinzugefügt
+Lines deleted	Zeilen gelöscht
+Line delta	Zeilenbilanz
+Binary assets added	Binäre Dateien hinzugefügt
++Bin	+Bin
+Binary assets removed	Binäre Dateien entfernt
+−Bin	−Bin
+First commit	Erster Commit
+First	Erster
+Last commit	Letzter Commit
+Last	Letzter
+Show	Anzeigen
+Sort	Sortieren
+Reverse the order	Reihenfolge umkehren
+Grab bag	Wundertüte
+Table	Tabelle
+No contributor data was built into this copy.	In diese Version wurden keine Daten zu Mitwirkenden eingebaut.
+No model credits were built into this copy.	In diese Version wurden keine Angaben zu Modellen eingebaut.
+Company	Firma
+Model	Modell
+Version	Version
+% of all commits	% aller Commits
+Lines +/−	Zeilen +/−
+Insert Table	Tabelle einfügen
+Slide Size	Foliengrösse
+Size and Position	Grösse und Position
+Header and Footer	Kopf- und Fusszeile
+Insert Hyperlink	Link einfügen
+Set Up Slide Show	Bildschirmpräsentation einrichten
+Zoom	Zoom
+Alt Text	Alternativtext
+Slides from Outline	Folien aus Gliederung
+Rename Section	Abschnitt umbenennen
+Rename	Umbenennen
+Rename Layout	Layout umbenennen
+Paragraph	Absatz
+Tabs	Tabstopps
+Font	Schriftart
+About DeckCraft	Über DeckCraft
+Preferences	Einstellungen
+Grid Options	Rasteroptionen
+Symbol	Symbol
+Photo Album	Fotoalbum
+Replace Font	Schriftart ersetzen
+Equation	Formel
+Date and Time	Datum und Uhrzeit
+Spelling	Rechtschreibung
+Paste Special	Inhalte einfügen
+Find and Replace	Suchen und Ersetzen
+Accessibility Checker	Barrierefreiheitsprüfung
+Language	Sprache
+Custom Shows	Benutzerdefinierte Präsentationen
+Chart Data	Diagrammdaten
+Trim Media	Medien kürzen
+Choose a SmartArt Graphic	SmartArt-Grafik auswählen
+Bullets and Numbering	Nummerierung und Aufzählungszeichen
+Action Settings	Aktionseinstellungen
+Create New Theme Colors	Neue Designfarben erstellen
+Create New Theme Fonts	Neue Designschriftarten erstellen
+Cancel	Abbrechen
+Text Box	Textfeld
+Picture	Bild
+Pass pictures to insert.photoAlbum	Bilder an insert.photoAlbum übergeben
+The web build inserts album pictures from data passed to insert.photoAlbum	Die Webversion fügt Albumbilder aus Daten ein, die an insert.photoAlbum übergeben werden
+That file is empty	Diese Datei ist leer
+That picture is larger than 32 MB	Dieses Bild ist grösser als 32 MB
+Pictures in album	Bilder im Album
+No pictures yet	Noch keine Bilder
+Add Pictures…	Bilder hinzufügen…
+A photo album holds at most 48 pictures or text boxes	Ein Fotoalbum fasst höchstens 48 Bilder oder Textfelder
+The picture list is invalid	Die Bilderliste ist ungültig
+New Text Box	Neues Textfeld
+Type the text for the new text box	Text für das neue Textfeld eingeben
+Text is longer than 400 characters	Der Text ist länger als 400 Zeichen
+Remove	Entfernen
+Text box:	Textfeld:
+Rotate Left	Nach links drehen
+Rotate Right	Nach rechts drehen
+More Brightness	Mehr Helligkeit
+Less Brightness	Weniger Helligkeit
+More Contrast	Mehr Kontrast
+Less Contrast	Weniger Kontrast
+Picture layout	Bildlayout
+Fit to slide	An Folie anpassen
+1 picture with title	1 Bild mit Titel
+2 pictures with title	2 Bilder mit Titel
+4 pictures with title	4 Bilder mit Titel
+Frame shape	Rahmenform
+None	Keine
+Rectangle	Rechteck
+Rounded	Abgerundet
+Simple, white	Einfach, weiss
+Captions under pictures	Beschriftungen unter Bildern
+ALL pictures black and white	ALLE Bilder schwarzweiss
+Album theme	Albumdesign
+Update	Aktualisieren
+Create	Erstellen
+Add a picture or a text box first	Zuerst ein Bild oder ein Textfeld hinzufügen
+Select a picture to rotate it or change brightness and contrast	Ein Bild auswählen, um es zu drehen oder Helligkeit und Kontrast zu ändern
+Text boxes have no picture options	Textfelder haben keine Bildoptionen
+Enter a scheme name.	Einen Namen für das Schema eingeben.
+Name:	Name:
+Scheme name	Name des Schemas
+Applies to this presentation's theme colours.	Gilt für die Designfarben dieser Präsentation.
+Choose a heading font.	Eine Schriftart für Überschriften wählen.
+Choose a body font.	Eine Schriftart für Textkörper wählen.
+Heading:	Überschrift:
+Heading font	Schriftart für Überschriften
+Body:	Textkörper:
+Body font	Schriftart für Textkörper
+Heading and body fonts for this presentation.	Schriftarten für Überschriften und Textkörper dieser Präsentation.
+Zoom to	Zoomen auf
+Fit	Anpassen
+Percent:	Prozent:
+OK	OK
+Enter a zoom percent	Einen Zoomfaktor in Prozent eingeben
+Number of columns:	Anzahl Spalten:
+Number of rows:	Anzahl Zeilen:
+Insert	Einfügen
+Slides sized for:	Foliengrösse für:
+Width (in):	Breite (in):
+Height (in):	Höhe (in):
+Orientation:	Ausrichtung:
+Portrait	Hochformat
+Landscape	Querformat
+Maximize content (else ensure fit)	Inhalt maximieren (sonst passend machen)
+Date and time	Datum und Uhrzeit
+  Fixed date (empty = update automatically):	  Festes Datum (leer = automatisch aktualisieren):
+Slide number	Foliennummer
+Footer	Fusszeile
+  Footer text:	  Text der Fusszeile:
+Don't show on title slide	Nicht auf Titelfolie anzeigen
+Apply to All	Auf alle anwenden
+Apply	Übernehmen
+Web Page or File	Webseite oder Datei
+This Document	Aktuelles Dokument
+Email Address	E-Mail-Adresse
+Email address:	E-Mail-Adresse:
+Address:	Adresse:
+ScreenTip:	QuickInfo:
+Show type	Art der Präsentation
+Loop continuously until 'Esc'	Wiederholen, bis «Esc» gedrückt wird
+Show without narration	Präsentation ohne Kommentar
+Show without animation	Präsentation ohne Animation
+Use timings, if present	Anzeigedauer verwenden, falls vorhanden
+All slides	Alle Folien
+Your changes will be lost if you don't save them.	Die Änderungen gehen verloren, wenn sie nicht gespeichert werden.
+Don't Save	Nicht speichern
+Start a conversation	Eine Unterhaltung beginnen
+Post	Senden
+Bulleted	Aufzählung
+Numbered	Nummeriert
+Custom character:	Eigenes Zeichen:
+Start at:	Beginnen bei:
+Size (% of text):	Grösse (% des Texts):
+Text	Text
+Accent 1	Akzent 1
+Accent 2	Akzent 2
+Accent 3	Akzent 3
+Accent 4	Akzent 4
+Accent 5	Akzent 5
+Accent 6	Akzent 6
+Color:	Farbe:
+Automatic	Automatisch
+Remove bullets and numbering	Aufzählungszeichen und Nummerierung entfernen
+Mouse Click	Mausklick
+Mouse Over	Mouseover
+Action on mouse over	Aktion bei Mouseover
+Action on click	Aktion bei Mausklick
+Hyperlink to:	Link zu:
+Next Slide	Nächste Folie
+Previous Slide	Vorherige Folie
+First Slide	Erste Folie
+Last Slide	Letzte Folie
+Last Slide Viewed	Zuletzt angezeigte Folie
+End Show	Präsentation beenden
+Custom Show…	Benutzerdefinierte Präsentation…
+Slide…	Folie…
+This presentation has no custom shows (Slide Show ▸ Custom Slide Show).	Diese Präsentation hat keine benutzerdefinierten Präsentationen (Bildschirmpräsentation ▸ Benutzerdefinierte Bildschirmpräsentation).
+Run program:	Programm ausführen:
+Program:	Programm:
+Play the shape's media	Medien der Form wiedergeben
+Highlight click	Klicken hervorheben
+How would you describe this object and its context to someone who is blind or has low vision?	Wie würde man dieses Objekt und seinen Zusammenhang jemandem beschreiben, der blind oder sehbehindert ist?
+Mark as decorative	Als dekorativ markieren
+Paste or type an outline. Unindented lines become slide titles; tab-indented lines become bullets.	Eine Gliederung einfügen oder eingeben. Nicht eingerückte Zeilen werden zu Folientiteln, mit Tabulator eingerückte Zeilen zu Aufzählungspunkten.
+Export the presentation as:	Präsentation exportieren als:
+Print layout:	Drucklayout:
+Notes Pages	Notizenseiten
+Handouts (1 slide per page)	Handzettel (1 Folie pro Seite)
+Handouts (2 slides per page)	Handzettel (2 Folien pro Seite)
+Handouts (3 slides per page)	Handzettel (3 Folien pro Seite)
+Handouts (4 slides per page)	Handzettel (4 Folien pro Seite)
+Handouts (6 slides per page)	Handzettel (6 Folien pro Seite)
+Handouts (9 slides per page)	Handzettel (9 Folien pro Seite)
+Replace:	Ersetzen:
+With:	Durch:
+Font name	Name der Schriftart
+Replace	Ersetzen
+Click a symbol to insert it at the insertion point.	Auf ein Symbol klicken, um es an der Einfügemarke einzufügen.
+Type an equation in linear form (e.g. a^2+b^2=c^2, x=(-b±√(b^2-4ac))/2a).	Eine Formel in linearer Form eingeben (z. B. a^2+b^2=c^2, x=(-b±√(b^2-4ac))/2a).
+As:	Als:
+The spelling check is complete. No issues found.	Die Rechtschreibprüfung ist abgeschlossen. Keine Probleme gefunden.
+Go to	Gehe zu
+Repeated word	Wiederholtes Wort
+Change to:	Ändern in:
+Click to change this one; Shift-click to change all	Klicken ändert dieses Vorkommen, Umschalt-Klick ändert alle
+No accessibility issues found. People with disabilities should not have difficulty reading this document.	Keine Probleme mit der Barrierefreiheit gefunden. Menschen mit Behinderungen sollten dieses Dokument problemlos lesen können.
+Mark selected text as:	Markierten Text kennzeichnen als:
+Spelling is checked for languages marked (dictionary).	Die Rechtschreibung wird für Sprachen mit (Wörterbuch) geprüft.
+Do not check spelling or grammar	Rechtschreibung und Grammatik nicht prüfen
+Delete	Löschen
+New show name:	Name der neuen Präsentation:
+Custom Show 1	Benutzerdefinierte Präsentation 1
+Slides (e.g. 1,3,5):	Folien (z. B. 1,3,5):
+Select a chart first.	Zuerst ein Diagramm auswählen.
+Edit the data: first row = series names, first column = categories.	Daten bearbeiten: erste Zeile = Namen der Reihen, erste Spalte = Kategorien.
++ Row	+ Zeile
++ Series	+ Reihe
+Start time (s):	Startzeit (s):
+End trim (s):	Ende kürzen (s):
+Fade in (s):	Einblenden (s):
+Fade out (s):	Ausblenden (s):
+Pick a graphic; type one item per line.	Eine Grafik wählen und ein Element pro Zeile eingeben.
+Basic List	Einfache Liste
+Basic Process	Einfacher Prozess
+Basic Cycle	Einfacher Zyklus
+Hierarchy	Hierarchie
+Pyramid	Pyramide
+Matrix	Matrix
+Plan\nBuild\nLaunch	Planen\nBauen\nStarten
+About	Über
+Contributors	Mitwirkende
+Models	Modelle
+Correct TWo INitial CApitals	ZWei GRossbuchstaben am WOrtanfang korrigieren
+Capitalize first letter of sentences	Jeden Satz mit einem Grossbuchstaben beginnen
+Capitalize names of days	Wochentage grossschreiben
+Correct accidental use of cAPS LOCK key	Unbeabsichtigtes Verwenden der fESTSTELLTASTE korrigieren
+Replace fractions (1/2) with fraction characters (½)	Brüche (1/2) durch Bruchzeichen (½) ersetzen
+Replace text as you type	Text während der Eingabe ersetzen
+With	Durch
+Add	Hinzufügen
+General	Allgemein
+Dark appearance	Dunkle Darstellung
+Interface size	Grösse der Oberfläche
+Editing	Bearbeitung
+Show smart guides	Intelligente Führungslinien anzeigen
+Snap objects to grid	Objekte am Raster ausrichten
+Replace straight quotes with smart quotes	Gerade Anführungszeichen durch typografische ersetzen
+AutoCorrect as you type	AutoKorrektur während der Eingabe
+AutoCorrect Options…	AutoKorrektur-Optionen…
+Your name (comments):	Eigener Name (für Kommentare):
+Done	Fertig
+Rotation (°):	Drehung (°):
+Scale height (%):	Höhe skalieren (%):
+Scale width (%):	Breite skalieren (%):
+Lock aspect ratio	Seitenverhältnis sperren
+Position	Position
+From the top-left corner of the slide	Von der linken oberen Ecke der Folie
+Horizontal (in):	Horizontal (in):
+Vertical (in):	Vertikal (in):
+Available formats:	Verfügbare Formate:
+Language:	Sprache:
+Month names and AM/PM are listed for English. Other languages list the numeric date and 24-hour time.	Monatsnamen und AM/PM gibt es für Englisch. Andere Sprachen zeigen das Datum in Zahlen und die Uhrzeit im 24-Stunden-Format.
+Update automatically	Automatisch aktualisieren
+Snap	Ausrichten
+Snap objects to other objects	Objekte an anderen Objekten ausrichten
+Spacing (pt):	Abstand (pt):
+Display	Anzeige
+Display grid on screen	Raster auf dem Bildschirm anzeigen
+Display drawing guides on screen	Zeichnungslinien auf dem Bildschirm anzeigen
+Presentations and slide shows, rebuilt from scratch in pure Rust.	Präsentationen und Bildschirmpräsentationen, von Grund auf neu in reinem Rust geschrieben.
+An open-source, clean-room project. Not affiliated with Microsoft.	Ein Open-Source-Projekt im Clean-Room-Verfahren. Nicht mit Microsoft verbunden.
+MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors	MIT OR Apache-2.0 · © 2026 ArtCraft Team und die Mitwirkenden von DeckCraft
+Bold	Fett
+Italic	Kursiv
+Underline	Unterstreichung
+Single	Einfach
+Double	Doppelt
+Heavy	Dick
+Dotted	Gepunktet
+Dash	Strich
+Wavy	Wellenlinie
+Color	Farbe
+Strikethrough	Durchgestrichen
+Baseline	Grundlinie
+Superscript	Hochgestellt
+Subscript	Tiefgestellt
+Caps	Grossbuchstaben
+Small caps	Kapitälchen
+All caps	Alles in Grossbuchstaben
+Spacing	Abstand
+Very tight	Sehr eng
+Tight	Eng
+Normal	Normal
+Loose	Weit
+Very loose	Sehr weit
+Choose a font	Eine Schriftart wählen
+Font size must be a number	Der Schriftgrad muss eine Zahl sein
+Character spacing must be a number	Der Zeichenabstand muss eine Zahl sein
+1.5 lines	1,5 Zeilen
+Alignment	Ausrichtung
+Left	Links
+Center	Zentriert
+Right	Rechts
+Justify	Blocksatz
+Justify low	Blocksatz niedrig
+Distributed	Verteilt
+Indentation	Einzug
+Before text	Vor Text
+After text	Nach Text
+Special	Sondereinzug
+First line	Erste Zeile
+Hanging	Hängend
+By	Um
+Spacing before	Abstand vor
+Spacing after	Abstand nach
+Line spacing	Zeilenabstand
+At	Von
+Tabs…	Tabstopps…
+Indent before text must be a number of inches	Der Einzug vor dem Text muss eine Zahl in Zoll sein
+Indent after text must be a number of inches	Der Einzug nach dem Text muss eine Zahl in Zoll sein
+Special indent must be a number of inches	Der Sondereinzug muss eine Zahl in Zoll sein
+Spacing before must be a number	Der Abstand vor muss eine Zahl sein
+Spacing after must be a number	Der Abstand nach muss eine Zahl sein
+Line spacing must be a number	Der Zeilenabstand muss eine Zahl sein
+Default tab stops (in):	Standardtabstopps (in):
+Tab stops:	Tabstopps:
+Clear	Löschen
+Tab stop position (in):	Tabstoppposition (in):
+Alignment:	Ausrichtung:
+Set	Festlegen
+Clear All	Alle löschen
+Find what:	Suchen nach:
+Replace with:	Ersetzen durch:
+Match case	Gross-/Kleinschreibung beachten
+Find whole words only	Nur ganze Wörter suchen
+Find Next	Weitersuchen
+Replace All	Alle ersetzen
+Replace…	Ersetzen…
+Next	Weiter
+Previous	Zurück
+The Eyedropper takes colours from a slide	Die Pipette nimmt Farben von einer Folie auf
+Eyedropper: click the slide (Esc cancels)	Pipette: auf die Folie klicken (Esc bricht ab)
+Preset gradients	Voreingestellte Farbverläufe
+Direction	Richtung
+Angle	Winkel
+Gradient stops	Farbverlaufsstopps
+Remove stop	Stopp entfernen
+Transparency	Transparenz
+Saving a copy needs a file picker, which this window doesn't have.	Eine Kopie zu speichern braucht eine Dateiauswahl, die dieses Fenster nicht hat.
+Opened the presentation as a PDF to print	Die Präsentation wurde zum Drucken als PDF geöffnet
+Browse for Themes needs the desktop app for now	«Nach Designs suchen» braucht vorerst die Desktop-App
+Compare needs the desktop app for now	«Vergleichen» braucht vorerst die Desktop-App
+This slide has no animations	Diese Folie hat keine Animationen
+Previewing animations	Vorschau der Animationen
+Reuse Slides needs the desktop app	«Folien wiederverwenden» braucht die Desktop-App
+Saved	Gespeichert
+Search commands…	Befehle suchen…
+Format Shape	Form formatieren
+Format Background	Hintergrund formatieren
+Animation Pane	Animationsbereich
+Selection	Auswahl
+Comments	Kommentare
+Design Ideas	Designideen
+Text Pane	Textbereich
+Thesaurus	Thesaurus
+Revisions	Überarbeitungen
+Select a SmartArt graphic to edit its text.	Eine SmartArt-Grafik auswählen, um ihren Text zu bearbeiten.
+Type your text here	Text hier eingeben
++ Add	+ Hinzufügen
+Select a shape to format it.	Eine Form auswählen, um sie zu formatieren.
+Fill & Line	Füllung und Linie
+Effects	Effekte
+Size & Properties	Grösse und Eigenschaften
+Text Options	Textoptionen
+Shadow	Schatten
+Blur	Weichzeichnen
+Distance	Abstand
+Reflection	Spiegelung
+Half	Halb
+Full	Voll
+Glow	Leuchten
+Soft Edges	Weiche Kanten
+Reset Effects	Effekte zurücksetzen
+Height	Höhe
+Width	Breite
+Rotation	Drehung
+Horizontal	Horizontal
+Vertical	Vertikal
+Text Fill	Textfüllung
+Vertical alignment	Vertikale Ausrichtung
+Top	Oben
+Middle	Mitte
+Bottom	Unten
+Do not Autofit	Nicht automatisch anpassen
+Shrink text on overflow	Text bei Überlauf verkleinern
+Resize shape to fit text	Formgrösse dem Text anpassen
+Wrap text in shape	Text in Form umbrechen
+Margins (pt)	Ränder (pt)
+Columns	Spalten
+Brightness	Helligkeit
+Contrast	Kontrast
+Saturation	Sättigung
+Reset Picture	Bild zurücksetzen
+Fill	Füllung
+No Fill	Keine Füllung
+Rotate with shape	Mit Form drehen
+Line	Linie
+No line	Keine Linie
+Solid line	Einfarbige Linie
+No Outline	Keine Kontur
+Cap type	Abschlusstyp
+Flat	Flach
+Round	Rund
+Square	Quadratisch
+Join type	Anschlusstyp
+Bevel	Abgeschrägt
+Miter	Gehrung
+Arrow	Pfeil
+Open Arrow	Offener Pfeil
+Stealth	Spitzer Pfeil
+Diamond	Raute
+Oval	Oval
+Small	Klein
+Medium	Mittel
+Large	Gross
+Picture source	Bildquelle
+Insert…	Einfügen…
+Tile picture as texture	Bild als Textur nebeneinander anordnen
+Offset X	Offset X
+Offset Y	Offset Y
+Scale X	Skalierung X
+Scale Y	Skalierung Y
+Top left	Oben links
+Top right	Oben rechts
+Bottom left	Unten links
+Bottom right	Unten rechts
+Both	Beide
+Mirror type	Spiegelungstyp
+Offset left	Offset links
+Offset top	Offset oben
+Offset right	Offset rechts
+Offset bottom	Offset unten
+3-D Format	3D-Format
+Top bevel	Abschrägung oben
+Bottom bevel	Abschrägung unten
+   Width	   Breite
+   Height	   Höhe
+Depth	Tiefe
+Contour	Kontur
+Material	Material
+Lighting	Beleuchtung
+3-D Rotation	3D-Drehung
+Presets	Voreinstellungen
+X Rotation	X-Drehung
+Y Rotation	Y-Drehung
+Z Rotation	Z-Drehung
+Distance from ground	Abstand vom Boden
+Reset 3-D	3D zurücksetzen
+Foreground	Vordergrund
+Background	Hintergrund
+Insert picture from file…	Bild aus Datei einfügen…
+Hide background graphics	Hintergrundgrafiken ausblenden
+Reset Background	Hintergrund zurücksetzen
+Top Right	Oben rechts
+Bottom Left	Unten links
+Bottom Right	Unten rechts
+Top Left	Oben links
+Mirror	Spiegeln
+■ Stop	■ Stopp
+▶ Play All	▶ Alle wiedergeben
+Select an object on the slide and add an animation from the Animations tab.	Ein Objekt auf der Folie auswählen und auf der Registerkarte «Animationen» eine Animation hinzufügen.
+Start On Click	Beim Klicken beginnen
+Start With Previous	Mit Vorherigen beginnen
+Start After Previous	Nach Vorherigen beginnen
+Move Up	Nach oben
+Move Down	Nach unten
+Compare this presentation with a revised copy from Review › Compare.	Diese Präsentation mit einer überarbeiteten Kopie vergleichen: Überprüfen › Vergleichen.
+Not a copy of this presentation: slides are matched by position.	Keine Kopie dieser Präsentation: Die Folien werden nach Position zugeordnet.
+No differences left.	Keine Unterschiede mehr.
+End Review	Überprüfung beenden
+Accept	Annehmen
++ New Comment	+ Neuer Kommentar
+No comments.	Keine Kommentare.
+Reply…	Antworten…
+Reopen	Wieder öffnen
+Resolve	Erledigen
+Pick a design for this slide. Ideas are generated on your device.	Ein Design für diese Folie wählen. Die Ideen entstehen auf dem Gerät.
+Add a title with a picture or some text to get layout ideas.	Einen Titel mit einem Bild oder etwas Text hinzufügen, um Layoutideen zu erhalten.
+Themes (whole presentation)	Designs (ganze Präsentation)
+Remove from Quick Access Toolbar	Aus der Symbolleiste für den Schnellzugriff entfernen
+Customize Quick Access Toolbar	Symbolleiste für den Schnellzugriff anpassen
+Right-click any ribbon button to add it.	Mit Rechtsklick auf eine Schaltfläche im Menüband lässt sie sich hinzufügen.
+Reset to Defaults	Auf Standard zurücksetzen
+Add to Quick Access Toolbar	Zur Symbolleiste für den Schnellzugriff hinzufügen
+ — Edited	 — Bearbeitet
+Search commands (⇧⌘P)	Befehle suchen (⇧⌘P)
+  Present  	  Vorführen  
+File	Datei
+File (Alt+F)	Datei (Alt+F)
+Photo\nAlbum	Foto-\nalbum
+Photo Album…	Fotoalbum…
+Photo Album options	Fotoalbum-Optionen
+Paste (⌘V)	Einfügen (⌘V)
+Paste and Match Formatting	Einfügen und Formatierung anpassen
+Paste Special…	Inhalte einfügen…
+Paste Formatting	Formatierung einfügen
+Format	Format
+Format Painter (double-click to keep it on)	Format übertragen (Doppelklick hält es aktiv)
+New\nSlide	Neue\nFolie
+New Slide (⇧⌘N)	Neue Folie (⇧⌘N)
+Duplicate Selected Slides	Ausgewählte Folien duplizieren
+Slides from Outline…	Folien aus Gliederung…
+Reuse Slides…	Folien wiederverwenden…
+Reuse Slides (Keep Source Formatting)…	Folien wiederverwenden (Ursprungsformatierung beibehalten)…
+Choosing a presentation to reuse needs the desktop app	Eine Präsentation zum Wiederverwenden auszuwählen braucht die Desktop-App
+Section	Abschnitt
+Add Section	Abschnitt hinzufügen
+Remove All Sections	Alle Abschnitte entfernen
+Rescan Installed Fonts	Installierte Schriftarten neu einlesen
+Increase Font Size	Schriftgrad vergrössern
+Decrease Font Size	Schriftgrad verkleinern
+Clear All Formatting	Alle Formatierungen löschen
+Character Spacing	Zeichenabstand
+Very Tight	Sehr eng
+Very Loose	Sehr weit
+Change Case	Gross-/Kleinschreibung
+Text Highlight Color	Texthervorhebungsfarbe
+No Color	Keine Farbe
+Font Color	Schriftfarbe
+List	Liste
+Process	Prozess
+Cycle	Zyklus
+Relationship	Beziehung
+Bullets and Numbering…	Nummerierung und Aufzählungszeichen…
+Decrease List Level	Listenebene verringern
+Increase List Level	Listenebene erhöhen
+Line Spacing	Zeilenabstand
+Line Spacing Options…	Zeilenabstandsoptionen…
+Align Left	Linksbündig
+Align Right	Rechtsbündig
+Text Direction	Textrichtung
+Align Text	Text ausrichten
+Convert to SmartArt	In SmartArt konvertieren
+Shapes	Formen
+Arrange	Anordnen
+Quick\nStyles	Schnell-\nformatvorlagen
+Shape Fill	Fülleffekt
+Shape Outline	Formkontur
+Shape Effects	Formeffekte
+Weight	Stärke
+Dashes	Striche
+Arrows	Pfeile
+No Reflection	Keine Spiegelung
+No Glow	Kein Leuchten
+No Soft Edges	Keine weichen Kanten
+Order Objects	Objekte sortieren
+Group Objects	Objekte gruppieren
+Position Objects	Objekte positionieren
+Align	Ausrichten
+Rotate	Drehen
+Selection Pane…	Auswahlbereich…
+Replace Fonts…	Schriftarten ersetzen…
+Insert Table…	Tabelle einfügen…
+Draw Table	Tabelle zeichnen
+Screenshot	Screenshot
+Screenshot (not available yet)	Screenshot (noch nicht verfügbar)
+Icons	Piktogramme
+Chart	Diagramm
+Action	Aktion
+Action Settings…	Aktionseinstellungen…
+Search icons	Piktogramme suchen
+No icons match.	Keine passenden Piktogramme.
+Select	Auswählen
+Eraser	Radierer
+Black Pen	Schwarzer Stift
+Red Pen	Roter Stift
+Blue Pen	Blauer Stift
+Pencil	Bleistift
+Highlighter	Textmarker
+Ink to\nShape	Freihand\nin Form
+Ink to Shape: turn drawn lines, rectangles, ovals and triangles into shapes	Freihand in Form: gezeichnete Linien, Rechtecke, Ovale und Dreiecke in Formen umwandeln
+Ink to\nText	Freihand\nin Text
+Ink to Text (coming soon)	Freihand in Text (folgt bald)
+Ink to\nMath	Freihand\nin Formel
+Ink to Math (coming soon)	Freihand in Formel (folgt bald)
+Browse for Themes…	Nach Designs suchen…
+Colors	Farben
+Customize Colors…	Farben anpassen…
+Fonts	Schriftarten
+Customize Fonts…	Schriftarten anpassen…
+Background\nStyles	Hintergrund-\nformate
+Reset Slide Background	Folienhintergrund zurücksetzen
+Slide\nSize	Folien-\ngrösse
+Standard (4:3)	Standard (4:3)
+Widescreen (16:9)	Breitbild (16:9)
+Page Setup…	Seite einrichten…
+Preview	Vorschau
+Effect\nOptions	Effekt-\noptionen
+Sound:	Sound:
+[Stop Previous Sound]	[Vorherigen Sound beenden]
+[No Sound]	[Kein Sound]
+Other Sound…	Anderer Sound…
+Choosing a sound file needs the desktop app	Eine Sounddatei auszuwählen braucht die Desktop-App
+Loop Until Next Sound	Wiederholen bis zum nächsten Sound
+Duration:	Dauer:
+On Mouse Click	Bei Mausklick
+After:	Nach:
+Play this slide's animations on the canvas	Die Animationen dieser Folie auf der Arbeitsfläche abspielen
+Entrance	Eingang
+Emphasis	Hervorheben
+Exit	Beenden
+Motion Paths	Animationspfade
+By Paragraph	Nach Absatz
+As One Object	Als ein Objekt
+Add\nAnimation	Animation\nhinzufügen
+Trigger	Auslöser
+On Click of… (none)	Bei Klicken auf… (keine)
+Animation\nPainter	Animation\nübertragen
+Animation Painter (double-click to keep it on)	Animation übertragen (Doppelklick hält es aktiv)
+Start:	Start:
+On Click	Beim Klicken
+With Previous	Mit Vorherigen
+After Previous	Nach Vorherigen
+Delay:	Verzögerung:
+Play from\nStart	Von Beginn\nan
+Play from\nCurrent Slide	Ab aktueller\nFolie
+Presenter\nView	Referenten-\nansicht
+Hide\nSlide	Folie\nausblenden
+Rehearse\nTimings	Neue Zeiten\ntesten
+Record	Aufzeichnen
+Recording narration needs audio capture (coming soon)	Kommentar aufzuzeichnen braucht eine Audioaufnahme (folgt bald)
+Use Timings	Anzeigedauer verwenden
+Play Narrations	Kommentare wiedergeben
+Show Media Controls	Mediensteuerelemente anzeigen
+Cameo	Cameo
+Camera capture is not available yet	Kameraaufnahme ist noch nicht verfügbar
+From\nBeginning	Von\nBeginn an
+From\nCurrent Slide	Ab aktueller\nFolie
+Learn\nMore	Mehr\nerfahren
+Translate	Übersetzen
+Translation needs a language model (not bundled)	Übersetzen braucht ein Sprachmodell (nicht enthalten)
+Accept\nAll	Alle\nannehmen
+End\nReview	Überprüfung\nbeenden
+Show\nComments	Kommentare\nanzeigen
+Outline\nView	Gliederungs-\nansicht
+Slide\nSorter	Folien-\nsortierung
+Notes\nPage	Notizen-\nseite
+Reading\nView	Lese-\nansicht
+Slide\nMaster	Folien-\nmaster
+Handout\nMaster	Handzettel-\nmaster
+Notes\nMaster	Notizen-\nmaster
+Ruler	Lineal
+Gridlines	Gitternetzlinien
+Grid\nOptions	Raster-\noptionen
+Notes	Notizen
+Fit to\nWindow	An Fenster\nanpassen
+New\nWindow	Neues\nFenster
+Open another window on this presentation	Ein weiteres Fenster für diese Präsentation öffnen
+Grayscale	Graustufen
+Dark\nMode	Dunkler\nModus
+Transform	Transformieren
+Follow Path	Pfad folgen
+Warp	Verzerren
+No Transform	Keine Transformation
+Edit\nShape	Form\nbearbeiten
+Change Shape	Form ändern
+Merge\nShapes	Formen\nzusammenführen
+Merge Shapes	Formen zusammenführen
+Shape\nStyles	Format-\nvorlagen
+Gradient…	Farbverlauf…
+Text Outline	Textkontur
+Text Effects	Texteffekte
+Bring\nForward	Eine Ebene\nnach vorne
+Send\nBackward	Eine Ebene\nnach hinten
+Height:	Höhe:
+Width:	Breite:
+Width: 	Breite: 
+Remove\nBackground	Hintergrund\nentfernen
+Remove Background	Hintergrund entfernen
+Remove More (looser)	Mehr entfernen (grosszügiger)
+Remove Less (tighter)	Weniger entfernen (genauer)
+Corrections	Korrekturen
+Recolor	Neu einfärben
+Set Transparent Color	Transparente Farbe bestimmen
+Pixels of this colour become transparent:	Pixel in dieser Farbe werden transparent:
+Artistic\nEffects	Künstlerische\nEffekte
+Compress Pictures	Bilder komprimieren
+Picture Border	Bildrahmen
+Reset Style	Formatvorlage zurücksetzen
+Remove the picture style	Bildformatvorlage entfernen
+Crop	Zuschneiden
+Crop to Shape	Auf Form zuschneiden
+Crop 10% each side	10 % auf jeder Seite zuschneiden
+Crop 20% each side	20 % auf jeder Seite zuschneiden
+Reset Crop	Zuschnitt zurücksetzen
+Header Row	Kopfzeile
+First Column	Erste Spalte
+Total Row	Ergebniszeile
+Last Column	Letzte Spalte
+Banded Rows	Gebänderte Zeilen
+Banded Columns	Gebänderte Spalten
+Shading	Schattierung
+Borders	Rahmenlinien
+Pen Weight	Stiftstärke
+Pen Style	Stiftart
+Solid	Durchgezogen
+Dot	Punkt
+Dash Dot	Strich-Punkt
+Long Dash	Langer Strich
+Pen Color	Stiftfarbe
+Table Eraser	Radierer für Tabellen
+Cell Margins	Zellenränder
+Narrow	Schmal
+Wide	Breit
+Change\nChart Type	Diagrammtyp\nändern
+Text\nPane	Text-\nbereich
+Type and organise the diagram's text	Den Text des Diagramms eingeben und gliedern
+Add Shape	Form hinzufügen
+Promote	Höher stufen
+Demote	Tiefer stufen
+Insert Picture	Bild einfügen
+Put a picture in the selected node's picture placeholder	Ein Bild in den Bildplatzhalter des ausgewählten Knotens einfügen
+Layouts	Layouts
+Convert	Konvertieren
+Convert to Text	In Text konvertieren
+Convert to Shapes	In Formen konvertieren
+Change Colors	Farben ändern
+SmartArt Styles	SmartArt-Formatvorlagen
+Pause	Pause
+Play	Wiedergabe
+Start Automatically	Automatisch starten
+Play Across Slides	Folienübergreifend wiedergeben
+Loop until Stopped	Endlos wiederholen
+Hide During Show	Bei Präsentation ausblenden
+Rewind after Playing	Nach Wiedergabe zurückspulen
+Play Full Screen	Im Vollbildmodus wiedergeben
+Volume	Lautstärke
+Low	Niedrig
+High	Hoch
+Mute	Stumm
+Preserve	Beibehalten
+Title	Titel
+Footers	Fusszeilen
+Insert\nPlaceholder	Platzhalter\neinfügen
+Themes	Designs
+Close\nMaster View	Masteransicht\nschliessen
+Show All	Alle anzeigen
+Hide All	Alle ausblenden
+Send Backward	Eine Ebene nach hinten
+Bring Forward	Eine Ebene nach vorne
+Collapse	Reduzieren
+Expand	Erweitern
+Hide	Ausblenden
+Black	Schwarz
+White	Weiss
+All	Alle
+End	Ende
+Slide timings recorded.	Folienzeiten aufgezeichnet.
+Presenter View — DeckCraft	Referentenansicht — DeckCraft
+Next ▶	Weiter ▶
+◀ Previous	◀ Zurück
+Resume	Fortsetzen
+Reset	Zurücksetzen
+Black on	Schwarz an
+White on	Weiss an
+All slides on	Alle Folien an
+End of slide show	Ende der Bildschirmpräsentation
+No notes.	Keine Notizen.
+Rename Section…	Abschnitt umbenennen…
+Remove Section	Abschnitt entfernen
+Remove Section & Slides	Abschnitt und Folien entfernen
+Move Section Up	Abschnitt nach oben verschieben
+Move Section Down	Abschnitt nach unten verschieben
+Click to add text	Klicken, um Text hinzuzufügen
+ (not checked)	 (nicht geprüft)
+Fit slide to current window	Folie an aktuelles Fenster anpassen
+Zoom In	Vergrössern
+Zoom Out	Verkleinern
+Slide Show	Bildschirmpräsentation
+Reading View	Leseansicht
+Slide Sorter	Foliensortierung
+Click to add notes	Klicken, um Notizen hinzuzufügen
++ New Slide	+ Neue Folie
+New Slide	Neue Folie
+Duplicate Slide	Folie duplizieren
+Delete Slide	Folie löschen
+Show Slide	Folie einblenden
+Hide Slide	Folie ausblenden
+Theme Colors	Designfarben
+Standard Colors	Standardfarben
+More Colors… #	Weitere Farben… #
+RRGGBB	RRGGBB
+Eyedropper	Pipette
+Click the slide to take the colour under the pointer	Auf die Folie klicken, um die Farbe unter dem Zeiger aufzunehmen
+DeckCraft can't export “{}”	DeckCraft kann «{}» nicht exportieren
+Exported {}	{} exportiert
+Inserted {} slides from {}	{} Folien aus {} eingefügt
+Saved {}	{} gespeichert
+Couldn't save AutoRecover information: {}	AutoWiederherstellen-Informationen konnten nicht gespeichert werden: {}
+{} (Headings)	{} (Überschriften)
+{} (Body)	{} (Textkörper)
+{}  Bullet	{}  Aufzählungszeichen
+{} Columns	{} Spalten
+{} Column	{} Spalte
+{} pt glow	{} pt Leuchten
+Action Button: {}	Interaktive Schaltfläche: {}
+WordArt style {}	WordArt-Formatvorlage {}
+{}x{} Table	Tabelle {}x{}
+Style {}	Formatvorlage {}
+On Click of {}	Beim Klicken auf {}
+Brightness {}%	Helligkeit {}%
+Contrast {}%	Kontrast {}%
+Saturation {}%	Sättigung {}%
+Align text to the {} of the cell	Text in der Zelle ausrichten: {}
+Slides Per\nPage: {}	Folien pro\nSeite: {}
+{} Slide	{} Folie
+{} Slides	{} Folien
+Compressed {} picture(s): {} KB → {} KB	{} Bild(er) komprimiert: {} KB → {} KB
+Slide {} of {}	Folie {} von {}
+No recent presentations match “{}”.	Keine zuletzt verwendete Präsentation passt zu «{}».
+{} — this file can't be found	{} — diese Datei wurde nicht gefunden
+No themes or templates match “{}”.	Keine Designs oder Vorlagen passen zu «{}».
+{} slides per page	{} Folien pro Seite
+Custom	Benutzerdefiniert
+Rotation {}°, brightness {}, contrast {}	Drehung {}°, Helligkeit {}, Kontrast {}
+{} needs a colour like #RRGGBB.	{} braucht eine Farbe wie #RRGGBB.
+Heading sample  {}	Überschrift-Beispiel  {}
+Body sample  {}	Textkörper-Beispiel  {}
+{} presentations	{} Präsentationen
+Do you want to save the changes you made to {}?	Sollen die Änderungen an {} gespeichert werden?
+Do you want to save the changes you made to “{}”?	Sollen die Änderungen an «{}» gespeichert werden?
+“{}” isn't used explicitly.	«{}» wird nirgends ausdrücklich verwendet.
+Replaced “{}” with “{}”.	«{}» wurde durch «{}» ersetzt.
+Slide {}: “{}”	Folie {}: «{}»
+Slide	Folie
+Replaced {} occurrence(s).	{} Vorkommen ersetzt.
+DeckCraft can't find “{}”.	DeckCraft findet «{}» nicht.
+ (notes)	 (Notizen)
+Match {} of {} on slide {}{}.	Treffer {} von {} auf Folie {}{}.
+Version {}	Version {}
+Shape {}	Form {}
+Compared with {}	Verglichen mit {}
+Accept All ({})	Alle annehmen ({})
+Slide inserted after {}	Folie nach {} eingefügt
+Slide {} deleted	Folie {} gelöscht
+Slide {} changed	Folie {} geändert
+Slide {}	Folie {}
+{} · Resolved	{} · Erledigt
+{} (click to change)	{} (klicken zum Ändern)
+Go to slide {}	Gehe zu Folie {}
+Slide {}   Total {}	Folie {}   Gesamt {}
+First {} slides	Erste {} Folien
+{}  Hidden	{}  Ausgeblendet
+Still opening {}	{} wird noch geöffnet
+Stopped opening {}	Öffnen von {} abgebrochen
+Opening {}…	{} wird geöffnet…
+Reading the file: {} s	Datei wird gelesen: {} s
+{} Slide Master	{} Folienmaster
+{} and {}	{} und {}
+{}, {} and {}	{}, {} und {}
+{}, {}, {} and {} more	{}, {}, {} und {} weitere
+{} isn't installed on this computer. Text that uses it is shown in a similar font.	{} ist auf diesem Computer nicht installiert. Text in dieser Schriftart wird in einer ähnlichen Schrift angezeigt.
+{} aren't installed on this computer. Text that uses them is shown in a similar font.	{} sind auf diesem Computer nicht installiert. Text in diesen Schriftarten wird in einer ähnlichen Schrift angezeigt.
+No sound: {}	Kein Ton: {}
+Start: {}s, End: {}s	Start: {}s, Ende: {}s
+Small (640 px wide)	Klein (640 px breit)
+Large (1280 px wide)	Gross (1280 px breit)
+Extra Large (1920 px wide)	Sehr gross (1920 px breit)
+Custom width	Eigene Breite
+Medium (960 px wide)	Mittel (960 px breit)
+Size:	Grösse:
+Width (pixels):	Breite (Pixel):
+Seconds per slide:	Sekunden pro Folie:
+From slide:	Von Folie:
+To slide:	Bis Folie:
+Loop forever	Endlos wiederholen
+Search for a word	Nach einem Wort suchen
+Select a word on the slide, or type one above.	Ein Wort auf der Folie auswählen oder oben eingeben.
+Look up	Nachschlagen
+Smooth Corners	Ecken glätten
+For rectangles and rounded rectangles	Für Rechtecke und abgerundete Rechtecke
+Slide Zoom	Folienzoom
+Section Zoom	Abschnittszoom
+Summary Zoom	Zusammenfassungszoom
+The presentation has no sections. Add one with Home › Section.	Die Präsentation hat keine Abschnitte. Mit Start › Abschnitt lässt sich einer hinzufügen.
+No slides.	Keine Folien.
+Compression options	Komprimierungsoptionen
+Apply only to this picture	Nur auf dieses Bild anwenden
+Delete cropped areas of pictures	Zugeschnittene Bildbereiche löschen
+Resolution	Auflösung
+HD (330 ppi): good quality for high-definition displays	HD (330 ppi): gute Qualität für hochauflösende Bildschirme
+Print (220 ppi): excellent quality on most printers and screens	Drucken (220 ppi): ausgezeichnete Qualität auf den meisten Druckern und Bildschirmen
+Web (150 ppi): good for web pages and projectors	Web (150 ppi): gut für Webseiten und Projektoren
+E-mail (96 ppi): minimise document size for sharing	E-Mail (96 ppi): Dokumentgrösse zum Teilen minimieren
+Compress	Komprimieren
+Pictures are already at or below that resolution	Die Bilder haben bereits diese oder eine niedrigere Auflösung
+Check for Issues	Auf Probleme überprüfen
+Inspect Presentation	Präsentation prüfen
+Before you share it, check the presentation for things people with disabilities might find hard to read.	Vor dem Teilen die Präsentation auf Inhalte prüfen, die Menschen mit Behinderungen schwer lesen können.
+DeckCraft prints through a PDF: it opens in your PDF viewer, where you choose the printer.	DeckCraft druckt über ein PDF: Es öffnet sich im PDF-Viewer, wo der Drucker gewählt wird.
+DeckCraft prints through a PDF: it downloads, ready to print from your browser or PDF viewer.	DeckCraft druckt über ein PDF: Es wird heruntergeladen und kann im Browser oder PDF-Viewer gedruckt werden.
+Keeps the layout, fonts and pictures	Layout, Schriftarten und Bilder bleiben erhalten
+Opens on any device with a PDF viewer	Öffnet sich auf jedem Gerät mit PDF-Viewer
+The presentation keeps its own file	Die Präsentation behält ihre eigene Datei
+The version, the people and models who built it, and where to find us.	Die Version, die Menschen und Modelle, die sie gebaut haben, und wo wir zu finden sind.
+ (centre)	 (Mitte)
+Presented by a speaker (full screen)	Von einem Referenten gehalten (Vollbild)
+Browsed by an individual (window)	Von einer Person durchgesehen (Fenster)
+Browsed at a kiosk (full screen)	An einem Kiosk durchgesehen (Vollbild)
+PNG images (current slide)	PNG-Bilder (aktuelle Folie)
+PNG images (all slides)	PNG-Bilder (alle Folien)
+JPEG image (current slide)	JPEG-Bild (aktuelle Folie)
+PowerPoint Presentation (.pptx)	PowerPoint-Präsentation (.pptx)
+Outline (.txt)	Gliederung (.txt)
+Animated GIF (.gif)	Animiertes GIF (.gif)
+Full Page Slides	Ganzseitige Folien
+Punctuation	Satzzeichen
+Currency	Währung
+Math	Mathematik
+Greek	Griechisch
+Exactly	Genau
+Multiple	Mehrfach
+Pane	Bereich
+Outer	Aussen
+Inner	Innen
+Perspective	Perspektive
+No fill	Keine Füllung
+Compound type	Verbundtyp
+Thick Thin	Dick-dünn
+Thin Thick	Dünn-dick
+Triple	Dreifach
+Begin arrow	Anfangspfeil
+Begin size	Grösse Anfangspfeil
+End arrow	Endpfeil
+End size	Grösse Endpfeil
+Follow the layout	Dem Layout folgen
+Light/Dark appearance	Helle/dunkle Darstellung
+Sentence case.	Ersten Buchstaben im Satz gross.
+UPPERCASE	GROSSBUCHSTABEN
+Capitalize Each Word	Jedes Wort gross schreiben
+Rotate all text 90°	Gesamten Text um 90° drehen
+Rotate all text 270°	Gesamten Text um 270° drehen
+Stacked	Gestapelt
+Long Dash Dot	Langer Strich-Punkt
+Arrow at end	Pfeil am Ende
+Arrow at start	Pfeil am Anfang
+Arrows at both ends	Pfeile an beiden Enden
+Stealth end	Spitzes Ende
+Oval ends	Ovale Enden
+No Shadow	Kein Schatten
+Centered	Zentriert
+Align Center	Horizontal zentrieren
+Align Top	Oben ausrichten
+Align Middle	Vertikal zentrieren
+Align Bottom	Unten ausrichten
+Motion	Bewegung
+No Border	Kein Rahmen
+All Borders	Alle Rahmenlinien
+Outside Borders	Rahmenlinien aussen
+Inside Borders	Rahmenlinien innen
+Top Border	Rahmenlinie oben
+Bottom Border	Rahmenlinie unten
+Left Border	Rahmenlinie links
+Right Border	Rahmenlinie rechts
+Inside Horizontal Border	Innere horizontale Rahmenlinie
+Inside Vertical Border	Innere vertikale Rahmenlinie
+Diagonal Down Border	Diagonale Rahmenlinie nach unten
+Diagonal Up Border	Diagonale Rahmenlinie nach oben
+Add Shape After	Form danach hinzufügen
+Add Shape Before	Form davor hinzufügen
+Add Shape Above	Form darüber hinzufügen
+Add Shape Below	Form darunter hinzufügen
+Add Assistant	Assistent hinzufügen
+Content	Inhalt
+Media	Medien
+Header	Kopfzeile
+Slide Image	Folienbild
+Date	Datum
+Body	Textkörper
+Page Number	Seitenzahl
+End of slide show, click to exit.	Ende der Bildschirmpräsentation, zum Beenden klicken.
+Click the slide to zoom in. Esc cancels.	Auf die Folie klicken, um zu vergrössern. Esc bricht ab.
+Zoom on	Zoom an
+Zoom…	Zoom…
+Slide Master	Folienmaster
+Airplane	Flugzeug
+Blinds	Jalousie
+Box	Rahmen
+Checkerboard	Schachbrett
+Clock	Uhr
+Comb	Kamm
+Conveyor	Förderband
+Cover	Verdecken
+Crush	Zerknüllen
+Cube	Würfel
+Curtains	Vorhänge
+Dissolve	Auflösen
+Doors	Türen
+Drape	Vorhang
+Fade	Verblassen
+Fall Over	Abfallen
+Ferris Wheel	Riesenrad
+Flash	Blitz
+Flip	Umdrehen
+Fly Through	Durchfliegen
+Fracture	Zerbrechen
+Gallery	Galerie
+Glitter	Glitzern
+Honeycomb	Waben
+Morph	Morphen
+Orbit	Umlaufbahn
+Origami	Origami
+Page Curl	Seitenrollen
+Pan	Schwenken
+Peel Off	Abziehen
+Prestige	Prestige
+Push	Schieben
+Random	Zufällig
+Random Bars	Zufällige Balken
+Reveal	Einblenden
+Ripple	Welle
+Shape	Form
+Shred	Zerkleinern
+Split	Teilen
+Switch	Wechseln
+Uncover	Aufdecken
+Vortex	Wirbel
+Wind	Wind
+Window	Fenster
+Wipe	Wischen
+Dynamic Content	Dynamischer Inhalt
+Exciting	Spektakulär
+Subtle	Dezent
+Characters	Zeichen
+Clockwise	Im Uhrzeigersinn
+Counterclockwise	Gegen den Uhrzeigersinn
+Diamonds From Bottom	Rauten von unten
+Diamonds From Left	Rauten von links
+Diamonds From Right	Rauten von rechts
+Diamonds From Top	Rauten von oben
+Double Left	Doppelt links
+Double Right	Doppelt rechts
+From Bottom	Von unten
+From Bottom-Left	Von links unten
+From Bottom-Right	Von rechts unten
+From Left	Von links
+From Right	Von rechts
+From Top	Von oben
+From Top-Left	Von links oben
+From Top-Right	Von rechts oben
+Hexagons From Bottom	Sechsecke von unten
+Hexagons From Left	Sechsecke von links
+Hexagons From Right	Sechsecke von rechts
+Hexagons From Top	Sechsecke von oben
+Horizontal In	Horizontal nach innen
+Horizontal Out	Horizontal nach aussen
+In	Hinein
+In with Bounce	Hinein mit Abprallen
+Objects	Objekte
+Out	Hinaus
+Out with Bounce	Hinaus mit Abprallen
+Particles In	Partikel hinein
+Particles Out	Partikel hinaus
+Single Left	Einzeln links
+Single Right	Einzeln rechts
+Smoothly	Weich
+Smoothly From Left	Weich von links
+Smoothly From Right	Weich von rechts
+Strips In	Streifen hinein
+Strips Out	Streifen hinaus
+Through Black	Durch Schwarz
+Through Black From Left	Durch Schwarz von links
+Through Black From Right	Durch Schwarz von rechts
+Vertical In	Vertikal nach innen
+Vertical Out	Vertikal nach aussen
+Wedge	Keil
+Words	Wörter
+Zoom and Rotate	Zoomen und drehen
+circle	Kreis
+diamond	Raute
+plus	Plus
+4 Point Star	Stern mit 4 Zacken
+5 Point Star	Stern mit 5 Zacken
+6 Point Star	Stern mit 6 Zacken
+8 Point Star	Stern mit 8 Zacken
+Appear	Erscheinen
+Arcs	Bögen
+Bean	Bohne
+Bold Flash	Fett blinken
+Bounce	Springen
+Bounce Left	Nach links springen
+Bounce Right	Nach rechts springen
+Circle	Kreis
+Color Pulse	Farbimpuls
+Complementary Color	Komplementärfarbe
+Contract	Zusammenziehen
+Crescent Moon	Mondsichel
+Curved Square	Gebogenes Quadrat
+Custom Path	Benutzerdefinierter Pfad
+Darken	Abdunkeln
+Decaying Wave	Abklingende Welle
+Desaturate	Entsättigen
+Diagonal Down Right	Diagonal nach rechts unten
+Diagonal Up Right	Diagonal nach rechts oben
+Disappear	Verschwinden
+Dissolve In	Auflösen (Eingang)
+Dissolve Out	Auflösen (Ausgang)
+Fill Color	Füllfarbe
+Float In	Hineinschweben
+Float Out	Hinausschweben
+Fly In	Hineinfliegen
+Fly Out	Hinausfliegen
+Football	Football
+Funnel	Trichter
+Grow & Turn	Wachsen und drehen
+Grow/Shrink	Vergrössern/Verkleinern
+Heart	Herz
+Heartbeat	Herzschlag
+Horizontal Figure 8	Horizontale 8
+Lighten	Aufhellen
+Line Color	Linienfarbe
+Lines	Linien
+Loop de Loop	Looping
+Loops	Schleifen
+Neutron	Neutron
+Object Color	Objektfarbe
+Peanut	Erdnuss
+Peek In	Hineinschauen
+Peek Out	Hinausschauen
+Plus	Plus
+Pulse	Impuls
+Right Triangle	Rechtwinkliges Dreieck
+Rise Up	Aufsteigen
+S Curve 1	S-Kurve 1
+S Curve 2	S-Kurve 2
+Shrink & Turn	Schrumpfen und drehen
+Sine Wave	Sinuswelle
+Sink Down	Absinken
+Spin	Rotieren
+Spinner	Kreisel
+Spiral Left	Spirale links
+Spiral Right	Spirale rechts
+Spring	Feder
+Stairs Down	Treppe abwärts
+Stop	Stopp
+Strips	Streifen
+Swivel	Schwenken
+Swoosh	Zischen
+Teardrop	Träne
+Teeter	Wippen
+Turns	Drehungen
+Vertical Figure 8	Vertikale 8
+Wave	Welle
+Wheel	Rad
+Zigzag	Zickzack
+Art deco	Art déco
+Balanced	Ausgewogen
+Bright room	Heller Raum
+Chilly	Kühl
+Contrasting	Kontrastreich
+Convex	Konvex
+Cool slant	Kühle Schräge
+Cross	Kreuz
+Divot	Delle
+Dk edge	Dunkle Kante
+Flood	Flutlicht
+Freezing	Eisig
+Hard edge	Harte Kante
+Harsh	Hart
+Isometric bottom down	Isometrisch unten nach unten
+Isometric bottom up	Isometrisch unten nach oben
+Isometric left down	Isometrisch links nach unten
+Isometric left up	Isometrisch links nach oben
+Isometric right down	Isometrisch rechts nach unten
+Isometric right up	Isometrisch rechts nach oben
+Isometric top down	Isometrisch oben nach unten
+Isometric top up	Isometrisch oben nach oben
+Legacy wireframe	Drahtmodell (alt)
+Matte	Matt
+Metal	Metall
+Morning	Morgen
+Oblique bottom left	Schräg unten links
+Oblique bottom right	Schräg unten rechts
+Oblique top left	Schräg oben links
+Oblique top right	Schräg oben rechts
+Orthographic front	Orthogonal vorne
+Perspective above	Perspektive oben
+Perspective above left facing	Perspektive oben, nach links
+Perspective above right facing	Perspektive oben, nach rechts
+Perspective below	Perspektive unten
+Perspective contrasting left facing	Perspektive kontrastierend, nach links
+Perspective contrasting right facing	Perspektive kontrastierend, nach rechts
+Perspective front	Perspektive vorne
+Perspective heroic extreme left facing	Perspektive heroisch extrem, nach links
+Perspective heroic extreme right facing	Perspektive heroisch extrem, nach rechts
+Perspective heroic left facing	Perspektive heroisch, nach links
+Perspective heroic right facing	Perspektive heroisch, nach rechts
+Perspective left	Perspektive links
+Perspective relaxed	Perspektive entspannt
+Perspective relaxed moderately	Perspektive mässig entspannt
+Perspective right	Perspektive rechts
+Plastic	Kunststoff
+Powder	Puder
+Relaxed inset	Entspannt eingelassen
+Riblet	Rippen
+Slope	Gefälle
+Soft	Weich
+Soft edge	Weiche Kante
+Soft round	Weich abgerundet
+Softmetal	Weiches Metall
+Sunrise	Sonnenaufgang
+Sunset	Sonnenuntergang
+Three pt	Drei Punkte
+Translucent powder	Durchscheinender Puder
+Two pt	Zwei Punkte
+Warm matte	Warm matt
+Connector: Elbow	Verbinder: gewinkelt
+Connector: Curved	Verbinder: gekrümmt
+Connector: Elbow (one bend)	Verbinder: gewinkelt (ein Knick)
+Line: Rising	Linie: steigend
+Rectangle: Rounded Corners	Rechteck: abgerundete Ecken
+Rectangle: Single Corner Snipped	Rechteck: eine Ecke abgeschnitten
+Rectangle: Top Corners Snipped	Rechteck: obere Ecken abgeschnitten
+Rectangle: Diagonal Corners Snipped	Rechteck: diagonal liegende Ecken abgeschnitten
+Rectangle: Top Corners One Rounded and One Snipped	Rechteck: obere Ecken, eine abgerundet und eine abgeschnitten
+Rectangle: Single Corner Rounded	Rechteck: eine Ecke abgerundet
+Rectangle: Top Corners Rounded	Rechteck: obere Ecken abgerundet
+Rectangle: Diagonal Corners Rounded	Rechteck: diagonal liegende Ecken abgerundet
+Isosceles Triangle	Gleichschenkliges Dreieck
+Parallelogram	Parallelogramm
+Trapezoid	Trapez
+Trapezoid: Uneven Sides	Trapez: ungleiche Seiten
+Regular Pentagon	Regelmässiges Fünfeck
+Hexagon	Sechseck
+Heptagon	Siebeneck
+Octagon	Achteck
+Decagon	Zehneck
+Dodecagon	Zwölfeck
+Partial Circle	Teilkreis
+Quarter Wedge	Viertelkeil
+Chord	Kreissegment
+Frame	Rahmen
+Corner Tabs: Triangles	Eckenlaschen: Dreiecke
+Corner Tabs: Squares	Eckenlaschen: Quadrate
+Corner Tabs: Quarter Circles	Eckenlaschen: Viertelkreise
+Half Frame	Halber Rahmen
+L-Shape	L-Form
+Diagonal Stripe	Diagonaler Streifen
+Plaque	Plakette
+Cylinder	Zylinder
+Donut	Ring
+Block Arc	Blockbogen
+Folded Corner	Gefaltete Ecke
+Smiley Face	Smiley
+Lightning Bolt	Blitz
+Sun	Sonne
+Moon	Mond
+Cloud	Wolke
+Gear: 6 Teeth	Zahnrad: 6 Zähne
+Gear: 9 Teeth	Zahnrad: 9 Zähne
+Arc	Bogen
+Double Bracket	Doppelte eckige Klammer
+Double Brace	Doppelte geschweifte Klammer
+Left Bracket	Eckige Klammer links
+Right Bracket	Eckige Klammer rechts
+Left Brace	Geschweifte Klammer links
+Right Brace	Geschweifte Klammer rechts
+Chart Marker: Cross Lines	Diagrammmarker: Kreuzlinien
+Chart Marker: Star Lines	Diagrammmarker: Sternlinien
+Chart Marker: Plus Lines	Diagrammmarker: Pluslinien
+Arrow: Right	Pfeil: nach rechts
+Arrow: Left	Pfeil: nach links
+Arrow: Up	Pfeil: nach oben
+Arrow: Down	Pfeil: nach unten
+Arrow: Left-Right	Pfeil: nach links und rechts
+Arrow: Up-Down	Pfeil: nach oben und unten
+Arrow: Quad	Pfeil: in vier Richtungen
+Arrow: Left-Right-Up	Pfeil: nach links, rechts und oben
+Arrow: Bent	Pfeil: gebogen
+Arrow: U-Turn	Pfeil: Kehrtwende
+Arrow: Curved Right	Pfeil: nach rechts gekrümmt
+Arrow: Curved Left	Pfeil: nach links gekrümmt
+Arrow: Curved Up	Pfeil: nach oben gekrümmt
+Arrow: Curved Down	Pfeil: nach unten gekrümmt
+Arrow: Left-Up	Pfeil: nach links und oben
+Arrow: Bent-Up	Pfeil: nach oben gebogen
+Arrow: Striped Right	Pfeil: gestreift nach rechts
+Arrow: Notched Right	Pfeil: eingekerbt nach rechts
+Arrow: Pentagon	Pfeil: Fünfeck
+Arrow: Chevron	Pfeil: Chevron
+Arrow: Circular	Pfeil: kreisförmig
+Arrow: Circular Counter-clockwise	Pfeil: kreisförmig gegen den Uhrzeigersinn
+Arrow: Circular Two-headed	Pfeil: kreisförmig mit zwei Spitzen
+Arrow: Swoosh	Pfeil: Schwung
+Callout: Right Arrow	Legende: Pfeil nach rechts
+Callout: Down Arrow	Legende: Pfeil nach unten
+Callout: Left Arrow	Legende: Pfeil nach links
+Callout: Up Arrow	Legende: Pfeil nach oben
+Callout: Left-Right Arrow	Legende: Pfeil nach links und rechts
+Callout: Up-Down Arrow	Legende: Pfeil nach oben und unten
+Callout: Quad Arrow	Legende: Pfeil in vier Richtungen
+Plus Sign	Pluszeichen
+Minus Sign	Minuszeichen
+Multiplication Sign	Multiplikationszeichen
+Division Sign	Divisionszeichen
+Equals	Gleichheitszeichen
+Not Equal	Ungleichheitszeichen
+Flowchart: Process	Flussdiagramm: Prozess
+Flowchart: Alternate Process	Flussdiagramm: alternativer Prozess
+Flowchart: Decision	Flussdiagramm: Verzweigung
+Flowchart: Data	Flussdiagramm: Daten
+Flowchart: Predefined Process	Flussdiagramm: vordefinierter Prozess
+Flowchart: Internal Storage	Flussdiagramm: interner Speicher
+Flowchart: Document	Flussdiagramm: Dokument
+Flowchart: Multidocument	Flussdiagramm: mehrere Dokumente
+Flowchart: Terminator	Flussdiagramm: Grenzstelle
+Flowchart: Preparation	Flussdiagramm: Vorbereitung
+Flowchart: Manual Input	Flussdiagramm: manuelle Eingabe
+Flowchart: Manual Operation	Flussdiagramm: manuelle Verarbeitung
+Flowchart: Connector	Flussdiagramm: Verbindungsstelle
+Flowchart: Off-page Connector	Flussdiagramm: Verbindungsstelle zu einer anderen Seite
+Flowchart: Card	Flussdiagramm: Karte
+Flowchart: Punched Tape	Flussdiagramm: Lochstreifen
+Flowchart: Summing Junction	Flussdiagramm: Zusammenführung
+Flowchart: Or	Flussdiagramm: oder
+Flowchart: Collate	Flussdiagramm: Zusammenstellen
+Flowchart: Sort	Flussdiagramm: Sortieren
+Flowchart: Extract	Flussdiagramm: Auszug
+Flowchart: Merge	Flussdiagramm: Zusammenführen
+Flowchart: Stored Data	Flussdiagramm: gespeicherte Daten
+Flowchart: Delay	Flussdiagramm: Verzögerung
+Flowchart: Sequential Access Storage	Flussdiagramm: Speicher mit sequenziellem Zugriff
+Flowchart: Magnetic Disk	Flussdiagramm: Magnetplattenspeicher
+Flowchart: Direct Access Storage	Flussdiagramm: Speicher mit direktem Zugriff
+Flowchart: Display	Flussdiagramm: Anzeige
+Flowchart: Offline Storage	Flussdiagramm: Offlinespeicher
+Explosion: 8 Points	Explosion: 8 Zacken
+Explosion: 14 Points	Explosion: 14 Zacken
+Star: 4 Points	Stern: 4 Zacken
+Star: 5 Points	Stern: 5 Zacken
+Star: 6 Points	Stern: 6 Zacken
+Star: 7 Points	Stern: 7 Zacken
+Star: 8 Points	Stern: 8 Zacken
+Star: 10 Points	Stern: 10 Zacken
+Star: 12 Points	Stern: 12 Zacken
+Star: 16 Points	Stern: 16 Zacken
+Star: 24 Points	Stern: 24 Zacken
+Star: 32 Points	Stern: 32 Zacken
+Ribbon: Tilted Up	Band: nach oben geneigt
+Ribbon: Tilted Down	Band: nach unten geneigt
+Ribbon: Curved and Tilted Up	Band: gekrümmt und nach oben geneigt
+Ribbon: Curved and Tilted Down	Band: gekrümmt und nach unten geneigt
+Ribbon: Left-Right Fold	Band: links-rechts gefaltet
+Scroll: Vertical	Schriftrolle: vertikal
+Scroll: Horizontal	Schriftrolle: horizontal
+Double Wave	Doppelwelle
+Speech Bubble: Rectangle	Sprechblase: Rechteck
+Speech Bubble: Rectangle with Corners Rounded	Sprechblase: Rechteck mit abgerundeten Ecken
+Speech Bubble: Oval	Sprechblase: oval
+Thought Bubble: Cloud	Gedankenblase: Wolke
+Callout: Line	Legende: Linie
+Callout: Bent Line	Legende: gewinkelte Linie
+Callout: Double Bent Line	Legende: doppelt gewinkelte Linie
+Callout: Line with Accent Bar	Legende: Linie mit Akzentbalken
+Callout: Bent Line with Accent Bar	Legende: gewinkelte Linie mit Akzentbalken
+Callout: Double Bent Line with Accent Bar	Legende: doppelt gewinkelte Linie mit Akzentbalken
+Callout: Line with No Border	Legende: Linie ohne Rahmen
+Callout: Bent Line with No Border	Legende: gewinkelte Linie ohne Rahmen
+Callout: Double Bent Line with No Border	Legende: doppelt gewinkelte Linie ohne Rahmen
+Callout: Line with Border and Accent Bar	Legende: Linie mit Rahmen und Akzentbalken
+Callout: Bent Line with Border and Accent Bar	Legende: gewinkelte Linie mit Rahmen und Akzentbalken
+Action Button: Go Back or Previous	Interaktive Schaltfläche: Zurück oder vorherige
+Action Button: Go Forward or Next	Interaktive Schaltfläche: Vorwärts oder nächste
+Action Button: Go to Beginning	Interaktive Schaltfläche: Zum Anfang
+Action Button: Go to End	Interaktive Schaltfläche: Zum Ende
+Action Button: Go Home	Interaktive Schaltfläche: Startseite
+Action Button: Get Information	Interaktive Schaltfläche: Informationen
+Action Button: Go Back	Interaktive Schaltfläche: Zurück
+Action Button: Video	Interaktive Schaltfläche: Video
+Action Button: Document	Interaktive Schaltfläche: Dokument
+Action Button: Sound	Interaktive Schaltfläche: Sound
+Action Button: Help	Interaktive Schaltfläche: Hilfe
+Action Button: Custom	Interaktive Schaltfläche: Benutzerdefiniert
+Rectangles	Rechtecke
+Basic Shapes	Standardformen
+Block Arrows	Blockpfeile
+Equation Shapes	Formelformen
+Flowchart	Flussdiagramm
+Stars and Banners	Sterne und Banner
+Callouts	Legenden
+Action Buttons	Interaktive Schaltflächen
+Vertical Bullet List	Vertikale Aufzählung
+Basic Block List	Einfache Blockliste
+Horizontal Bullet List	Horizontale Aufzählung
+Basic Chevron Process	Einfacher Chevronprozess
+Vertical Process	Vertikaler Prozess
+Step Up Process	Aufwärtsprozess
+Block Cycle	Blockzyklus
+Basic Radial	Einfaches Radial
+Basic Pyramid	Einfache Pyramide
+Inverted Pyramid	Umgekehrte Pyramide
+Basic Matrix	Einfache Matrix
+Titled Matrix	Matrix mit Titel
+Vertical Picture List	Vertikale Bildliste
+Picture Caption List	Bildlegendenliste
+Picture Accent Process	Prozess mit Bildakzenten
+Horizontal Picture List	Horizontale Bildliste
+Basic Timeline	Einfache Zeitachse
+Basic Venn	Einfaches Venn
+Basic Target	Einfaches Ziel
+Text Cycle	Textzyklus
+Continuous Cycle	Fortlaufender Zyklus
+Horizontal Hierarchy	Horizontale Hierarchie
+Grid Matrix	Rastermatrix
+Gear	Zahnrad
+Segmented Cycle	Segmentierter Zyklus
+Multidirectional Cycle	Mehrrichtungszyklus
+Organization Chart	Organigramm
+Half Circle Organization Chart	Halbkreis-Organigramm
+Cycle Matrix	Zyklusmatrix
+Segmented Pyramid	Segmentierte Pyramide
+Basic Pie	Einfaches Kreisdiagramm
+Name and Title Organization Chart	Organigramm mit Name und Titel
+Vertical Box List	Vertikale Feldliste
+Trapezoid List	Trapezliste
+Table List	Tabellenliste
+Accent Process	Akzentprozess
+Continuous Block Process	Fortlaufender Blockprozess
+Basic Bending Process	Einfacher gewundener Prozess
+Linear Venn	Lineares Venn
+Stacked Venn	Gestapeltes Venn
+Nested Target	Verschachteltes Ziel
+Simple Fill	Einfache Füllung
+Subtle Effect	Dezenter Effekt
+Intense Effect	Intensiver Effekt
+White Outline	Weisse Kontur
+Polished	Poliert
+Inset	Eingedrückt
+Cartoon	Cartoon
+Brick Scene	Backsteinszene
+Colorful	Farbig
+Colorful Range - Accent Colors 2 to 3	Farbiger Bereich – Akzentfarben 2 bis 3
+Colorful Range - Accent Colors 3 to 4	Farbiger Bereich – Akzentfarben 3 bis 4
+Colorful Range - Accent Colors 4 to 5	Farbiger Bereich – Akzentfarben 4 bis 5
+Colorful Range - Accent Colors 5 to 6	Farbiger Bereich – Akzentfarben 5 bis 6
+Gradient Range - Accent 1	Farbverlaufsbereich – Akzent 1
+Gradient Range - Accent 2	Farbverlaufsbereich – Akzent 2
+Gradient Range - Accent 3	Farbverlaufsbereich – Akzent 3
+Gradient Range - Accent 4	Farbverlaufsbereich – Akzent 4
+Gradient Range - Accent 5	Farbverlaufsbereich – Akzent 5
+Gradient Range - Accent 6	Farbverlaufsbereich – Akzent 6
+Briefing	Lagebesprechung
+Lesson	Lektion
+Pitch	Pitch
+Field Notes	Feldnotizen
+Quarterly	Quartalsbericht
+Evening Talk	Abendvortrag
+A weekly check-in: what changed, what's stuck, and who does the next thing	Ein wöchentlicher Stand: was sich geändert hat, was feststeckt und wer den nächsten Schritt macht
+A short class that ends with the learner explaining the idea	Eine kurze Lektion, an deren Ende die Lernenden die Idee selbst erklären
+A ten-minute conversation about one promise, not a tour of features	Ein zehnminütiges Gespräch über ein Versprechen, keine Tour durch Funktionen
+What an outing set out to see, and what it actually found	Was ein Ausflug sehen wollte und was er tatsächlich gefunden hat
+A report meant to be read aloud in half an hour	Ein Bericht, der in einer halben Stunde vorgelesen werden kann
+A public talk the audience can check on the way home	Ein öffentlicher Vortrag, den das Publikum auf dem Heimweg nachprüfen kann
+Arrow up	Pfeil nach oben
+Arrow down	Pfeil nach unten
+Arrow left	Pfeil nach links
+Arrow right	Pfeil nach rechts
+Chevron	Chevron
+Undo	Rückgängig
+Refresh	Aktualisieren
+Move	Verschieben
+Check	Häkchen
+Minus	Minus
+Star	Stern
+Flag	Flagge
+Bookmark	Lesezeichen
+Award	Auszeichnung
+Thumbs up	Daumen hoch
+Check circle	Häkchen im Kreis
+Warning	Warnung
+User	Benutzer
+Users	Benutzer (mehrere)
+Hand	Hand
+Calendar	Kalender
+Hourglass	Sanduhr
+Timer	Timer
+Mail	E-Mail
+Phone	Telefon
+Message	Nachricht
+Bell	Glocke
+Megaphone	Megafon
+Mention	Erwähnung
+Column chart	Säulendiagramm
+Bar chart	Balkendiagramm
+Pie chart	Kreisdiagramm
+Trend	Trend
+Target	Ziel
+Idea	Idee
+Presentation	Präsentation
+Folder	Ordner
+Document	Dokument
+Attachment	Anhang
+Clipboard	Zwischenablage
+Link	Link
+Share	Teilen
+Pin	Stecknadel
+Globe	Globus
+Building	Gebäude
+Compass	Kompass
+Briefcase	Aktentasche
+Camera	Kamera
+Clapperboard	Filmklappe
+Music	Musik
+Search	Suchen
+Alert	Alarm
+Key	Schlüssel
+Bolt	Blitz
+Charts	Diagramme
+Communication	Kommunikation
+Files	Dateien
+Marks	Zeichen
+People	Personen
+Places	Orte
+Time	Zeit
+Letter (8.5 × 11 in)	Letter (8,5 × 11 in)
+A4 (210 × 297 mm)	A4 (210 × 297 mm)
+Legal (8.5 × 14 in)	Legal (8,5 × 14 in)
+A3 (297 × 420 mm)	A3 (297 × 420 mm)
+On-screen Show (16:10)	Bildschirmpräsentation (16:10)
+Letter Paper (8.5x11 in)	Letter-Papier (8,5x11 in)
+Ledger Paper (11x17 in)	Ledger-Papier (11x17 in)
+A3 Paper (297x420 mm)	A3-Papier (297x420 mm)
+A4 Paper (210x297 mm)	A4-Papier (210x297 mm)
+B4 (ISO) Paper (250x353 mm)	B4-Papier (ISO) (250x353 mm)
+B5 (ISO) Paper (176x250 mm)	B5-Papier (ISO) (176x250 mm)
+35mm Slides	35-mm-Dias
+Overhead	Overheadfolie
+Banner	Banner
+Widescreen (13.333x7.5 in)	Breitbild (13,333x7,5 in)
+Square (1:1)	Quadratisch (1:1)
+Portrait (9:16)	Hochformat (9:16)
+PowerPoint Presentation (*.pptx)	PowerPoint-Präsentation (*.pptx)
+Opens in PowerPoint and other presentation apps	Öffnet sich in PowerPoint und anderen Präsentationsprogrammen
+DeckCraft Presentation (*.deckcraft)	DeckCraft-Präsentation (*.deckcraft)
+DeckCraft's own format: everything is kept	Eigenes Format von DeckCraft: Alles bleibt erhalten
+PDF (*.pdf)	PDF (*.pdf)
+A fixed copy that keeps its layout on any device	Eine feste Kopie, die auf jedem Gerät ihr Layout behält
+Outline (*.txt)	Gliederung (*.txt)
+The slide titles and bullet text as plain text	Folientitel und Aufzählungstext als reiner Text
+PNG Picture (*.png)	PNG-Bild (*.png)
+The current slide as a picture	Die aktuelle Folie als Bild
+JPEG Picture (*.jpg)	JPEG-Bild (*.jpg)
+The current slide as a compressed picture	Die aktuelle Folie als komprimiertes Bild
+Add a title	Titel hinzufügen
+Subject	Thema
+Specify the subject	Thema angeben
+Tags	Tags
+Add a tag	Tag hinzufügen
+Categories	Kategorien
+Add a category	Kategorie hinzufügen
+Specify the company	Firma angeben
+Add comments	Kommentare hinzufügen
+Author	Autor
+Add an author	Autor hinzufügen
+Use Destination Theme	Zieldesign verwenden
+Keep Source Formatting	Ursprungsformatierung beibehalten
+Picture (PNG)	Bild (PNG)
+Keep Text Only	Nur Text übernehmen
+English (United States)	Englisch (USA)
+English (United Kingdom)	Englisch (Vereinigtes Königreich)
+French (France)	Französisch (Frankreich)
+Japanese	Japanisch
+Swedish	Schwedisch
+From center	Von der Mitte
+From top left	Von links oben
+From top right	Von rechts oben
+From bottom left	Von links unten
+From bottom right	Von rechts unten
+center	Mitte
+top left	links oben
+top right	rechts oben
+bottom left	links unten
+bottom right	rechts unten
+Linear	Linear
+Radial	Radial
+Rectangular	Rechteckig
+Path	Pfad
+Outline View	Gliederungsansicht
+Notes Page	Notizenseite
+Grid Options…	Rasteroptionen…
+Set Zoom	Zoom festlegen
+Fit to Window	An Fenster anpassen
+Task Pane	Aufgabenbereich
+Ribbon Tab	Registerkarte im Menüband
+Collapse the Ribbon	Menüband reduzieren
+Dark Mode	Dunkler Modus
+New Window	Neues Fenster
+Presenter View	Referentenansicht
+Preview Animations	Animationsvorschau
+Command Palette	Befehlspalette
+Preferences…	Einstellungen…
+Open…	Öffnen…
+Picture from File…	Bild aus Datei…
+Insert Picture in SmartArt…	Bild in SmartArt einfügen…
+Audio from File…	Audio aus Datei…
+Video from File…	Video aus Datei…
+Save As…	Speichern unter…
+Export…	Exportieren…
+Compare…	Vergleichen…
+Open Dialog	Dialogfeld öffnen
+Quick Access Toolbar	Symbolleiste für den Schnellzugriff
+Find…	Suchen…
+Community Links	Community-Links
+Accept Revision	Überarbeitung annehmen
+Add Animation	Animation hinzufügen
+Add Font	Schriftart hinzufügen
+Add Guide	Führungslinie hinzufügen
+Add Point	Punkt hinzufügen
+Adjust Shape	Form anpassen
+Align Cell Text	Zellentext ausrichten
+Animation Gallery	Animationskatalog
+Animation Painter	Animation übertragen
+Animation Styles	Animationsarten
+Animations on Slide	Animationen auf der Folie
+Apply Animation	Animation anwenden
+Apply Design Idea	Designidee anwenden
+Apply To All	Auf alle anwenden
+Artistic Effects	Künstlerische Effekte
+AutoCorrect Options	AutoKorrektur-Optionen
+Autofit	Automatisch anpassen
+Change Chart Type	Diagrammtyp ändern
+Change Layout	Layout ändern
+Change Picture	Bild ändern
+Change Spelling	Schreibweise ändern
+Chart Elements	Diagrammelemente
+Chart…	Diagramm…
+Check Accessibility	Barrierefreiheit überprüfen
+Close Master View	Masteransicht schliessen
+Color At	Farbe an Position
+Commit Composition	Eingabe abschliessen
+Compare	Vergleichen
+Connect Shapes	Formen verbinden
+Connection Sites	Verbindungspunkte
+Custom Slide Show	Benutzerdefinierte Bildschirmpräsentation
+Date & Time	Datum und Uhrzeit
+Delete Columns	Spalten löschen
+Delete Comment	Kommentar löschen
+Delete Guide	Führungslinie löschen
+Delete Layout	Layout löschen
+Delete Rows	Zeilen löschen
+Delete Text	Text löschen
+Deselect	Auswahl aufheben
+Discard Recovered Presentations	Wiederhergestellte Präsentationen verwerfen
+Distribute	Verteilen
+Distribute Columns	Spalten verteilen
+Distribute Rows	Zeilen verteilen
+Duplicate	Duplizieren
+Edit Data	Daten bearbeiten
+Edit Photo Album…	Fotoalbum bearbeiten…
+Edit SmartArt Text	SmartArt-Text bearbeiten
+Effect Options	Effektoptionen
+Find	Suchen
+Flip Horizontal	Horizontal spiegeln
+Flip Vertical	Vertikal spiegeln
+Font Size	Schriftgrad
+Fonts in Presentation	Schriftarten in der Präsentation
+Format Painter	Format übertragen
+Formatting State	Formatierungsstand
+Freeform	Freihandform
+Get Text	Text abrufen
+Go to Slide	Gehe zu Folie
+Handout Master	Handzettelmaster
+Handout Placeholders	Handzettelplatzhalter
+Header and Footer…	Kopf- und Fusszeile…
+Hide Background Graphics	Hintergrundgrafiken ausblenden
+Icon Gallery	Piktogrammkatalog
+Ink to Shape	Freihand in Form
+Insert Above	Oberhalb einfügen
+Insert Below	Unterhalb einfügen
+Insert Layout	Layout einfügen
+Insert Left	Links einfügen
+Insert Picture in SmartArt	Bild in SmartArt einfügen
+Insert Placeholder	Platzhalter einfügen
+Insert Right	Rechts einfügen
+Insert Synonym	Synonym einfügen
+Inspect Shape	Form untersuchen
+Inspect Slide	Folie untersuchen
+Layout Placeholders	Layoutplatzhalter
+List Commands	Befehle auflisten
+Media Info	Medieninformationen
+Merge Cells	Zellen verbinden
+Move Guide	Führungslinie verschieben
+Move Handle	Ziehpunkt verschieben
+Move Insertion Point	Einfügemarke verschieben
+Move Point	Punkt verschieben
+Move Section	Abschnitt verschieben
+Move Slide	Folie verschieben
+New Presentation	Neue Präsentation
+Next Comment	Nächster Kommentar
+Next Window	Nächstes Fenster
+Notes Master	Notizenmaster
+Notes Placeholders	Notizenplatzhalter
+Nudge	Feinverschieben
+Open Data	Daten öffnen
+Open Recovered Presentations	Wiederhergestellte Präsentationen öffnen
+Picture Style Gallery	Bildformatvorlagen-Katalog
+Picture Styles	Bildformatvorlagen
+Play from Current Slide	Ab aktueller Folie wiedergeben
+Play from Start	Von Beginn an wiedergeben
+Play/Pause	Wiedergabe/Pause
+Play/Pause GIF	GIF wiedergeben/anhalten
+Playback	Wiedergabe
+Point Type	Punkttyp
+Points	Punkte
+Position and Size	Position und Grösse
+Poster Frame	Vorschaubild
+Previous Comment	Vorheriger Kommentar
+Quick Styles	Schnellformatvorlagen
+Recolor Gallery	Katalog «Neu einfärben»
+Recovered Presentations	Wiederhergestellte Präsentationen
+Redo	Wiederholen
+Regroup	Gruppierung wiederherstellen
+Remove All Animations	Alle Animationen entfernen
+Remove Animation	Animation entfernen
+Remove Shape	Form entfernen
+Rename Slide	Folie umbenennen
+Render Slide	Folie rendern
+Reorder Animation	Animation neu anordnen
+Reorder Objects	Objekte neu anordnen
+Replace Fonts	Schriftarten ersetzen
+Reply	Antworten
+Resolve Thread	Unterhaltung erledigen
+Right-to-Left Text Direction	Textrichtung von rechts nach links
+Rotate Left 90°	Um 90° nach links drehen
+Rotate Right 90°	Um 90° nach rechts drehen
+Save AutoRecover Information	AutoWiederherstellen-Informationen speichern
+Save as Template…	Als Vorlage speichern…
+Save to Data	In Daten speichern
+Seek	Springen zu
+Select All	Alles auswählen
+Select All Text	Gesamten Text auswählen
+Select Cells	Zellen auswählen
+Select Objects	Objekte auswählen
+Select Paragraph	Absatz auswählen
+Select Slides	Folien auswählen
+Select Text	Text auswählen
+Select Word	Wort auswählen
+Set Text	Text festlegen
+Set Up Slide Show…	Bildschirmpräsentation einrichten…
+Shape Gallery	Formenkatalog
+Show/Hide	Einblenden/Ausblenden
+Slide Number	Foliennummer
+SmartArt	SmartArt
+Sound	Sound
+Spelling Dictionary	Rechtschreibwörterbuch
+Split Cells	Zellen teilen
+Starter Templates	Startvorlagen
+Stop Editing Text	Textbearbeitung beenden
+Table Style Options	Optionen für Tabellenformat
+Table Styles	Tabellenformatvorlagen
+Table…	Tabelle…
+Text Box Margins	Textfeldränder
+Text Shadow	Textschatten
+Text Transform	Texttransformation
+Text Transparency	Texttransparenz
+Theme Gallery	Designkatalog
+Timing	Anzeigedauer
+Transition	Übergang
+Transition Gallery	Übergangskatalog
+Type Text	Text eingeben
+Ungroup	Gruppierung aufheben
+Variant Gallery	Variantenkatalog
+Variants	Varianten
+WordArt	WordArt
+Wrap Text in Shape	Text in Form umbrechen
+Start from Beginning	Von Beginn an
+Clustered Column	Gruppierte Säulen
+Stacked Column	Gestapelte Säulen
+100% Stacked Column	100% gestapelte Säulen
+Clustered Bar	Gruppierte Balken
+Stacked Bar	Gestapelte Balken
+100% Stacked Bar	100% gestapelte Balken
+Line with Markers	Linie mit Datenpunkten
+Stacked Line	Gestapelte Linie
+Area	Fläche
+Stacked Area	Gestapelte Fläche
+Pie	Kreis
+Doughnut	Ring
+Scatter	Punkt (XY)
+Bubble	Blase
+Radar	Netz
+Filled Radar	Gefülltes Netz
+Stock	Kurs
+Surface	Oberfläche
+Histogram	Histogramm
+Pareto	Pareto
+Box and Whisker	Kastengrafik
+Waterfall	Wasserfall
+Treemap	Treemap
+Sunburst	Sunburst
+Map	Karte
+Combo	Kombination
+Text/Background - Dark 1	Text/Hintergrund – Dunkel 1
+Text/Background - Light 1	Text/Hintergrund – Hell 1
+Text/Background - Dark 2	Text/Hintergrund – Dunkel 2
+Text/Background - Light 2	Text/Hintergrund – Hell 2
+Hyperlink	Link
+Followed Hyperlink	Besuchter Link
+Placeholder colour	Platzhalterfarbe
+Across	Quer
+Box In	Rechteck hinein
+Box Out	Rechteck hinaus
+Circle In	Kreis hinein
+Circle Out	Kreis hinaus
+Counter Clockwise	Gegen den Uhrzeigersinn
+Diamond In	Raute hinein
+Diamond Out	Raute hinaus
+Down	Nach unten
+Horz In	Horizontal hinein
+Horz Out	Horizontal hinaus
+Plus In	Plus hinein
+Plus Out	Plus hinaus
+Vert In	Vertikal hinein
+Vert Out	Vertikal hinaus
+Decimal	Dezimal
+Left Tab	Linksbündiger Tabstopp
+Center Tab	Zentrierter Tabstopp
+Right Tab	Rechtsbündiger Tabstopp
+Decimal Tab	Dezimaltabstopp
+Plan Build Launch	Planen Bauen Starten
+Ink to Text	Freihand in Text
+Ink to Math	Freihand in Formel
+Background Styles	Hintergrundformate
+Rehearse Timings	Neue Zeiten testen
+From Beginning	Von Beginn an
+From Current Slide	Ab aktueller Folie
+Learn More	Mehr erfahren
+Accept All	Alle annehmen
+Show Comments	Kommentare anzeigen
+Edit Shape	Form bearbeiten
+Shape Styles	Formatvorlagen
+Type	Typ
+(none)	(keine)
+New Photo Album…	Neues Fotoalbum…
+Distribute Horizontally	Horizontal verteilen
+Distribute Vertically	Vertikal verteilen
+Selection\nPane	Auswahl-\nbereich
+Design\nIdeas	Design-\nideen
+Pictures	Bilder
+Comment	Kommentar
+Text\nBox	Text-\nfeld
+Header &\nFooter	Kopf- und\nFusszeile
+Date &\nTime	Datum und\nUhrzeit
+Slide\nNumber	Folien-\nnummer
+Video	Video
+Audio	Audio
+Format\nBackground	Hintergrund\nformatieren
+Apply\nTo All	Auf alle\nanwenden
+Animation\nPane	Animations-\nbereich
+Custom\nShow	Benutzerdef.\nPräsentation
+Set Up\nSlide Show	Bildschirmpräs.\neinrichten
+Check\nAccessibility	Barrierefreiheit\nüberprüfen
+New\nComment	Neuer\nKommentar
+Alt\nText	Alternativ-\ntext
+Format\nPane	Formatierungs-\nbereich
+Delete Table	Tabelle löschen
+Insert\nAbove	Oberhalb\neinfügen
+Insert\nBelow	Unterhalb\neinfügen
+Insert\nLeft	Links\neinfügen
+Insert\nRight	Rechts\neinfügen
+Merge\nCells	Zellen\nverbinden
+Split\nCells	Zellen\nteilen
+Edit\nData	Daten\nbearbeiten
+Trim	Kürzen
+Insert\nLayout	Layout\neinfügen
+Selection Pane	Auswahlbereich
+Header & Footer	Kopf- und Fusszeile
+Custom Show	Benutzerdefinierte Präsentation
+Format Pane	Formatierungsbereich
+Recovered {} unsaved presentation from the last session	{} nicht gespeicherte Präsentation aus der letzten Sitzung wiederhergestellt
+Recovered {} unsaved presentations from the last session	{} nicht gespeicherte Präsentationen aus der letzten Sitzung wiederhergestellt
+Themes and presentations	Designs und Präsentationen
+Office Theme	Office-Design
+Outline	Gliederung

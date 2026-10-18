@@ -33,6 +33,9 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "mediathekwerk": ("Mediathekwerk", "#8C5A2B", '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9l2.5-5h3L6 9M9 9l2.5-5h3L12 9M15 9l2.5-5h3"/>'),
     "diawerk": ("Diawerk", "#2E9BD6", '<rect x="6" y="3" width="15" height="12" rx="1.5"/><path d="M3 7v12a1 1 0 0 0 1 1h13"/><path d="M12 6.5v5l4-2.5z" fill="#fff"/>'),
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
+    "ladewerk": ("Ladewerk", "#0E7490", '<path d="M12 3v11M7.5 9.5L12 14l4.5-4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>'),
+    "packwerk": ("Packwerk", "#B7791F", '<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/>'),
+    "sicherwerk": ("Sicherwerk", "#3D5A80", '<path d="M5 9a7.5 7.5 0 1 1-1 4"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"
 TILES = '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2" opacity=".45"/>'
