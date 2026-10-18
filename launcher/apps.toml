@@ -192,3 +192,11 @@ color = "#2E9BD6"
 repo = "https://github.com/0ldini/werkbank"
 tag = "diawerk-v"
 no_web = true
+
+[[app]]
+id = "mailwerk"
+name = "Mailwerk"
+about = "E-Mail-Programm (IMAP/SMTP, JMAP)"
+color = "#0B7A70"
+repo = "https://github.com/0ldini/werkbank"
+tag = "mailwerk-v"

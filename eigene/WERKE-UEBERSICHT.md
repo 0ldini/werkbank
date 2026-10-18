@@ -1,6 +1,6 @@
 # Werke – eigene Rust-Programme für die Werkbank
 
-Acht eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
+Neun eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
 ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 (`cargo run --release`); Details stehen im jeweiligen README.
 
@@ -18,6 +18,8 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    eigener Bewertung). Braucht einen kostenlosen TMDB-API-Schlüssel.
 8. **diawerk** – Diashows als Video aus Fotos und Drohnenvideos (Panoramen mit
    Schwenk, Übergänge, Musik als MP3, Vor-/Abspann; Formate wie Wandelwerk)
+9. **mailwerk** – E-Mail-Programm (IMAP/SMTP am Desktop, JMAP auch im Browser, kein
+   Server dazwischen; Beispielkonto zum Ausprobieren)
 
 ## Stand
 
@@ -35,4 +37,6 @@ meckert: Meldung zurückgeben, dann wird es punktgenau angepasst.
 - **diawerk**: rfd; ffmpeg wird beim Release-Build eingebettet (sonst neben die
   .exe legen oder auf den PATH)
 - **mediathekwerk**: egui_extras (Poster), ureq, serde; TMDB-API-Schlüssel
+- **mailwerk**: ehttp (JMAP), rustls + webpki-roots (nur Desktop), rfd; IMAP, SMTP, MIME, JSON
+  sind eigener Code
 - die übrigen: nur egui/eframe (schutzwerk nutzt bordeigene Windows-Befehle)
