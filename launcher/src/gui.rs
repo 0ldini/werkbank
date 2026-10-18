@@ -162,7 +162,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
             let mut app = Gui {
                 setup: None,
                 types: None,
-                manifest: Manifest { title: "Werkbank".into(), app: Vec::new() },
+                manifest: Manifest { title: "Werkbank".into(), app: Vec::new(), server: None },
                 textures: HashMap::new(),
                 state: Shared::default(),
                 web_addr: None,

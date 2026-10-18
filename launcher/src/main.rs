@@ -5,6 +5,7 @@ mod assoc;
 mod core;
 mod gui;
 mod icons;
+mod license;
 mod sprache;
 mod weather;
 
@@ -21,10 +22,51 @@ fn main() {
         }
         return;
     }
+    // Ohne gültigen Lizenzcode läuft nichts (die erhöhte Instanz oben ausgenommen).
+    if !license::licensed() {
+        let first = args.first().map(String::as_str);
+        if first == Some("license") {
+            match args.get(1).map(|c| license::accept(c)) {
+                Some(Ok(true)) => println!("Lizenzcode angenommen."),
+                Some(Ok(false)) => {
+                    eprintln!("Der Lizenzcode ist ungültig.");
+                    std::process::exit(1);
+                }
+                Some(Err(e)) => {
+                    eprintln!("Fehler: {e:#}");
+                    std::process::exit(1);
+                }
+                None => eprintln!("Aufruf: werkbank license <code>"),
+            }
+            return;
+        }
+        let mut plain_args = 0;
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            if a == "--bundle" {
+                it.next();
+            } else if !a.starts_with("--") {
+                plain_args += 1;
+            }
+        }
+        let cli_mode = plain_args > 0 && first != Some("--open");
+        if cli_mode {
+            eprintln!("Lizenzcode fehlt. Einmalig freischalten mit: werkbank license <code>  (oder Programm ohne Argumente starten)");
+            std::process::exit(1);
+        }
+        license::prompt();
+        // Nach richtiger Eingabe frisch starten, damit die Oberfläche ein eigenes Fenster bekommt.
+        if license::licensed() {
+            if let Ok(exe) = std::env::current_exe() {
+                let _ = std::process::Command::new(exe).args(&args).spawn();
+            }
+        }
+        return;
+    }
     // Von Windows aufgerufen («Öffnen mit»): Datei im zugeordneten Programm öffnen.
     if args.first().map(String::as_str) == Some("--open") {
         let (Some(id), Some(file)) = (args.get(1), args.get(2)) else { std::process::exit(2) };
-        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new() });
+        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new(), server: None });
         if let Some(app) = manifest.app.iter().find(|a| &a.id == id) {
             if core::run_with(app, Some(std::path::Path::new(file))).is_ok() {
                 return;
@@ -65,6 +107,9 @@ fn main() {
         }
     }
     if plain.is_empty() {
+        if bundle.is_none() && args.is_empty() {
+            self_update();
+        }
         gui::run(load, bundle, online, None);
     } else if let Err(e) = cli(&load(), &args) {
         eprintln!("Fehler: {e:#}");
@@ -186,4 +231,26 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+/// Holt beim Start einen neueren Launcher vom Server und startet ihn, falls es einen gibt.
+/// Ohne Netz oder bei Fehlern läuft einfach die vorhandene Version weiter.
+fn self_update() {
+    if cfg!(debug_assertions) || std::env::var_os("WERKBANK_NO_SELFUPDATE").is_some() {
+        return;
+    }
+    let Some(server) = toml::from_str::<Manifest>(core::DEFAULT_MANIFEST).ok().and_then(|m| m.server) else { return };
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(core::launcher_update(&server));
+    });
+    let Ok(Ok(Some(update))) = rx.recv_timeout(std::time::Duration::from_secs(6)) else { return };
+    if core::apply_launcher_update(&update, &|_, _| {}).is_ok() {
+        if let Ok(exe) = std::env::current_exe() {
+            // WERKBANK_NO_SELFUPDATE verhindert eine Endlosschleife, falls etwas schiefgeht.
+            if std::process::Command::new(exe).env("WERKBANK_NO_SELFUPDATE", "1").spawn().is_ok() {
+                std::process::exit(0);
+            }
+        }
+    }
 }

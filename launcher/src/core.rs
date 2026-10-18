@@ -16,6 +16,10 @@ pub struct Manifest {
     pub title: String,
     #[serde(default)]
     pub app: Vec<App>,
+    /// Server, von dem Programme und Launcher geladen werden (z. B. https://jarns.ch/software).
+    /// Ohne Angabe: GitHub-Releases der jeweiligen `repo`.
+    #[serde(default)]
+    pub server: Option<String>,
 }
 
 fn default_title() -> String {
@@ -52,6 +56,9 @@ pub struct App {
     /// true: nur Browser-Version (z. B. eigene HTML5-Apps), keine Desktop-Programmdatei.
     #[serde(default)]
     pub web_only: bool,
+    /// Wird beim Laden aus `Manifest::server` übernommen.
+    #[serde(skip)]
+    pub server: Option<String>,
 }
 
 impl App {
@@ -300,7 +307,23 @@ pub fn mkdir_elevated(dir: &Path, user: &str) -> Result<()> {
 }
 
 /// Wo die aktuelle Programmliste liegt. Neue Programme erscheinen so ohne neuen Launcher.
-pub const MANIFEST_URL: &str = "https://raw.githubusercontent.com/0ldini/werkbank/main/launcher/apps.toml";
+pub const MANIFEST_URL: &str = "https://jarns.ch/software/apps.toml";
+
+/// Übernimmt den Server der Liste in jede App.
+fn finish(mut m: Manifest) -> Manifest {
+    if let Some(s) = m.server.clone() {
+        let s = s.trim_end_matches('/').to_string();
+        for a in &mut m.app {
+            a.server = Some(s.clone());
+        }
+    }
+    m
+}
+
+/// Einstellungsordner des Launchers (`%LOCALAPPDATA%\Werkbank\config` unter Windows).
+pub fn config_dir() -> Option<PathBuf> {
+    config_path().and_then(|p| p.parent().map(Path::to_path_buf))
+}
 
 /// Lädt die Programmliste. Reihenfolge: eigene `apps.toml` im Datenordner (falls vorhanden),
 /// sonst die aktuelle Liste aus dem Netz, sonst deren letzte gespeicherte Fassung, sonst die
@@ -311,20 +334,20 @@ pub fn load_manifest() -> Result<Manifest> {
     let own = dir.join("apps.toml");
     if own.exists() {
         let text = fs::read_to_string(&own)?;
-        return toml::from_str(&text).with_context(|| format!("{} ist fehlerhaft", own.display()));
+        return toml::from_str(&text).map(finish).with_context(|| format!("{} ist fehlerhaft", own.display()));
     }
     let cache = dir.join("apps-online.toml");
     let url = std::env::var("WERKBANK_MANIFEST").unwrap_or_else(|_| MANIFEST_URL.to_string());
     if let Ok(text) = http_text(&url, 1 << 20) {
         if let Ok(manifest) = toml::from_str::<Manifest>(&text) {
             let _ = fs::write(&cache, &text);
-            return Ok(manifest);
+            return Ok(finish(manifest));
         }
     }
-    if let Some(manifest) = fs::read_to_string(&cache).ok().and_then(|t| toml::from_str(&t).ok()) {
-        return Ok(manifest);
+    if let Some(manifest) = fs::read_to_string(&cache).ok().and_then(|t| toml::from_str::<Manifest>(&t).ok()) {
+        return Ok(finish(manifest));
     }
-    toml::from_str(DEFAULT_MANIFEST).context("eingebaute Programmliste ist fehlerhaft")
+    toml::from_str(DEFAULT_MANIFEST).map(finish).context("eingebaute Programmliste ist fehlerhaft")
 }
 
 fn agent() -> ureq::Agent {
@@ -370,6 +393,19 @@ pub fn http_text(url: &str, limit: u64) -> Result<String> {
 /// Alle Versions-Tags (`vX.Y.Z`) eines Repositories, neueste zuerst.
 /// Liest die Git-Referenzen direkt, braucht also kein Konto und kennt kein API-Limit.
 pub fn remote_versions(app: &App) -> Result<Vec<Version>> {
+    if let Some(server) = &app.server {
+        // Eigener Server: `index.json` listet je Release-Tag-Anfang die vorhandenen Versionen.
+        let idx: serde_json::Value = serde_json::from_str(&http_text(&format!("{server}/index.json"), 4 << 20)?)
+            .context("index.json auf dem Server ist fehlerhaft")?;
+        let mut out: Vec<Version> = idx["apps"][app.tag()]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().and_then(parse_version)).collect())
+            .unwrap_or_default();
+        out.sort();
+        out.dedup();
+        out.reverse();
+        return Ok(out);
+    }
     let url = format!("{}.git/info/refs?service=git-upload-pack", app.repo());
     let body = http_text(&url, 8 << 20)?;
     let mut out: Vec<Version> = body
@@ -387,6 +423,9 @@ pub fn remote_versions(app: &App) -> Result<Vec<Version>> {
 }
 
 fn release_url(app: &App, v: Version, file: &str) -> String {
+    if let Some(server) = &app.server {
+        return format!("{server}/releases/{}{}/{}", app.tag(), fmt_version(v), file);
+    }
     format!("{}/releases/download/{}{}/{}", app.repo(), app.tag(), fmt_version(v), file)
 }
 
@@ -421,6 +460,80 @@ pub fn asset_name(app: &App, kind: Kind, v: Version) -> Result<String> {
         (os, arch) => bail!("für {os}/{arch} gibt es keine Desktop-Version; nutze die Browser-Version"),
     };
     Ok(format!("{a}-{ver}-{suffix}"))
+}
+
+/// Neuere Launcher-Version auf dem Server.
+pub struct LauncherUpdate {
+    pub version: Version,
+    file: String,
+    sha256: String,
+    url: String,
+}
+
+fn platform_key() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("windows", "x86_64") => Some("windows-x64"),
+        ("linux", "x86_64") => Some("linux-x86_64"),
+        _ => None,
+    }
+}
+
+/// Fragt den Server, ob es einen neueren Launcher gibt (`<server>/launcher/latest.json`).
+pub fn launcher_update(server: &str) -> Result<Option<LauncherUpdate>> {
+    let server = server.trim_end_matches('/');
+    let Some(key) = platform_key() else { return Ok(None) };
+    // Entwicklungs- und Probeversionen (z. B. 0.0.0-probe) aktualisieren sich nicht selbst.
+    let Some(current) = parse_version(env!("CARGO_PKG_VERSION")) else { return Ok(None) };
+    let j: serde_json::Value = serde_json::from_str(&http_text(&format!("{server}/launcher/latest.json"), 1 << 16)?)
+        .context("launcher/latest.json auf dem Server ist fehlerhaft")?;
+    let v = j["version"].as_str().and_then(parse_version).ok_or_else(|| anyhow!("keine Version in latest.json"))?;
+    if v <= current {
+        return Ok(None);
+    }
+    let f = &j["files"][key];
+    let (Some(file), Some(sha)) = (f["file"].as_str(), f["sha256"].as_str()) else {
+        bail!("latest.json nennt keine Datei für {key}");
+    };
+    if file.contains('/') || file.contains('\\') {
+        bail!("unerwarteter Dateiname in latest.json");
+    }
+    Ok(Some(LauncherUpdate {
+        version: v,
+        file: file.to_string(),
+        sha256: sha.to_lowercase(),
+        url: format!("{server}/launcher/{}/{}", fmt_version(v), file),
+    }))
+}
+
+/// Lädt den neuen Launcher, prüft ihn und ersetzt die laufende Programmdatei.
+/// Der Aufrufer startet danach den Launcher neu.
+pub fn apply_launcher_update(u: &LauncherUpdate, progress: Progress) -> Result<()> {
+    let tmp = std::env::temp_dir().join(format!("werkbank-update-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp)?;
+    let result = (|| -> Result<()> {
+        let archive = tmp.join(&u.file);
+        let actual = download(&u.url, &archive, progress)?;
+        if actual != u.sha256 {
+            bail!("Prüfsumme von {} stimmt nicht; Update verworfen", u.file);
+        }
+        let unpacked = tmp.join("neu");
+        extract(&archive, &unpacked)?;
+        let name = if cfg!(windows) { "werkbank.exe" } else { "werkbank" };
+        let new = [content_root(&unpacked).join(name), unpacked.join(name)]
+            .into_iter()
+            .find(|p| p.is_file())
+            .ok_or_else(|| anyhow!("{name} fehlt im Update"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&new, fs::Permissions::from_mode(0o755))?;
+        }
+        self_replace::self_replace(&new).context("Launcher ersetzen")?;
+        Ok(())
+    })();
+    let _ = fs::remove_dir_all(&tmp);
+    result
 }
 
 fn app_dir(app: &App) -> PathBuf {

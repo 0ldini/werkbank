@@ -1,0 +1,88 @@
+name: Server-Upload
+
+# Spiegelt den neuesten Launcher und die neuesten Programme auf den Server (jarns.ch/software),
+# von dem sich die Werkbank künftig aktualisiert. Läuft von selbst nach jedem erfolgreichen
+# Launcher-, Programm- oder Eigene-Release; von Hand: Reiter «Actions» → «Server-Upload» → «Run workflow».
+# Hochgeladen wird nur, was auf dem Server noch fehlt.
+#
+# Einmalig einrichten (Settings → Secrets and variables → Actions → Secrets):
+#   FTP_HOST      Server, z. B. jarns.ch
+#   FTP_USER      FTP-Benutzer
+#   FTP_PASSWORD  FTP-Passwort
+# Optional unter «Variables»:
+#   FTP_DIR          Ort des Ordners «software» vom FTP-Wurzelordner aus (Standard: software)
+#   SERVER_URL       Web-Adresse dieses Ordners (Standard: https://jarns.ch/software)
+#   FTP_SSL_FORCE    yes (Standard) oder no
+#   FTP_VERIFY_CERT  yes (Standard) oder no
+# Ohne FTP_HOST überspringt der Ablauf den Upload mit einer Warnung.
+
+on:
+  workflow_run:
+    workflows: ["Launcher-Release", "App-Release", "Eigene-Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Alles neu hochladen, auch was der Server schon hat"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Auf den Server laden
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FTP_HOST: ${{ secrets.FTP_HOST }}
+      FTP_USER: ${{ secrets.FTP_USER }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_DIR: ${{ vars.FTP_DIR }}
+      FTP_SSL_FORCE: ${{ vars.FTP_SSL_FORCE }}
+      FTP_VERIFY_CERT: ${{ vars.FTP_VERIFY_CERT }}
+      SERVER_URL: ${{ vars.SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zugangsdaten prüfen
+        id: creds
+        run: |
+          if [ -z "$FTP_HOST" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::warning::FTP_HOST, FTP_USER und FTP_PASSWORD sind nicht als Secrets hinterlegt; kein Upload."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: lftp installieren
+        if: steps.creds.outputs.ready == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends lftp
+
+      - name: Inhalt zusammenstellen
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          [ -n "${SERVER_URL:-}" ] || unset SERVER_URL
+          force=""
+          if [ "${{ inputs.force }}" = "true" ]; then force="force"; fi
+          python3 setup/server_site.py "$GITHUB_REPOSITORY" work $force
+          find work -type f | sort
+
+      - name: Hochladen (zuerst Dateien, dann Verzeichnis-Dateien)
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          [ -n "${FTP_DIR:-}" ] || unset FTP_DIR
+          [ -n "${FTP_SSL_FORCE:-}" ] || unset FTP_SSL_FORCE
+          [ -n "${FTP_VERIFY_CERT:-}" ] || unset FTP_VERIFY_CERT
+          bash setup/ftp-push.sh mirror work/site ""
+          bash setup/ftp-push.sh put work/ctl/launcher/latest.json launcher
+          bash setup/ftp-push.sh put work/ctl/apps.toml ""
+          bash setup/ftp-push.sh put work/ctl/index.json ""

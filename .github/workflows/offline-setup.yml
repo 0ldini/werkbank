@@ -4,8 +4,17 @@ name: Offline-Setup
 # für Windows und veröffentlicht es als Release setup-v<Datum>.
 # Start: Reiter «Actions» → «Offline-Setup» → «Run workflow».
 
+# Danach wird das Setup auch auf den Server geladen (jarns.ch/software/setup/werkbank-setup.exe),
+# sofern die FTP-Zugangsdaten hinterlegt sind (siehe Server-Upload). «Auf ansage» = nur wenn du
+# diesen Ablauf von Hand startest.
+
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: "Setup danach auf den Server laden"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -62,3 +71,45 @@ jobs:
               --title "Werkbank Offline-Setup $VERSION" \
               --notes "Setup-Programm für Windows mit allen Programmen. Beim Installieren wählbar: welche Programme, und ob vorher nach neueren Versionen gesucht wird."
           fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: werkbank-setup
+          path: out/werkbank-setup-*.exe
+          if-no-files-found: error
+
+  server:
+    name: Auf den Server laden
+    needs: setup
+    if: inputs.upload
+    runs-on: ubuntu-latest
+    env:
+      FTP_HOST: ${{ secrets.FTP_HOST }}
+      FTP_USER: ${{ secrets.FTP_USER }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_DIR: ${{ vars.FTP_DIR }}
+      FTP_SSL_FORCE: ${{ vars.FTP_SSL_FORCE }}
+      FTP_VERIFY_CERT: ${{ vars.FTP_VERIFY_CERT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: werkbank-setup
+          path: dl
+      - name: Hochladen
+        run: |
+          set -euo pipefail
+          if [ -z "$FTP_HOST" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::warning::FTP-Zugangsdaten fehlen (Secrets FTP_HOST, FTP_USER, FTP_PASSWORD); kein Upload."
+            exit 0
+          fi
+          [ -n "${FTP_DIR:-}" ] || unset FTP_DIR
+          [ -n "${FTP_SSL_FORCE:-}" ] || unset FTP_SSL_FORCE
+          [ -n "${FTP_VERIFY_CERT:-}" ] || unset FTP_VERIFY_CERT
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends lftp
+          exe=$(ls dl/werkbank-setup-*.exe | head -n 1)
+          ver=$(basename "$exe" .exe); ver=${ver#werkbank-setup-}
+          sha=$(sha256sum "$exe" | cut -d' ' -f1)
+          printf '{"version":"%s","file":"werkbank-setup.exe","sha256":"%s"}\n' "$ver" "$sha" > latest.json
+          bash setup/ftp-push.sh put "$exe" setup werkbank-setup.exe
+          bash setup/ftp-push.sh put latest.json setup

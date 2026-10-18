@@ -15,6 +15,10 @@
 
 title = "Werkbank"
 
+# Programme und Launcher kommen von diesem Server (Ordner "software"); das Repository ist privat.
+# Ein Ablauf auf GitHub («Server-Upload») spiegelt die neuesten Releases dorthin.
+server = "https://jarns.ch/software"
+
 [[app]]
 id = "photocraft"
 name = "Bildwerk"

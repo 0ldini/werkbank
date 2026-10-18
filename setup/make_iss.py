@@ -8,6 +8,8 @@ import pathlib, sys, tomllib
 version, stage, out = sys.argv[1], pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
 apps = tomllib.loads(pathlib.Path("launcher/apps.toml").read_text(encoding="utf-8"))["app"]
 bundle = stage / "bundle"
+# Prüfsummen des Lizenzcodes (der Code selbst steht nirgends im Repository).
+lic = dict(l.split("=", 1) for l in pathlib.Path("launcher/license.sha256").read_text().split() if "=" in l)
 present = {a["id"]: sorted(p.name for p in bundle.glob(f'{a["id"]}-*')) for a in apps}
 apps = [a for a in apps if present[a["id"]]]
 
@@ -71,5 +73,9 @@ Filename: "{app}\\werkbank.exe"; Parameters: "--bundle ""{app}\\bundle"" --offli
 Type: filesandordirs; Name: "{app}\\bundle"
 Type: filesandordirs; Name: "{localappdata}\\Werkbank"
 ''')
+pas = pathlib.Path("setup/license.pas").read_text(encoding="utf-8")
+for key, name in (("@CP1252@", "cp1252"), ("@UTF16@", "utf16le"), ("@UTF8@", "utf8")):
+    pas = pas.replace(key, lic[name])
+lines.append(pas)
 out.write_text("\n".join(lines), encoding="utf-8-sig")
 print(f"{out}: {len(apps)} Programme, {sum(len(v) for v in present.values())} Archive")
