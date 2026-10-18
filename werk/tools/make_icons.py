@@ -31,7 +31,6 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "wandelwerk": ("Wandelwerk", "#2B8A6E", '<path d="M5 9a7.5 7.5 0 0 1 13-2.5L20 8M19 15a7.5 7.5 0 0 1-13 2.5L4 16"/><path d="M20 3.5V8h-4.5M4 20.5V16h4.5"/>'),
     "schutzwerk": ("Schutzwerk", "#3D6B8C", '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
     "mediathekwerk": ("Mediathekwerk", "#8C5A2B", '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9l2.5-5h3L6 9M9 9l2.5-5h3L12 9M15 9l2.5-5h3"/>'),
-    "diawerk": ("Diawerk", "#7C2D52", '<rect x="7" y="3" width="14" height="12" rx="1.5"/><path d="M3.5 7.5v11a1.5 1.5 0 0 0 1.5 1.5h12"/><path d="M12 6.8v4.4l3.6-2.2z" fill="#fff"/>'),
     "diawerk": ("Diawerk", "#2E9BD6", '<rect x="6" y="3" width="15" height="12" rx="1.5"/><path d="M3 7v12a1 1 0 0 0 1 1h13"/><path d="M12 6.5v5l4-2.5z" fill="#fff"/>'),
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
 }
