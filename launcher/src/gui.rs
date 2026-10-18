@@ -1221,7 +1221,7 @@ impl Gui {
         if home.recent {
             cards.push(2);
         }
-        let size = egui::vec2(w, 200.0);
+        let size = egui::vec2(w, 214.0);
         for row in cards.chunks(cols) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = gap;
@@ -1286,7 +1286,7 @@ impl Gui {
             };
             let top = ui.cursor().min;
             let width = ui.available_width();
-            ui.label(egui::RichText::new(weather::deg(w.temp)).size(52.0).strong());
+            ui.label(egui::RichText::new(weather::deg(w.temp)).size(46.0).strong());
             ui.label(egui::RichText::new(&w.text).size(15.0));
             let mut info = format!("H {} · T {}", weather::deg(w.today_max), weather::deg(w.today_min));
             if w.rain_prob > 0.0 {
@@ -1299,8 +1299,8 @@ impl Gui {
             if days.is_empty() {
                 return;
             }
-            let rest = ui.available_rect_before_wrap();
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(width, rest.height().max(40.0)), Sense::hover());
+            let bottom = ui.max_rect().bottom();
+            let rect = Rect::from_min_max(Pos2::new(top.x, (bottom - 52.0).max(ui.cursor().min.y)), Pos2::new(top.x + width, bottom));
             let cw = rect.width() / days.len() as f32;
             let p = ui.painter();
             for (i, d) in days.iter().enumerate() {
@@ -1464,7 +1464,7 @@ impl Gui {
                     ui.add_space(2.0);
                     ui.label(egui::RichText::new(&app.name).size(17.0).strong());
                     let line = match (st.current(), st.latest) {
-                        (Some(n), Some(l)) if update => format!("{} → {}", fmt_version(n), fmt_version(l)),
+                        (Some(n), Some(l)) if update => format!("Update auf {} · installiert {}", fmt_version(l), fmt_version(n)),
                         (Some(n), _) => format!("Installiert · {}", fmt_version(n)),
                         (None, Some(l)) => format!("Version {}", fmt_version(l)),
                         (None, None) => st.error.clone().unwrap_or_else(|| "Version wird gesucht …".into()),
