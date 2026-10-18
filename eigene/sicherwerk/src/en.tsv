@@ -1,0 +1,264 @@
+# Sicherwerk: deutsch → englisch
+Die Datendatei war beschädigt – die letzte gute Fassung wurde geladen.	The data file was damaged – the last good version was loaded.
+Die Datendatei war beschädigt und wird beim nächsten Speichern beiseitegelegt.	The data file was damaged and will be set aside on the next save.
+Gespeichert, aber die Aufgabenplanung meldet:	Saved, but Task Scheduler reports:
+Gespeichert.	Saved.
+Neuer Auftrag	New job
+Auftrag gelöscht. Die Sicherungen im Ziel bleiben erhalten.	Job deleted. The backups at the destination are kept.
+Sichere «{name}» …	Backing up “{name}” …
+Interner Fehler – der Vorgang wurde abgebrochen.	Internal error – the operation was stopped.
+{name}: {ergebnis} – {neu} neu, {geaendert} geändert, {entfernt} entfernt, {groesse} in {dauer}	{name}: {ergebnis} – {neu} new, {geaendert} changed, {entfernt} removed, {groesse} in {dauer}
+{name}: Prüfen {ergebnis} – {n} Dateien gelesen, {gleich} mit der Quelle verglichen, {fehler} Fehler	{name}: verify {ergebnis} – {n} files read, {gleich} compared with source, {fehler} errors
+{name}: Wiederherstellen {ergebnis} – {n} Dateien ({groesse})	{name}: restore {ergebnis} – {n} files ({groesse})
+Aktueller Stand (Spiegel)	Current state (mirror)
+Version vom {datum}	Version of {datum}
+Version vom {datum} (ZIP)	Version of {datum} (ZIP)
+Beim Spiegeln entfernt am {datum}	Removed by mirroring on {datum}
+Ordner regelmässig sichern	Back up folders regularly
++ Neuer Auftrag	+ New job
+Hier speichert Sicherwerk Aufträge und Protokolle.	Sicherwerk stores jobs and logs here.
+Sicherungsaufträge	Backup jobs
+Noch keine Aufträge. Oben «+ Neuer Auftrag» wählen.	No jobs yet. Choose “+ New job” at the top.
+Spiegeln	Mirror
+Versionen	Versions
+Noch nie gesichert	Never backed up
+läuft …	running …
+Willkommen bei Sicherwerk	Welcome to Sicherwerk
+Lege einen Sicherungsauftrag an: welche Ordner, wohin (USB-Stick, zweite Festplatte, NAS) und wie.	Create a backup job: which folders, where to (USB stick, second drive, NAS) and how.
+Einstellungen	Settings
+Zeitplan	Schedule
+Protokoll	Log
+Wiederherstellen	Restore
+Letzte Sicherung: {zeit} – {ergebnis}	Last backup: {zeit} – {ergebnis}
+Noch keine Sicherung.	No backup yet.
+Es läuft gerade etwas.	Something is running right now.
+Zuerst die Änderungen speichern.	Save the changes first.
+Zuerst Quellordner und Ziel wählen.	Choose source folders and a destination first.
+Prüfen	Verify
+Stichprobe: Dateien der Sicherung lesen und per Prüfsumme mit der Quelle vergleichen.	Sample check: read files from the backup and compare them with the source by checksum.
+Jetzt sichern	Back up now
+Vorschau	Preview
+Zeigt, was beim Sichern passieren würde – ohne etwas zu verändern.	Shows what a backup would do – without changing anything.
+Sichern: {name}	Backup: {name}
+Prüfen: {name}	Verify: {name}
+Vorschau: {name}	Preview: {name}
+Wiederherstellen: {name}	Restore: {name}
+Sicherung lesen: {name}	Reading backup: {name}
+Abbrechen	Cancel
+{df} von {dg} Dateien · {bf} von {bg}	{df} of {dg} files · {bf} of {bg}
+Name	Name
+z. B. Fotos auf USB-Stick	e.g. Photos to USB stick
+Quellordner	Source folders
+Diese Ordner werden gesichert. Sicherwerk liest sie nur – es verändert und löscht darin nie etwas.	These folders are backed up. Sicherwerk only reads them – it never changes or deletes anything in them.
+Noch kein Ordner gewählt.	No folder chosen yet.
+Aus dem Auftrag entfernen	Remove from job
+→ im Ziel: {name}	→ at destination: {name}
++ Ordner wählen …	+ Choose folder …
+Quellordner wählen	Choose source folder
+oder Pfad eingeben, z. B. {beispiel}	or type a path, e.g. {beispiel}
+Hinzufügen	Add
+Ziel	Destination
+USB-Stick, zweite Festplatte oder Netzwerkpfad (NAS). Darin legt Sicherwerk einen Ordner mit dem Auftragsnamen an.	USB stick, second drive or network path (NAS). Sicherwerk creates a folder named after the job there.
+z. B. E:\Sicherung oder /media/oli/USB	e.g. E:\Backup or /media/oli/USB
+Wählen …	Choose …
+Ziel wählen	Choose destination
+Noch kein Ziel gewählt.	No destination chosen yet.
+Sicherungen landen in: {pfad}	Backups go to: {pfad}
+Das Ziel liegt in einem Quellordner – so kann nicht gesichert werden.	The destination is inside a source folder – this cannot be backed up.
+Art der Sicherung	Backup type
+Spiegeln – nur Neues und Geändertes kopieren	Mirror – copy only new and changed files
+Versionen – bei jedem Lauf ein eigener, datierter Stand	Versions – a separate, dated copy on every run
+Verglichen wird nach Grösse und Änderungszeit. Das Ziel ist danach ein genaues Abbild der Quelle.	Files are compared by size and modification time. Afterwards the destination is an exact copy of the source.
+Im Ziel nicht mehr vorhandene Dateien:	Files no longer in the source:
+nach _entfernt/<Datum> verschieben	move to _entfernt/<date>
+im Ziel löschen	delete at destination
+im Ziel behalten	keep at destination
+Form:	Format:
+Ordner	Folder
+ZIP-Datei	ZIP file
+Aufbewahren: die letzten	Keep the last
+Unveränderte Dateien nicht doppelt speichern (harte Verknüpfung)	Don't store unchanged files twice (hard link)
+Jede Version sieht vollständig aus, belegt aber nur Platz für Geändertes. Geht auf NTFS und Linux-Dateisystemen, nicht auf FAT/exFAT – dann wird kopiert.	Every version looks complete but only uses space for changes. Works on NTFS and Linux file systems, not on FAT/exFAT – files are copied there.
+ZIP ohne Kompression: schnell, und jede Datei lässt sich mit jedem Entpacker öffnen.	ZIP without compression: fast, and every file opens with any unzip tool.
+Ausschlüsse	Exclusions
+Ein Muster pro Zeile. Ohne / gilt es für Datei- und Ordnernamen überall (*.tmp, node_modules, Cache), mit / für Pfade ab dem Quellordner (Projekte/*/build). ** steht für beliebig viele Ordner.	One pattern per line. Without / it matches file and folder names anywhere (*.tmp, node_modules, Cache); with / it matches paths from the source folder (Projects/*/build). ** stands for any number of folders.
+Schnell dazu:	Quick add:
+Stichprobe:	Sample:
+Dateien je Prüfung	files per check
+Dieser Ordner ist schon im Auftrag.	This folder is already in the job.
+Speichern	Save
+Verwerfen	Discard
+Ungespeicherte Änderungen	Unsaved changes
+Auftrag löschen …	Delete job …
+Wann sichern?	When to back up?
+am	on
+um	at
+Uhr	o'clock
+War der Computer zu dieser Zeit aus, holt Windows die Sicherung beim nächsten Start nach.	If the computer was off at that time, Windows runs the backup at the next start.
+Sicherwerk sichert einmal pro Tag, sobald das Ziel erreichbar ist: beim Programmstart und solange das Fenster offen ist. Unter Windows kann zusätzlich eine Aufgabe alle 15 Minuten im Hintergrund nachsehen.	Sicherwerk backs up once a day as soon as the destination is reachable: at program start and while the window is open. On Windows, a task can also check every 15 minutes in the background.
+Gesichert wird nur mit «Jetzt sichern».	Backups run only with “Back up now”.
+Windows-Aufgabenplanung	Windows Task Scheduler
+Damit gesichert wird, auch wenn Sicherwerk nicht offen ist, trägt Sicherwerk eine Aufgabe ein. Sie startet «sicherwerk --auftrag» ohne Fenster; das Ergebnis steht danach im Protokoll.	To back up even when Sicherwerk is not open, Sicherwerk adds a task. It runs “sicherwerk --auftrag” without a window; the result then appears in the log.
+✔ In der Aufgabenplanung eingetragen	✔ Registered in Task Scheduler
+Nicht in der Aufgabenplanung eingetragen	Not registered in Task Scheduler
+Vor dem ersten Eintragen einmal die Vorschau ansehen.	Look at the preview once before registering.
+Neu eintragen	Register again
+Eintragen	Register
+In der Aufgabenplanung eingetragen.	Registered in Task Scheduler.
+Aufgabenplanung:	Task Scheduler:
+Austragen	Unregister
+Aus der Aufgabenplanung ausgetragen.	Removed from Task Scheduler.
+Tipp: Für ein NAS besser den Netzwerkpfad ({beispiel}) als einen Laufwerksbuchstaben verwenden – verbundene Laufwerke fehlen Aufgaben oft.	Tip: for a NAS, use the network path ({beispiel}) rather than a drive letter – scheduled tasks often don't see mapped drives.
+Unter Linux selbst einrichten	Set up yourself on Linux
+Sicherwerk richtet unter Linux nichts automatisch ein. Wähle eine der beiden Möglichkeiten. Der Auftrag läuft dann ohne Fenster, das Ergebnis steht im Protokoll.	On Linux, Sicherwerk sets nothing up automatically. Choose one of the two options. The job then runs without a window and the result appears in the log.
+Möglichkeit 1: cron	Option 1: cron
+«crontab -e» öffnen und diese Zeile anfügen:	Open “crontab -e” and add this line:
+Kopieren	Copy
+Möglichkeit 2: systemd-Timer (holt verpasste Läufe nach)	Option 2: systemd timer (catches up on missed runs)
+Datei {pfad}:	File {pfad}:
+Danach im Terminal:	Then in a terminal:
+Soll der Timer auch laufen, wenn du nicht angemeldet bist: «loginctl enable-linger».	For the timer to run while you are not logged in: “loginctl enable-linger”.
+«beim Anschliessen»: eine gemeinsame Einheit für alle solchen Aufträge – sie schaut alle 15 Minuten nach.	“When connected”: one shared unit for all such jobs – it checks every 15 minutes.
+In die Zwischenablage kopiert.	Copied to the clipboard.
+Noch keine Einträge.	No entries yet.
+Neu kopiert	Newly copied
+Geändert	Changed
+Im Ziel entfernt	Removed at destination
+Verknüpft (unverändert)	Linked (unchanged)
+Unverändert	Unchanged
+Kopiert	Copied
+Version	Version
+Alte Versionen entfernt	Old versions removed
+Dateien gelesen	Files read
+Mit der Quelle verglichen	Compared with source
+Dateien	Files
+Grösse	Size
+Stand	State
+Dauer	Duration
+Fehler	Errors
+(weitere Fehler nicht gespeichert)	(further errors not stored)
+Stand:	State:
+– keiner –	– none –
+Aktualisieren	Refresh
+Noch keine Sicherung gefunden (oder das Ziel ist nicht angeschlossen).	No backup found yet (or the destination is not connected).
+Alles	All
+Suchen …	Search …
+Leer.	Empty.
+Mit dem Ordner darüber ausgewählt	Selected via the folder above
+Öffnen	Open
+{n} ausgewählt	{n} selected
+Auswahl leeren	Clear selection
+Wiederherstellen nach …	Restore to …
+In einen frei gewählten Ordner. Vorhandene Dateien werden nie überschrieben – bei gleichem Namen heisst die neue «Name (2)».	Into a folder of your choice. Existing files are never overwritten – if the name exists, the new one is called “Name (2)”.
+Wohin wiederherstellen?	Restore where?
+Der Auftrag hat ungespeicherte Änderungen.	The job has unsaved changes.
+Auftrag löschen?	Delete job?
+«{name}» wird gelöscht.	“{name}” will be deleted.
+Die Sicherungen im Ziel bleiben erhalten; das Protokoll bleibt ebenfalls.	The backups at the destination are kept; so is the log.
+Löschen	Delete
+Sicherwerk schliessen?	Close Sicherwerk?
+Es läuft gerade eine Sicherung oder Wiederherstellung.	A backup or restore is running.
+Abbrechen und schliessen	Cancel and close
+Ohne Speichern schliessen	Close without saving
+Weiterarbeiten	Keep working
+So kann nicht gesichert werden:	Cannot back up like this:
+Abgebrochen – die Vorschau ist unvollständig.	Cancelled – the preview is incomplete.
+Ziel: {pfad}	Destination: {pfad}
+Neue Version	New version
+Davon unverändert (verknüpft)	Of which unchanged (linked)
+Zu kopieren	To copy
+Alte Versionen, die entfernt werden	Old versions to be removed
+Neu	New
+Nach _entfernt verschieben	Move to _entfernt
+Im Ziel löschen	Delete at destination
+Im Ziel nicht mehr vorhanden (bleiben)	No longer in source (kept)
+Zu kopieren ({n})	To copy ({n})
+Geändert ({n})	Changed ({n})
+Entfernen ({n})	Remove ({n})
+(die ersten {n} von {m})	(first {n} of {m})
+Sichern starten	Start backup
+Schliessen	Close
+Sicherwerk – Ordner regelmässig sichern.	Sicherwerk – back up folders regularly.
+Fenster öffnen	open the window
+Auftrag ohne Fenster ausführen (für Zeitpläne)	run a job without a window (for schedules)
+Aufträge «beim Anschliessen» ausführen, deren Ziel erreichbar ist	run “when connected” jobs whose destination is reachable
+Daten: {pfad}	Data: {pfad}
+{name}: {ergebnis} – {neu} neu, {geaendert} geändert, {entfernt} entfernt, {verknuepft} verknüpft, {groesse} kopiert, {fehler} Fehler	{name}: {ergebnis} – {neu} new, {geaendert} changed, {entfernt} removed, {verknuepft} linked, {groesse} copied, {fehler} errors
+Unbekannte Angabe: {a}	Unknown option: {a}
+Auftrag «{name}» nicht gefunden.	Job “{name}” not found.
+Nur von Hand	Manual only
+Täglich	Daily
+Wöchentlich	Weekly
+Beim Anschliessen des Ziellaufwerks	When the destination drive is connected
+Sichern	Backup
+von Hand	manual
+Laufwerk angeschlossen	drive connected
+Erfolgreich	Successful
+Mit Fehlern	With errors
+Abgebrochen	Cancelled
+Fehlgeschlagen	Failed
+Ziel nicht erreichbar	Destination not reachable
+Quellordner fehlt	Source folder missing
+Lesen fehlgeschlagen	Read failed
+Kopieren fehlgeschlagen	Copy failed
+Verschieben fehlgeschlagen	Move failed
+Löschen fehlgeschlagen	Delete failed
+Ordner anlegen fehlgeschlagen	Creating folder failed
+ZIP-Fehler	ZIP error
+Prüfsumme weicht ab	Checksum mismatch
+Auftrag läuft bereits	Job is already running
+Hinweis	Note
+Vorbereiten …	Preparing …
+Ordner lesen …	Reading folders …
+Vergleichen …	Comparing …
+Kopieren …	Copying …
+Aufräumen …	Cleaning up …
+Prüfsummen vergleichen …	Comparing checksums …
+Wiederherstellen …	Restoring …
+Fertig	Done
+Montag	Monday
+Dienstag	Tuesday
+Mittwoch	Wednesday
+Donnerstag	Thursday
+Freitag	Friday
+Samstag	Saturday
+Sonntag	Sunday
+Bitte einen Namen eingeben.	Please enter a name.
+Der Name ist zu lang (höchstens 60 Zeichen).	The name is too long (at most 60 characters).
+Der Name darf keines dieser Zeichen enthalten: < > : " / \ | ? * %	The name must not contain any of these characters: < > : " / \ | ? * %
+Der Name darf nicht mit # oder - beginnen und nicht mit einem Punkt enden.	The name must not start with # or - and must not end with a dot.
+Es gibt schon einen Auftrag mit diesem Namen.	A job with this name already exists.
+Benutzerordner nicht gefunden	User folder not found
+Beschädigte Datendatei konnte nicht beiseitegelegt werden	Damaged data file could not be set aside
+Einstellungsordner konnte nicht angelegt werden	Settings folder could not be created
+Datendatei ist gesperrt	Data file is locked
+Speichern fehlgeschlagen	Saving failed
+Kein Ziel gewählt	No destination chosen
+Laufwerk nicht angeschlossen oder Ordner nicht vorhanden	Drive not connected or folder missing
+Das Ziel liegt in diesem Quellordner – bitte ein anderes Ziel wählen	The destination is inside this source folder – please choose another destination
+Dieser Quellordner liegt im Sicherungsordner	This source folder is inside the backup folder
+Dateiname mit ungültigen Zeichen – übersprungen	File name with invalid characters – skipped
+Ordner zu tief verschachtelt	Folders nested too deeply
+Ordner nicht gefunden – nichts davon gesichert, im Ziel nichts entfernt	Folder not found – nothing from it backed up, nothing removed at destination
+Quellordner ist leer – im Ziel wurde nichts entfernt	Source folder is empty – nothing was removed at destination
+Das Ziellaufwerk kann keine harten Verknüpfungen – es wird alles kopiert	The destination drive does not support hard links – everything is copied
+Wegen Fehlern wurden keine alten Versionen entfernt	No old versions were removed because of errors
+Keine Quellordner gewählt	No source folders chosen
+Nicht gefunden	Not found
+Ordner nicht gefunden	Folder not found
+Ungültiger Pfad in der Sicherung – übersprungen	Invalid path in backup – skipped
+Daten im ZIP beschädigt (CRC)	Data in ZIP damaged (CRC)
+Noch keine Sicherung vorhanden	No backup yet
+Noch keine Version vorhanden	No version yet
+Grösse stimmt nicht	Size does not match
+Inhalt weicht von der Quelle ab	Content differs from the source
+abgebrochen	cancelled
+ungültiger Name im ZIP	invalid name in ZIP
+kein ZIP-Archiv (Ende nicht gefunden)	not a ZIP archive (end not found)
+ZIP-Ende beschädigt	ZIP end record damaged
+ZIP64-Zeiger fehlt	ZIP64 locator missing
+ZIP64-Ende beschädigt	ZIP64 end record damaged
+ZIP-Inhaltsverzeichnis ausserhalb der Datei	ZIP directory outside the file
+ZIP-Inhaltsverzeichnis beschädigt	ZIP directory damaged
+ZIP-Eintrag beschädigt	ZIP entry damaged
+ZIP-Eintrag ist komprimiert (nur ungepackte Einträge von Sicherwerk werden unterstützt)	ZIP entry is compressed (only uncompressed entries from Sicherwerk are supported)
