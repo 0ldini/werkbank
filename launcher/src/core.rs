@@ -105,6 +105,69 @@ pub struct Config {
     /// true, sobald die Ersteinrichtung die Dateitypen einmal gefragt hat.
     #[serde(default)]
     pub types_asked: bool,
+    /// Ort für das Wetter auf der Startseite.
+    #[serde(default)]
+    pub place: Option<Place>,
+    /// Was die Startseite zeigt.
+    #[serde(default)]
+    pub home: Home,
+    /// Zuletzt über die Werkbank geöffnete Dateien, neueste zuerst.
+    #[serde(default)]
+    pub recent: Vec<Recent>,
+}
+
+#[derive(Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
+pub struct Place {
+    pub name: String,
+    #[serde(default)]
+    pub region: Option<String>,
+    pub lat: f64,
+    pub lon: f64,
+}
+
+impl Place {
+    pub fn sarnen() -> Self {
+        Place { name: "Sarnen".into(), region: Some("Obwalden, Schweiz".into()), lat: 46.8961, lon: 8.2457 }
+    }
+}
+
+#[derive(Deserialize, serde::Serialize, Clone, Debug)]
+pub struct Home {
+    #[serde(default = "yes")]
+    pub clock: bool,
+    #[serde(default = "yes")]
+    pub weather: bool,
+    #[serde(default = "yes")]
+    pub recent: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for Home {
+    fn default() -> Self {
+        Home { clock: true, weather: true, recent: true }
+    }
+}
+
+#[derive(Deserialize, serde::Serialize, Clone, Debug)]
+pub struct Recent {
+    pub path: PathBuf,
+    pub app: String,
+    /// Unix-Sekunden.
+    pub when: u64,
+}
+
+/// Merkt sich eine geöffnete Datei für «Zuletzt geöffnet».
+pub fn remember_recent(path: &Path, app: &str) {
+    let mut cfg = load_config();
+    let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    cfg.recent.retain(|r| r.path != path);
+    let when = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    cfg.recent.insert(0, Recent { path, app: app.to_string(), when });
+    cfg.recent.truncate(12);
+    let _ = save_config(&cfg);
 }
 
 pub fn save_config(cfg: &Config) -> Result<()> {
@@ -280,7 +343,7 @@ fn fetch(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
     bail!("zu viele Weiterleitungen: {url}")
 }
 
-fn http_text(url: &str, limit: u64) -> Result<String> {
+pub fn http_text(url: &str, limit: u64) -> Result<String> {
     let mut resp = fetch(url)?;
     let mut buf = Vec::new();
     resp.body_mut().as_reader().take(limit).read_to_end(&mut buf)?;
@@ -614,8 +677,12 @@ pub fn run(app: &App) -> Result<()> {
 /// Startet das Programm, optional mit einer zu öffnenden Datei.
 pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
     let exe = exe_path(app).ok_or_else(|| anyhow!("{} ist nicht installiert", app.name))?;
+    let file = file.map(|f| std::path::absolute(f).unwrap_or_else(|_| f.to_path_buf()));
+    if let Some(f) = &file {
+        remember_recent(f, &app.id);
+    }
     std::process::Command::new(&exe)
-        .args(file)
+        .args(&file)
         .current_dir(exe.parent().unwrap_or(Path::new(".")))
         .spawn()
         .with_context(|| format!("Start von {}", exe.display()))?;

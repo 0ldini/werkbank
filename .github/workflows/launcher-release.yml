@@ -67,6 +67,12 @@ jobs:
         run: |
           set -o pipefail
           cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Testen
+        if: runner.os == 'Linux'
+        working-directory: launcher
+        run: |
+          set -o pipefail
+          cargo test --release 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Fehler melden
         if: failure()
         run: |
