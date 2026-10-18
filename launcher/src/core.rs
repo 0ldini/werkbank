@@ -28,6 +28,9 @@ pub struct App {
     pub name: String,
     #[serde(default)]
     pub about: String,
+    /// Rubrik: buero, foto, video oder system (optional; sonst eingebaut).
+    #[serde(default)]
+    pub category: Option<String>,
     /// Beschreibung auf Englisch (optional).
     #[serde(default)]
     pub about_en: Option<String>,
@@ -150,6 +153,9 @@ pub struct Home {
     pub weather: bool,
     #[serde(default = "yes")]
     pub recent: bool,
+    /// «Meine Programme» nach Rubriken gruppiert.
+    #[serde(default)]
+    pub grouped: bool,
 }
 
 fn yes() -> bool {
@@ -158,7 +164,7 @@ fn yes() -> bool {
 
 impl Default for Home {
     fn default() -> Self {
-        Home { clock: true, weather: true, recent: true }
+        Home { clock: true, weather: true, recent: true, grouped: false }
     }
 }
 

@@ -69,9 +69,9 @@ enum View {
 enum Chip {
     All,
     Office,
-    Media,
-    Tools,
-    Sound,
+    Photo,
+    Video,
+    System,
     Installed,
     Updates,
 }
@@ -81,23 +81,32 @@ impl Chip {
         t(match self {
             Chip::All => "Alle",
             Chip::Office => "Büro",
-            Chip::Media => "Bild und Video",
-            Chip::Tools => "Werkzeuge",
-            Chip::Sound => "Ton",
+            Chip::Photo => "Foto und Grafik",
+            Chip::Video => "Video und Ton",
+            Chip::System => "System und Werkzeuge",
             Chip::Installed => "Installiert",
             Chip::Updates => "Updates",
         })
     }
 }
 
-/// Rubrik eines Programms im Katalog.
-fn category(id: &str) -> Chip {
-    match id {
-        "pdfcraft" | "wordcraft" | "gridcraft" | "deckcraft" => Chip::Office,
-        "photocraft" | "vectorcraft" | "designcraft" | "lightcraft" | "filmcraft" | "effectcraft" | "diawerk"
-        | "mediathekwerk" | "aufnahmewerk" => Chip::Media,
-        "soundcraft" => Chip::Sound,
-        _ => Chip::Tools,
+/// Rubriken in der Reihenfolge der Anzeige.
+const CATEGORIES: [Chip; 4] = [Chip::Office, Chip::Photo, Chip::Video, Chip::System];
+
+/// Rubrik eines Programms: aus der Programmliste (`category`), sonst eingebaut.
+fn category(app: &App) -> Chip {
+    match app.category.as_deref() {
+        Some("buero") => return Chip::Office,
+        Some("foto") => return Chip::Photo,
+        Some("video") => return Chip::Video,
+        Some("system") => return Chip::System,
+        _ => {}
+    }
+    match app.id.as_str() {
+        "pdfcraft" | "wordcraft" | "gridcraft" | "deckcraft" | "mailwerk" => Chip::Office,
+        "photocraft" | "vectorcraft" | "designcraft" | "lightcraft" | "cadcraft" => Chip::Photo,
+        "filmcraft" | "effectcraft" | "soundcraft" | "diawerk" | "aufnahmewerk" | "mediathekwerk" => Chip::Video,
+        _ => Chip::System,
     }
 }
 
@@ -392,6 +401,25 @@ fn grid(width: f32, min: f32, gap: f32, max_cols: usize) -> (usize, f32) {
     (cols, (width - gap * (cols as f32 - 1.0)) / cols as f32)
 }
 
+
+/// Zwei Umschaltknöpfe für ein Layout von rechts nach links («Alle» | «Nach Kategorie»);
+/// liefert die neue Wahl.
+fn segmented(ui: &mut egui::Ui, on: bool, on_label: &str, off_label: &str) -> Option<bool> {
+    let mut out = None;
+    // Im Layout von rechts nach links: zuerst der rechte Knopf.
+    for (value, label) in [(true, on_label), (false, off_label)] {
+        let active = on == value;
+        let b = egui::Button::new(egui::RichText::new(label).size(13.0).color(if active { BG } else { SOFT }))
+            .fill(if active { ACCENT } else { PANEL })
+            .stroke(Stroke::new(1.0, if active { ACCENT } else { BORDER }))
+            .corner_radius(14u8)
+            .min_size(egui::vec2(0.0, 30.0));
+        if ui.add(b).clicked() && !active {
+            out = Some(value);
+        }
+    }
+    out
+}
 
 /// Deutsch/English als zwei Knöpfe; liefert die neu gewählte Sprache.
 fn language_pick(ui: &mut egui::Ui) -> Option<Lang> {
@@ -968,11 +996,11 @@ impl Gui {
                         logo(ui, &mut self.textures, 32.0);
                         ui.label(egui::RichText::new(&self.manifest.title).size(21.0).strong());
                     }
-                    Some(t) => {
+                    Some(title) => {
                         if glyph_button(ui, Glyph::Back, t("Zur Startseite")).clicked() {
                             self.go(View::Home);
                         }
-                        ui.label(egui::RichText::new(t).size(21.0).strong());
+                        ui.label(egui::RichText::new(title).size(21.0).strong());
                     }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1151,6 +1179,11 @@ impl Gui {
                             ui.label(egui::RichText::new(if updates == 1 { t("1 Update bereit").to_string() } else { tf("{n} Updates bereit", &[("n", &updates)]) }).color(ACCENT));
                             let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
                             ui.painter().circle_filled(r.center(), 4.0, ACCENT);
+                            ui.add_space(12.0);
+                        }
+                        if let Some(g) = segmented(ui, self.cfg.home.grouped, t("Nach Kategorie"), t("Alle")) {
+                            self.cfg.home.grouped = g;
+                            self.save_cfg();
                         }
                     });
                 });
@@ -1159,27 +1192,55 @@ impl Gui {
                     self.empty_home(ui);
                     return;
                 }
-                let gap = 12.0;
-                let (cols, w) = grid(ui.available_width(), 124.0, gap, 12);
-                let mut items: Vec<Option<&App>> = mine.iter().map(Some).collect();
-                items.push(None);
-                for row in items.chunks(cols) {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = gap;
-                        for item in row {
-                            match item {
-                                Some(app) => {
-                                    let st = snapshot.get(&app.id).cloned().unwrap_or_default();
-                                    self.app_tile(ui, ctx, app, &st, w);
-                                }
-                                None => self.add_tile(ui, w),
-                            }
+                if self.cfg.home.grouped {
+                    let groups: Vec<(Chip, Vec<&App>)> = CATEGORIES
+                        .iter()
+                        .map(|c| (*c, mine.iter().filter(|a| category(a) == *c).collect::<Vec<_>>()))
+                        .filter(|(_, v)| !v.is_empty())
+                        .collect();
+                    let last = groups.len().saturating_sub(1);
+                    for (i, (c, apps)) in groups.into_iter().enumerate() {
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(c.label()).size(15.0).color(SOFT));
+                            ui.label(egui::RichText::new(apps.len().to_string()).size(13.0).color(MUTED));
+                        });
+                        ui.add_space(2.0);
+                        let mut items: Vec<Option<&App>> = apps.into_iter().map(Some).collect();
+                        if i == last {
+                            items.push(None);
                         }
-                    });
-                    ui.add_space(gap - 8.0);
+                        self.tile_grid(ui, ctx, snapshot, &items);
+                        ui.add_space(6.0);
+                    }
+                } else {
+                    let mut items: Vec<Option<&App>> = mine.iter().map(Some).collect();
+                    items.push(None);
+                    self.tile_grid(ui, ctx, snapshot, &items);
                 }
             });
         });
+    }
+
+    /// Kacheln im Raster; `None` ist die Kachel «Hinzufügen».
+    fn tile_grid(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>, items: &[Option<&App>]) {
+        let gap = 12.0;
+        let (cols, w) = grid(ui.available_width(), 124.0, gap, 12);
+        for row in items.chunks(cols) {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for item in row {
+                    match item {
+                        Some(app) => {
+                            let st = snapshot.get(&app.id).cloned().unwrap_or_default();
+                            self.app_tile(ui, ctx, app, &st, w);
+                        }
+                        None => self.add_tile(ui, w),
+                    }
+                }
+            });
+            ui.add_space(gap - 8.0);
+        }
     }
 
     fn empty_home(&mut self, ui: &mut egui::Ui) {
@@ -1446,7 +1507,7 @@ impl Gui {
     fn catalog(&mut self, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let st = |a: &App| snapshot.get(&a.id).cloned().unwrap_or_default();
         let count = |chip: Chip| self.manifest.app.iter().filter(|a| matches(chip, a, &st(a))).count();
-        let chips: Vec<(Chip, usize)> = [Chip::All, Chip::Office, Chip::Media, Chip::Tools, Chip::Sound, Chip::Installed, Chip::Updates]
+        let chips: Vec<(Chip, usize)> = [Chip::All, Chip::Office, Chip::Photo, Chip::Video, Chip::System, Chip::Installed, Chip::Updates]
             .into_iter()
             .map(|c| (c, count(c)))
             .filter(|(c, n)| *n > 0 || *c == self.chip || *c == Chip::All)
@@ -1458,7 +1519,7 @@ impl Gui {
             .app
             .iter()
             .filter(|a| matches(self.chip, a, &st(a)))
-            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q) || a.about.to_lowercase().contains(&q) || a.types.iter().any(|t| t.contains(&q)))
+            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q) || a.about.to_lowercase().contains(&q) || a.about_text().to_lowercase().contains(&q) || a.types.iter().any(|t| t.contains(&q)))
             .cloned()
             .collect();
         // Nicht installierte zuerst; Updates noch davor.
@@ -1714,7 +1775,7 @@ fn matches(chip: Chip, app: &App, st: &Status) -> bool {
         Chip::All => true,
         Chip::Installed => st.installed(),
         Chip::Updates => st.update(),
-        c => category(&app.id) == c,
+        c => category(app) == c,
     }
 }
 
@@ -1775,8 +1836,12 @@ mod tests {
 
     #[test]
     fn rubriken() {
-        assert!(category("wordcraft") == Chip::Office);
-        assert!(category("diawerk") == Chip::Media);
-        assert!(category("codewerk") == Chip::Tools);
+        let app = |id: &str| -> App { toml::from_str(&format!("id = \"{id}\"\nname = \"x\"\nrepo = \"r\"")).unwrap() };
+        assert!(category(&app("wordcraft")) == Chip::Office);
+        assert!(category(&app("diawerk")) == Chip::Video);
+        assert!(category(&app("codewerk")) == Chip::System);
+        let mut x = app("neu");
+        x.category = Some("foto".into());
+        assert!(category(&x) == Chip::Photo);
     }
 }
