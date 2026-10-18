@@ -196,12 +196,17 @@ fn gb(bytes: u64) -> String {
 
 /// Kleiner Fortschrittsbalken mit Beschriftung.
 fn meter(ui: &mut egui::Ui, label: &str, value: &str, frac: f32, color: Color32) {
-    ui.horizontal(|ui| {
+    if ui.available_width() < 240.0 {
         ui.label(egui::RichText::new(label).size(13.0));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(egui::RichText::new(value).size(13.0).color(muted()));
+        ui.label(egui::RichText::new(value).size(12.0).color(muted()));
+    } else {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(label).size(13.0));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new(value).size(13.0).color(muted()));
+            });
         });
-    });
+    }
     let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 7.0), Sense::hover());
     ui.painter().rect_filled(r, 4.0, chip());
     ui.painter().rect_filled(Rect::from_min_size(r.min, egui::vec2(r.width() * frac.clamp(0.0, 1.0), r.height())), 4.0, color);
@@ -382,7 +387,7 @@ impl Gui {
                             action = Some((p.idx, "hoehe", h));
                         }
                     }
-                    if ui.small_button("✕").on_hover_text(t("Widget entfernen")).clicked() {
+                    if ui.small_button("×").on_hover_text(t("Widget entfernen")).clicked() {
                         action = Some((p.idx, "weg", 0));
                     }
                 });
@@ -491,17 +496,19 @@ impl Gui {
         let left_w = if side { (width * 0.42).min(220.0) } else { width };
         ui.allocate_ui(egui::vec2(left_w, 0.0), |ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(weather::deg(wx.temp)).size(if compact { 30.0 } else { 44.0 }).strong());
+                ui.label(egui::RichText::new(weather::deg(wx.temp)).size(if compact { 30.0 } else if side { 44.0 } else { 34.0 }).strong());
                 if compact {
                     ui.label(egui::RichText::new(&desc).size(14.0));
                 }
             });
-            if !compact {
+            if side {
                 ui.label(egui::RichText::new(&desc).size(15.0));
                 ui.label(egui::RichText::new(&info).size(12.5).color(muted()));
+            } else if !compact {
+                ui.label(egui::RichText::new(format!("{desc} · {info}")).size(12.5).color(soft()));
             }
         });
-        let icon_s = if compact { 34.0 } else { 56.0 };
+        let icon_s = if compact || !side { 34.0 } else { 56.0 };
         let icon_c = if side { Pos2::new(top.x + left_w - icon_s * 0.5, top.y + icon_s * 0.5) } else { Pos2::new(top.x + width - icon_s * 0.5, top.y + icon_s * 0.5) };
         weather::draw(ui.painter(), icon_c, icon_s, wx.sky, ACCENT, panel(), cloud());
         if compact {
@@ -664,7 +671,7 @@ impl Gui {
                 job.wrap = egui::text::TextWrapping::truncate_at_width(ui.available_width() - 24.0);
                 ui.label(job).on_hover_text(n);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new(egui::RichText::new("✕").size(11.0).color(muted())).frame(false)).on_hover_text(t("Erledigt")).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new("×").size(11.0).color(muted())).frame(false)).on_hover_text(t("Erledigt")).clicked() {
                         remove = Some(i);
                     }
                 });
@@ -812,7 +819,7 @@ impl Gui {
                 if ui.add(egui::Label::new(egui::RichText::new(name).size(14.0)).sense(Sense::click())).on_hover_text(f.display().to_string()).clicked() {
                     let _ = open::that(f);
                 }
-                if self.folders_edit && ui.add(egui::Button::new(egui::RichText::new("✕").size(11.0).color(muted())).frame(false)).clicked() {
+                if self.folders_edit && ui.add(egui::Button::new(egui::RichText::new("×").size(11.0).color(muted())).frame(false)).clicked() {
                     remove = Some(i);
                 }
             });
