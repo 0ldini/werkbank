@@ -1,6 +1,6 @@
 [package]
 name = "aufnahmewerk"
-version = "1.1.0"
+version = "1.3.0"
 edition = "2021"
 description = "Bildschirm aufnehmen – Teil der Werkbank"
 
@@ -11,16 +11,23 @@ eframe = { version = "0.29", default-features = false, features = [
     "glow",
 ] }
 rfd = "0.14"
+# Bildschirmfoto: PNG/JPG schreiben, Text ins Bild rastern (gleiche Version wie in egui).
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+ab_glyph = "0.2"
 
 # Nur Windows: Aufnahme-Motor, Webcam, Win32-Helfer.
 [target.'cfg(windows)'.dependencies]
 windows-capture = "2.0.1"
 nokhwa = { version = "0.10", features = ["input-native"] }
+# Bildschirmfoto in die Zwischenablage.
+arboard = "3.4"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58"
 features = [
     "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_SystemInformation",

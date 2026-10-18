@@ -55,3 +55,80 @@ Aufnahme starten	Start recording
 oder Strg + Umschalt + R	or Ctrl + Shift + R
 LETZTE AUFNAHMEN	RECENT RECORDINGS
 Noch keine Aufnahmen in dieser Sitzung.	No recordings in this session yet.
+# Bildschirmfoto (ab 1.3.0)
+Video	Video
+Bildschirmfoto	Screenshot
+Bildschirmfoto …	Taking screenshot …
+Bildschirmfoto in {n} s …	Screenshot in {n} s …
+Interner Fehler beim Bildschirmfoto.	Internal error while taking the screenshot.
+Bereich aufziehen …	Drag a region …
+Bereich wählen · Aufnahmewerk	Select region · Aufnahmewerk
+Bereich mit der Maus aufziehen · Esc bricht ab	Drag a region with the mouse · Esc to cancel
+BILDSCHIRMFOTO	SCREENSHOT
+Mit der Maus aufziehen	Drag with the mouse
+Aktives Fenster	Active window
+Fenster im Vordergrund	Window in front
+Fotografiert das Fenster, das vorne ist, sobald Aufnahmewerk ausgeblendet ist. Mit Verzögerung bleibt Zeit, ein anderes Fenster anzuklicken.	Captures the window in front once Aufnahmewerk is hidden. With a delay you have time to click another window.
+VOR DEM FOTO · FORMAT	BEFORE THE SCREENSHOT · FORMAT
+Verzögerung	Delay
+Zeit, um Menüs zu öffnen oder Fenster zu wechseln	Time to open menus or switch windows
+Format beim Speichern	Save format
+Strg + S im Editor	Ctrl + S in the editor
+Nach dem Foto	After the screenshot
+Der Editor öffnet sich: Pfeile, Text, Schwärzen, Zuschneiden	The editor opens: arrows, text, redact, crop
+Letztes Bildschirmfoto	Last screenshot
+Bildschirmfoto läuft …	Taking screenshot …
+Bildschirmfoto aufnehmen	Take screenshot
+oder Strg + Umschalt + F	or Ctrl + Shift + F
+LETZTE BILDSCHIRMFOTOS	RECENT SCREENSHOTS
+Ordner öffnen	Open folder
+Noch keine Bildschirmfotos gespeichert.	No screenshots saved yet.
+Im Ordner zeigen	Show in folder
+Bildschirmfoto fehlgeschlagen: {e}	Screenshot failed: {e}
+Bildschirmfoto {w} × {h} im Editor	Screenshot {w} × {h} in the editor
+Hotkey: Strg+Umschalt+F · {fmt}	Hotkey: Ctrl+Shift+F · {fmt}
+Bildschirmfoto bearbeiten · {w} × {h}	Edit screenshot · {w} × {h}
+{w} × {h} Pixel · {n} Schritte	{w} × {h} pixels · {n} steps
+Pfeil	Arrow
+Rechteck	Rectangle
+Stift	Pen
+Text	Text
+Markieren	Highlight
+Schwärzen	Redact
+Verpixeln	Pixelate
+Zuschneiden	Crop
+Pfeil ziehen – Spitze am Ende	Drag an arrow – the tip is at the end
+Rahmen aufziehen	Drag a rectangle
+Frei zeichnen	Draw freehand
+Ins Bild klicken, Text tippen, Enter	Click into the image, type, press Enter
+Halbtransparenter Leuchtstift	Semi-transparent highlighter
+Bereich schwarz übermalen	Paint a region black
+Bereich unkenntlich machen – die Pixel werden ersetzt	Make a region unreadable – the pixels are replaced
+Ausschnitt aufziehen, der bleiben soll	Drag the part you want to keep
+In die Zwischenablage kopiert.	Copied to the clipboard.
+Das Bild ist noch nicht gespeichert.	The image has not been saved yet.
+Speichern und schliessen	Save and close
+Verwerfen	Discard
+Weiter bearbeiten	Keep editing
+Farbe	Color
+Eigene Farbe	Custom color
+Schriftgrösse	Font size
+Strichstärke	Stroke width
+Rückgängig	Undo
+Strg + Z	Ctrl + Z
+Wiederholen	Redo
+Strg + Y	Ctrl + Y
+Als PNG speichern	Save as PNG
+Als JPG speichern	Save as JPG
+Kopieren	Copy
+In die Zwischenablage (Strg + C)	To the clipboard (Ctrl + C)
+Text eingeben	Enter text
+Einfügen	Insert
+Abbrechen	Cancel
+Speichern fehlgeschlagen: {e}	Could not save: {e}
+Gespeichert: {name}	Saved: {name}
+Kopieren fehlgeschlagen: {e}	Could not copy: {e}
+Kein Bild vom Bildschirm erhalten.	No image received from the screen.
+Kein aktives Fenster gefunden.	No active window found.
+Das Fenster liegt ausserhalb des Bildschirms.	The window is outside the screen.
+Bilddaten ungültig.	Invalid image data.

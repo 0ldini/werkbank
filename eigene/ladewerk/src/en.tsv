@@ -1,0 +1,138 @@
+# Ladewerk: deutsch → englisch
+(noch unbekannt)	(not known yet)
++ Links hinzufügen	+ Add links
+0 = unbegrenzt, gilt für alle Downloads zusammen	0 = unlimited, applies to all downloads combined
+7-Zip	7-Zip
+7-Zip lässt sich nicht starten: {e}	Cannot start 7-Zip: {e}
+7-Zip meldet Fehler {code}: {line}	7-Zip reported error {code}: {line}
+7-Zip nicht gefunden – für 7z, RAR und geteilte ZIP bitte 7-Zip installieren	7-Zip not found – please install 7-Zip for 7z, RAR and split ZIP
+Abbrechen	Cancel
+Abgebrochen	Cancelled
+Alle	All
+Archiv ist verschlüsselt – Passwort fehlt	Archive is encrypted – password missing
+Archive nach dem Download entpacken	Extract archives after download
+Archive nach erfolgreichem Entpacken löschen	Delete archives after successful extraction
+Aus der Liste entfernen	Remove from list
+Beispiele: http://proxy:3128 oder socks5://127.0.0.1:1080	Examples: http://proxy:3128 or socks5://127.0.0.1:1080
+DETAILS	DETAILS
+DOWNLOADS	DOWNLOADS
+Datei	File
+Datei fehlt	File missing
+Datei lässt sich nicht schreiben: {e}	Cannot write file: {e}
+Datei nicht gefunden (HTTP {code})	File not found (HTTP {code})
+Download-Ordner	Download folder
+Download-Ordner wählen	Choose download folder
+Download-Thread unerwartet beendet	Download thread ended unexpectedly
+Downloads ({n})	Downloads ({n})
+Downloads beim Programmstart fortsetzen	Resume downloads when the program starts
+ENTPACKEN	EXTRACTION
+Eigener Unterordner mit dem Paketnamen	Separate subfolder named after the package
+Einstellungen	Settings
+Entfernen und Teildatei löschen …	Remove and delete partial file …
+Entfernen und Teildateien löschen …	Remove and delete partial files …
+Entfernt fertige Links aus der Liste. Die Dateien bleiben erhalten.	Removes finished links from the list. The files are kept.
+Entpacke {name} …	Extracting {name} …
+Entpacke …	Extracting …
+Entpacken	Extract
+Entpacken fehlgeschlagen	Extraction failed
+Entpacken unerwartet beendet	Extraction ended unexpectedly
+Erneut versuchen	Try again
+Fehler: {e}	Error: {e}
+Fertig	Done
+Fertig ✔ SHA-256	Done ✔ SHA-256
+Fertige entfernen	Remove finished
+Fortsetzen	Resume
+GEFUNDENE LINKS ({n})	LINKS FOUND ({n})
+Geschwindigkeitsgrenze	Speed limit
+Gestoppt	Stopped
+Gleichzeitige Downloads	Simultaneous downloads
+Grenze {v}	Limit {v}
+Jedes Archiv in einen eigenen Ordner entpacken	Extract each archive into its own folder
+Jetzt prüfen	Check now
+Kein passendes Passwort in der Liste	No matching password in the list
+Keine	None
+Keine Archive im Paket	No archives in the package
+Kopieren	Copy
+Kopierte Links landen automatisch hier.	Copied links show up here automatically.
+LINKSAMMLER	LINK GRABBER
+Laufende Downloads anhalten; sie bleiben in der Warteschlange.	Stop running downloads; they stay in the queue.
+Leeren	Clear
+Link	Link
+Link kopieren	Copy link
+Links kopieren und hier mit Strg+V einfügen – oder im Linksammler einfügen.	Copy links and paste them here with Ctrl+V – or paste them into the link grabber.
+Linksammler	Link grabber
+Linksammler (+{n})	Link grabber (+{n})
+Lädt	Downloading
+Löschen	Delete
+Mal, erste Wartezeit	times, first wait
+Meldung	Message
+Name des Pakets	Package name
+Neu laden (von vorne)	Download again (from the start)
+Neue Pakete in einen eigenen Unterordner	Put new packages into their own subfolder
+Neue Pakete nach dem Download automatisch entpacken	Automatically extract new packages after download
+Neuer Versuch in {s} s	Retrying in {s} s
+Noch keine Downloads.	No downloads yet.
+Noch keine Links erkannt.	No links detected yet.
+Nur http- und https-Links werden unterstützt.	Only http and https links are supported.
+Ordner lässt sich nicht anlegen: {e}	Cannot create folder: {e}
+Ordner öffnen	Open folder
+PAKET	PACKAGE
+Paket	Package
+Paket entfernen (Dateien bleiben erhalten)	Remove package (files are kept)
+Paket fortsetzen	Resume package
+Paket pausieren	Pause package
+Paketname	Package name
+Passwortliste	Password list
+Passwörter	Passwords
+Pausieren	Pause
+Pausiert	Paused
+Proxy	Proxy
+Proxy-Adresse ungültig: {e}	Invalid proxy address: {e}
+Prüfsumme nicht berechenbar: {e}	Cannot compute checksum: {e}
+Prüfsumme stimmt nicht (erhalten: {got})	Checksum mismatch (got: {got})
+Prüft SHA-256 …	Checking SHA-256 …
+SHA-256	SHA-256
+SHA-256 der fertigen Datei berechnen	Compute the SHA-256 of the finished file
+Schliessen	Close
+Schreiben fehlgeschlagen (Speicher voll?): {e}	Write failed (disk full?): {e}
+Server lehnt das Fortsetzen ab – beginne neu	Server refuses to resume – starting over
+Server lieferte einen falschen Bereich – beginne neu	Server sent the wrong range – starting over
+Server meldet HTTP {code}	Server returned HTTP {code}
+Speichern fehlgeschlagen: {e}	Saving failed: {e}
+Speichern in: {dir}	Save to: {dir}
+Teildateien löschen?	Delete partial files?
+Text mit Links hier einfügen – Links werden automatisch erkannt. Steht hinter einem Link eine SHA-256-Prüfsumme, wird sie übernommen.	Paste text with links here – links are detected automatically. A SHA-256 checksum after a link is picked up too.
+Umbenennen fehlgeschlagen: {e}	Rename failed: {e}
+Unfertige Downloads werden entfernt und ihre .part-Dateien gelöscht. Fertige Dateien bleiben erhalten.	Unfinished downloads are removed and their .part files deleted. Finished files are kept.
+Ungültige Weiterleitung (HTTP {code})	Invalid redirect (HTTP {code})
+VERBINDUNG	CONNECTION
+Verbinde …	Connecting …
+Verbindung unterbrochen: {e}	Connection interrupted: {e}
+Verbindung vorzeitig beendet	Connection closed early
+Verbindungsfehler: {e}	Connection error: {e}
+Wartet	Waiting
+Weitere Aktionen	More actions
+Wiederholen bei Fehlern	Retry on errors
+Wählen …	Choose …
+Zielordner	Target folder
+Zielordner wählen	Choose target folder
+Zu viele Weiterleitungen	Too many redirects
+Zugriff verweigert (HTTP {code})	Access denied (HTTP {code})
+Zwischenablage beobachten	Watch clipboard
+ein Passwort pro Zeile	one password per line
+für Archive in diesem Paket, eines pro Zeile	for archives in this package, one per line
+gefunden: {p}	found: {p}
+https://… (mehrere Links, ganze Texte oder HTML gehen auch)	https://… (several links, whole texts or HTML work too)
+leer = aus der Umgebung (HTTPS_PROXY, ALL_PROXY)	empty = from the environment (HTTPS_PROXY, ALL_PROXY)
+nicht gefunden – ZIP geht trotzdem; für 7z und RAR 7-Zip installieren	not found – ZIP still works; install 7-Zip for 7z and RAR
+optional: erwartete Prüfsumme	optional: expected checksum
+ungültig (64 Hex-Zeichen)	invalid (64 hex characters)
+{a}/{b} fertig	{a}/{b} done
+{n} Archiv(e) entpackt	{n} archive(s) extracted
+{n} Link(s) zur Warteschlange hinzufügen	Add {n} link(s) to the queue
+{n} aktiv	{n} active
+⏹ Alle stoppen	⏹ Stop all
+▶ Starten	▶ Start
+✔ stimmt	✔ matches
+✖ stimmt nicht	✖ does not match
+schon in der Warteschlange	already in the queue
