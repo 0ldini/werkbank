@@ -1366,7 +1366,7 @@ impl Gui {
         let mine: Vec<App> = self.manifest.app.iter().filter(|a| snapshot.get(&a.id).is_some_and(|s| s.installed() || s.busy.is_some())).cloned().collect();
         egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let (label, look) = if self.arrange { (t("Fertig"), Look::Accent) } else { (t("Widgets anordnen"), Look::Outline) };
                     if ui
                         .add(egui::Button::new(egui::RichText::new(label).size(13.0).color(if self.arrange { INK } else { soft() })).fill(if look == Look::Accent { ACCENT } else { Color32::TRANSPARENT }).stroke(Stroke::new(1.0, if self.arrange { ACCENT } else { border() })).corner_radius(10u8).min_size(egui::vec2(0.0, 30.0)))
