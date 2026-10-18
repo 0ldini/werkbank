@@ -13,6 +13,7 @@ pub const ICONS: &[(&str, &[u8])] = &[
     ("lightcraft", include_bytes!("../icons/lightcraft.png")),
     ("mailwerk", include_bytes!("../icons/mailwerk.png")),
     ("mediathekwerk", include_bytes!("../icons/mediathekwerk.png")),
+    ("organiwerk", include_bytes!("../icons/organiwerk.png")),
     ("pdfcraft", include_bytes!("../icons/pdfcraft.png")),
     ("photocraft", include_bytes!("../icons/photocraft.png")),
     ("schutzwerk", include_bytes!("../icons/schutzwerk.png")),

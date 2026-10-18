@@ -1,6 +1,6 @@
 # Werke – eigene Rust-Programme für die Werkbank
 
-Neun eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
+Zehn eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
 ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 (`cargo run --release`); Details stehen im jeweiligen README.
 
@@ -20,6 +20,8 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    Schwenk, Übergänge, Musik als MP3, Vor-/Abspann; Formate wie Wandelwerk)
 9. **mailwerk** – E-Mail-Programm (IMAP/SMTP am Desktop, JMAP auch im Browser, kein
    Server dazwischen; Beispielkonto zum Ausprobieren)
+10. **organiwerk** – Organigramme und Diagramme (Karten, Verbinder, automatisches
+   Anordnen als Baum, SVG-Export; auch im Browser)
 
 ## Stand
 

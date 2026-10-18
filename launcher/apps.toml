@@ -222,3 +222,12 @@ about_en = "E-mail program (IMAP/SMTP, JMAP)"
 color = "#0B7A70"
 repo = "https://github.com/0ldini/werkbank"
 tag = "mailwerk-v"
+
+[[app]]
+id = "organiwerk"
+name = "Organiwerk"
+about = "Organigramme und Diagramme zeichnen"
+color = "#2F5FB3"
+repo = "https://github.com/0ldini/werkbank"
+tag = "organiwerk-v"
+types = [".organi"]
