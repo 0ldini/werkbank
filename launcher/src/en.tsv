@@ -140,3 +140,71 @@ Foto und Grafik	Photos and graphics
 Video und Ton	Video and audio
 System und Werkzeuge	System and tools
 Nach Kategorie	By category
++ Notiz	+ Note
++ Ordner	+ Folder
++ {n} weitere	+ {n} more
+Akku {p} %	Battery {p} %
+Alle Widgets sind auf der Startseite.	All widgets are on the home page.
+Arbeitsspeicher	Memory
+Bearbeiten	Edit
+Breite	Width
+Computer	Computer
+Design	Appearance
+Dunkel	Dark
+Dunkles Design	Dark mode
+Erledigt	Done
+Fertig	Done
+Gespeichert.	Saved.
+Gespeichert. Programme und Updates werden neu gesucht.	Saved. Looking for programs and updates again.
+Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start.	Applies to Werkbank and all programs; programs that are already open switch on their next start.
+Hell	Light
+Helles Design	Light mode
+Heute	Today
+Höhe	Height
+Kalender	Calendar
+Kalender für «Termine» (ICS-Adresse, z. B. «Privatadresse im iCal-Format» aus Google Kalender oder ein veröffentlichter Outlook-Kalender)	Calendar for “Events” (ICS address, e.g. the “Secret address in iCal format” from Google Calendar or a published Outlook calendar)
+Kalender nicht erreichbar	Calendar not reachable
+Kalender-Adresse (ICS) in den Einstellungen eintragen, z. B. die «Privatadresse im iCal-Format» von Google Kalender.	Enter a calendar address (ICS) in Settings, e.g. the “Secret address in iCal format” from Google Calendar.
+Kategorien	Categories
+Kein Schlüssel gespeichert.	No token saved.
+Keine Einträge gefunden	No entries found
+Keine Termine in den nächsten zwei Wochen.	No events in the next two weeks.
+Mail	Mail
+Mailwerk einmal öffnen, dann erscheinen hier die ungelesenen Mails.	Open Mailwerk once and your unread mail shows up here.
+Min.	min
+Morgen	Tomorrow
+Nach hinten	Move back
+Nach vorn	Move forward
+Nachrichten	News
+Nachrichten nicht erreichbar	News not reachable
+Nachrichten-Quelle (RSS-Adresse, leer = SRF News)	News source (RSS address, empty = SRF News)
+Notizen	Notes
+Nur nötig, wenn das Werkbank-Repository privat ist: persönlicher Zugriffsschlüssel (fine-grained token) mit Lesezugriff auf «Contents» dieses Repositorys.	Only needed if the Werkbank repository is private: a personal access token (fine-grained) with read access to “Contents” of this repository.
+Ordner	Folders
+Ordner wählen	Choose folder
+Pause	Pause
+Pfeile verschieben, Zahlen ändern die Grösse – Lücken füllen sich selbst.	Arrows move, numbers change the size – gaps fill themselves.
+Prozessor	Processor
+Quelle wählen	Choose source
+Schlüssel ist gespeichert.	Token is saved.
+Speichern	Save
+Stopp	Stop
+Termine	Events
+Timer	Timer
+Verbinden	Connect
+Vorgabe wiederherstellen	Restore default
+Widget entfernen	Remove widget
+Widgets anordnen	Arrange widgets
+Zeit um!	Time's up!
+Zugang zu GitHub	GitHub access
+ungelesen	unread
+vor {n} Min.	{n} min ago
+vor {n} Std.	{n} h ago
+{n} Minuten	{n} minutes
+Uhr	Clock
+Wetter	Weather
+Widget	Widget
+Lade herunter … {mb} MB	Downloading … {mb} MB
+Entpacke …	Extracting …
+Suche neueste Version …	Looking for the latest version …
+Prüfsumme: {s}	Checksum: {s}

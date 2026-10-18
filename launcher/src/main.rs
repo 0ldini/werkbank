@@ -6,12 +6,15 @@ mod core;
 mod gui;
 mod icons;
 mod sprache;
+mod feeds;
 mod weather;
 
 use crate::core::{fmt_version, App, Kind, Manifest, Version};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    core::init_token();
+    gui::init_theme();
     // Erhöhte Instanz (siehe core::create_dir_elevated): nur den Ordner anlegen, dann beenden.
     if args.first().map(String::as_str) == Some("--mkdir-elevated") {
         let (Some(dir), Some(user)) = (args.get(1), args.get(2)) else { std::process::exit(2) };

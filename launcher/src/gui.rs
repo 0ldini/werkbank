@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod widgets;
+
 #[derive(Default, Clone)]
 struct Status {
     native: Option<Version>,
@@ -48,6 +50,7 @@ struct Setup {
     load: Box<dyn Fn() -> Manifest>,
     bundle: Option<std::path::PathBuf>,
     online: bool,
+    token: String,
 }
 
 /// Einstellungen → Dateitypen: die Auswahl, solange die Seite offen ist.
@@ -92,6 +95,21 @@ impl Chip {
 
 /// Rubriken in der Reihenfolge der Anzeige.
 const CATEGORIES: [Chip; 4] = [Chip::Office, Chip::Photo, Chip::Video, Chip::System];
+
+fn cat_color(c: Chip) -> Color32 {
+    match c {
+        Chip::Office => rgb(0x2F6FDE),
+        Chip::Photo => rgb(0xD9622B),
+        Chip::Video => rgb(0x7B4FD6),
+        _ => rgb(0x0F8B8D),
+    }
+}
+
+/// `color` zu Anteil `a` über `base` gelegt.
+fn mix(color: Color32, base: Color32, a: f32) -> Color32 {
+    let m = |c: u8, b: u8| (b as f32 + (c as f32 - b as f32) * a).round() as u8;
+    Color32::from_rgb(m(color.r(), base.r()), m(color.g(), base.g()), m(color.b(), base.b()))
+}
 
 /// Rubrik eines Programms: aus der Programmliste (`category`), sonst eingebaut.
 fn category(app: &App) -> Chip {
@@ -142,6 +160,23 @@ pub struct Gui {
     sky_at: Option<Instant>,
     cfg_at: Instant,
     places: Arc<Mutex<PlaceSearch>>,
+    /// Modus «Widgets anordnen».
+    arrange: bool,
+    note_input: String,
+    folders_edit: bool,
+    cal: Arc<Mutex<widgets::CalState>>,
+    cal_at: Option<Instant>,
+    news: Arc<Mutex<widgets::NewsState>>,
+    news_at: Option<Instant>,
+    sys: Arc<Mutex<widgets::SysState>>,
+    sys_started: bool,
+    mail: Option<widgets::MailStatus>,
+    mail_at: Option<Instant>,
+    timer: widgets::TimerState,
+    /// Eingabefelder der Einstellungen.
+    token_input: String,
+    cal_input: String,
+    news_input: String,
 }
 
 pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>, online: bool, notice: Option<String>) {
@@ -177,6 +212,21 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 sky_at: None,
                 cfg_at: Instant::now(),
                 places: Arc::default(),
+                arrange: false,
+                note_input: String::new(),
+                folders_edit: false,
+                cal: Arc::default(),
+                cal_at: None,
+                news: Arc::default(),
+                news_at: None,
+                sys: Arc::default(),
+                sys_started: false,
+                mail: None,
+                mail_at: None,
+                timer: Default::default(),
+                token_input: String::new(),
+                cal_input: String::new(),
+                news_input: String::new(),
             };
             // Nur für Bildschirmfotos der Dokumentation: Ansicht direkt öffnen.
             match std::env::var("WERKBANK_ANSICHT").as_deref() {
@@ -195,6 +245,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                     load: Box::new(load),
                     bundle,
                     online,
+                    token: String::new(),
                 });
             }
             Ok(Box::new(app))
@@ -209,29 +260,113 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
 // ---------------------------------------------------------------------------------------------
 // Farben (dunkler Grund, Bernstein als Akzent)
 
-const BG: Color32 = Color32::from_rgb(0x17, 0x18, 0x1C);
-const HEADER: Color32 = Color32::from_rgb(0x1D, 0x1F, 0x24);
-const PANEL: Color32 = Color32::from_rgb(0x21, 0x23, 0x29);
-const HOVER: Color32 = Color32::from_rgb(0x2A, 0x2D, 0x35);
-const CHIP: Color32 = Color32::from_rgb(0x34, 0x38, 0x42);
-const BORDER: Color32 = Color32::from_rgb(0x32, 0x35, 0x3D);
-const OUTLINE: Color32 = Color32::from_rgb(0x45, 0x49, 0x53);
-const TEXT: Color32 = Color32::from_rgb(0xEC, 0xEE, 0xF2);
-const SOFT: Color32 = Color32::from_rgb(0xD6, 0xD9, 0xE0);
-const MUTED: Color32 = Color32::from_rgb(0xA9, 0xAE, 0xB9);
+// Farben: hell (Standard) oder dunkel, Bernstein als Akzent. Die Wahl gilt für alle Programme
+// (WERKBANK_THEME beim Start, thema.txt neben sprache.txt).
+static DARK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn dark() -> bool {
+    DARK.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn pick(light: Color32, dark_c: Color32) -> Color32 {
+    if dark() {
+        dark_c
+    } else {
+        light
+    }
+}
+
+fn rgb(v: u32) -> Color32 {
+    Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
+}
+
+fn bg() -> Color32 {
+    pick(rgb(0xF3F4F6), rgb(0x17181C))
+}
+fn header_bg() -> Color32 {
+    pick(rgb(0xFFFFFF), rgb(0x1D1F24))
+}
+fn panel() -> Color32 {
+    pick(rgb(0xFFFFFF), rgb(0x212329))
+}
+fn hover() -> Color32 {
+    pick(rgb(0xECEEF2), rgb(0x2A2D35))
+}
+fn chip() -> Color32 {
+    pick(rgb(0xE6E9EE), rgb(0x343842))
+}
+fn border() -> Color32 {
+    pick(rgb(0xE1E4EA), rgb(0x32353D))
+}
+fn outline() -> Color32 {
+    pick(rgb(0xC3C8D0), rgb(0x454953))
+}
+fn text() -> Color32 {
+    pick(rgb(0x17181C), rgb(0xECEEF2))
+}
+fn soft() -> Color32 {
+    pick(rgb(0x2E323A), rgb(0xD6D9E0))
+}
+fn muted() -> Color32 {
+    pick(rgb(0x5B616E), rgb(0xA9AEB9))
+}
+/// Akzent als Fläche (Knöpfe, Abzeichen); Schrift darauf immer INK.
 const ACCENT: Color32 = Color32::from_rgb(0xF2, 0xB5, 0x44);
-const WARN: Color32 = Color32::from_rgb(0xF0, 0x8A, 0x6A);
+const INK: Color32 = Color32::from_rgb(0x17, 0x18, 0x1C);
+/// Akzent als Schrift auf dem Hintergrund (im hellen Design dunkler, damit lesbar).
+fn accent_text() -> Color32 {
+    pick(rgb(0x9A5B00), rgb(0xF2B544))
+}
+fn warn() -> Color32 {
+    pick(rgb(0xB42318), rgb(0xF08A6A))
+}
+fn cloud() -> Color32 {
+    pick(rgb(0x9AA3B2), rgb(0xD6D9E0))
+}
+
+/// Gespeichertes Design lesen (Umgebung vor Datei, Standard hell).
+fn load_dark() -> bool {
+    let parse = |v: &str| match v.trim().to_lowercase().as_str() {
+        "dunkel" | "dark" => Some(true),
+        "hell" | "light" => Some(false),
+        _ => None,
+    };
+    std::env::var("WERKBANK_THEME")
+        .ok()
+        .and_then(|v| parse(&v))
+        .or_else(|| theme_file().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|v| parse(&v)))
+        .unwrap_or(false)
+}
+
+/// Beim Programmstart: gespeichertes Design übernehmen (auch für `--open` ohne Oberfläche).
+pub fn init_theme() {
+    DARK.store(load_dark(), std::sync::atomic::Ordering::Relaxed);
+}
+
+fn theme_file() -> Option<std::path::PathBuf> {
+    sprache::werkbank_file().map(|p| p.with_file_name("thema.txt"))
+}
+
+pub fn theme_code() -> &'static str {
+    if dark() {
+        "dunkel"
+    } else {
+        "hell"
+    }
+}
 
 fn theme(ctx: &egui::Context) {
-    let mut v = egui::Visuals::dark();
-    v.panel_fill = BG;
-    v.window_fill = PANEL;
-    v.extreme_bg_color = Color32::from_rgb(0x12, 0x13, 0x16);
-    v.override_text_color = Some(TEXT);
+    let mut v = if dark() { egui::Visuals::dark() } else { egui::Visuals::light() };
+    v.panel_fill = bg();
+    v.window_fill = panel();
+    v.extreme_bg_color = pick(rgb(0xFFFFFF), rgb(0x121316));
+    v.window_stroke = Stroke::new(1.0, border());
+    v.override_text_color = Some(text());
     v.selection.bg_fill = ACCENT;
-    v.selection.stroke = Stroke::new(1.0, BG);
-    v.widgets.hovered.weak_bg_fill = HOVER;
-    v.widgets.inactive.weak_bg_fill = PANEL;
+    v.selection.stroke = Stroke::new(1.0, INK);
+    v.widgets.hovered.weak_bg_fill = hover();
+    v.widgets.inactive.weak_bg_fill = panel();
+    ctx.set_theme(if dark() { egui::Theme::Dark } else { egui::Theme::Light });
     ctx.set_visuals(v);
     ctx.style_mut(|s| {
         s.spacing.item_spacing = egui::vec2(10.0, 8.0);
@@ -249,9 +384,9 @@ enum Look {
 
 fn button(ui: &mut egui::Ui, label: &str, look: Look) -> egui::Response {
     let (fill, fg, stroke) = match look {
-        Look::Primary => (TEXT, BG, TEXT),
-        Look::Accent => (ACCENT, BG, ACCENT),
-        Look::Outline => (Color32::TRANSPARENT, TEXT, OUTLINE),
+        Look::Primary => (text(), bg(), text()),
+        Look::Accent => (ACCENT, INK, ACCENT),
+        Look::Outline => (Color32::TRANSPARENT, text(), outline()),
     };
     let text = egui::RichText::new(label).color(fg).size(14.5);
     let text = if look == Look::Outline { text } else { text.strong() };
@@ -259,7 +394,7 @@ fn button(ui: &mut egui::Ui, label: &str, look: Look) -> egui::Response {
 }
 
 fn link(ui: &mut egui::Ui, label: &str) -> egui::Response {
-    ui.add(egui::Button::new(egui::RichText::new(label).size(13.0).color(MUTED)).frame(false))
+    ui.add(egui::Button::new(egui::RichText::new(label).size(13.0).color(muted())).frame(false))
 }
 
 /// Lädt ein eingebautes PNG als Textur (einmal pro Name).
@@ -284,7 +419,7 @@ fn paint_icon(ui: &egui::Ui, cache: &mut HashMap<String, egui::TextureHandle>, a
             return;
         }
     }
-    let color = app.color.as_deref().and_then(|c| Color32::from_hex(c).ok()).unwrap_or(OUTLINE);
+    let color = app.color.as_deref().and_then(|c| Color32::from_hex(c).ok()).unwrap_or(outline());
     ui.painter().rect_filled(rect, (rect.width() * 0.25) as u8, color);
     let initial: String = app.name.chars().take(1).collect();
     ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, initial, egui::FontId::proportional(rect.width() * 0.5), Color32::WHITE);
@@ -313,6 +448,8 @@ enum Glyph {
     Folder,
     Globe,
     Gear,
+    Sun,
+    Moon,
 }
 
 /// Kleine Strichsymbole, gezeichnet statt aus der Schrift (die nicht alle Zeichen kennt).
@@ -367,6 +504,25 @@ fn glyph(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
             line(&[(3.0, 12.0), (21.0, 12.0)]);
             p.add(egui::Shape::ellipse_stroke(c, egui::vec2(4.0 * u, 9.0 * u), s));
         }
+        Glyph::Sun => {
+            p.circle_stroke(c, 4.0 * u, s);
+            for i in 0..8 {
+                let a = i as f32 * std::f32::consts::FRAC_PI_4;
+                p.line_segment([c + egui::vec2(a.cos(), a.sin()) * 7.0 * u, c + egui::vec2(a.cos(), a.sin()) * 9.5 * u], s);
+            }
+        }
+        Glyph::Moon => {
+            let pts: Vec<Pos2> = (0..=28)
+                .map(|i| {
+                    let a = 0.9 + i as f32 / 28.0 * 4.5;
+                    Pos2::new(c.x + a.cos() * 8.0 * u, c.y + a.sin() * 8.0 * u)
+                })
+                .collect();
+            let first = pts[0];
+            let last = pts[pts.len() - 1];
+            p.add(egui::Shape::line(pts, s));
+            p.add(egui::Shape::QuadraticBezier(egui::epaint::QuadraticBezierShape::from_points_stroke([last, c + egui::vec2(-1.0 * u, -1.0 * u), first], false, Color32::TRANSPARENT, s)));
+        }
         Glyph::Gear => {
             p.circle_stroke(c, 3.0 * u, s);
             for i in 0..8 {
@@ -380,16 +536,16 @@ fn glyph(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
 fn glyph_button(ui: &mut egui::Ui, g: Glyph, hint: &str) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(42.0), Sense::click());
     if resp.hovered() {
-        ui.painter().rect_filled(rect, 10.0, HOVER);
+        ui.painter().rect_filled(rect, 10.0, hover());
     }
-    glyph(ui.painter(), Rect::from_center_size(rect.center(), Vec2::splat(22.0)), g, TEXT);
+    glyph(ui.painter(), Rect::from_center_size(rect.center(), Vec2::splat(22.0)), g, text());
     resp.on_hover_text(hint)
 }
 
 /// Eine Karte fester Grösse: Rahmen zeichnen, Inhalt in einem Kind-Bereich.
 fn card<R>(ui: &mut egui::Ui, size: Vec2, border: Color32, add: impl FnOnce(&mut egui::Ui) -> R) -> (egui::Response, R) {
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    ui.painter().rect(rect, 16.0, PANEL, Stroke::new(1.0, border), egui::StrokeKind::Inside);
+    ui.painter().rect(rect, 16.0, panel(), Stroke::new(1.0, border), egui::StrokeKind::Inside);
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink(18.0)).layout(egui::Layout::top_down(egui::Align::Min)));
     let r = add(&mut child);
     (resp, r)
@@ -409,9 +565,9 @@ fn segmented(ui: &mut egui::Ui, on: bool, on_label: &str, off_label: &str) -> Op
     // Im Layout von rechts nach links: zuerst der rechte Knopf.
     for (value, label) in [(true, on_label), (false, off_label)] {
         let active = on == value;
-        let b = egui::Button::new(egui::RichText::new(label).size(13.0).color(if active { BG } else { SOFT }))
-            .fill(if active { ACCENT } else { PANEL })
-            .stroke(Stroke::new(1.0, if active { ACCENT } else { BORDER }))
+        let b = egui::Button::new(egui::RichText::new(label).size(13.0).color(if active { INK } else { soft() }))
+            .fill(if active { ACCENT } else { panel() })
+            .stroke(Stroke::new(1.0, if active { ACCENT } else { border() }))
             .corner_radius(14u8)
             .min_size(egui::vec2(0.0, 30.0));
         if ui.add(b).clicked() && !active {
@@ -428,9 +584,9 @@ fn language_pick(ui: &mut egui::Ui) -> Option<Lang> {
     ui.horizontal(|ui| {
         for (l, label) in [(Lang::De, "Deutsch"), (Lang::En, "English")] {
             let on = cur == l;
-            let b = egui::Button::new(egui::RichText::new(label).size(14.0).color(if on { BG } else { SOFT }))
-                .fill(if on { ACCENT } else { PANEL })
-                .stroke(Stroke::new(1.0, if on { ACCENT } else { BORDER }))
+            let b = egui::Button::new(egui::RichText::new(label).size(14.0).color(if on { INK } else { soft() }))
+                .fill(if on { ACCENT } else { panel() })
+                .stroke(Stroke::new(1.0, if on { ACCENT } else { border() }))
                 .corner_radius(16u8)
                 .min_size(egui::vec2(100.0, 34.0));
             if ui.add(b).clicked() && !on {
@@ -538,6 +694,22 @@ impl Gui {
         }
     }
 
+    /// Hell/Dunkel umschalten: sofort im Launcher, für Programme beim nächsten Start.
+    fn set_dark(&mut self, ctx: &egui::Context, d: bool) {
+        DARK.store(d, std::sync::atomic::Ordering::Relaxed);
+        theme(ctx);
+        let saved = theme_file().ok_or_else(|| anyhow::anyhow!("kein Einstellungsordner")).and_then(|p| {
+            if let Some(dir) = p.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            std::fs::write(&p, theme_code())?;
+            Ok(())
+        });
+        if let Err(e) = saved {
+            self.notice = Some(tf("Einstellungen nicht gespeichert: {fehler}", &[("fehler", &format!("{e:#}"))]));
+        }
+    }
+
     fn place(&self) -> Place {
         self.cfg.place.clone().unwrap_or_else(Place::sarnen)
     }
@@ -554,7 +726,7 @@ impl Gui {
     }
 
     fn fetch_weather(&mut self, ctx: &egui::Context) {
-        if !self.cfg.home.weather {
+        if !self.widget_list().iter().any(|w| w.kind == "wetter") {
             return;
         }
         self.sky_at = Some(Instant::now());
@@ -591,9 +763,8 @@ impl Gui {
             self.cfg_at = Instant::now();
             self.cfg.recent = core::load_config().recent;
         }
-        if self.cfg.home.clock || self.cfg.home.recent {
-            ctx.request_repaint_after(Duration::from_secs(1));
-        }
+        self.tick_widgets(ctx);
+        ctx.request_repaint_after(Duration::from_secs(1));
     }
 
     fn local(&self, app: &App) {
@@ -746,6 +917,10 @@ impl Gui {
     }
 
     fn go(&mut self, view: View) {
+        if view == View::Prefs {
+            self.cal_input = self.cfg.calendar_url.clone().unwrap_or_default();
+            self.news_input = self.cfg.news_url.clone().unwrap_or_default();
+        }
         self.view = view;
         self.menu = false;
     }
@@ -811,7 +986,7 @@ impl Gui {
         let mut browse = false;
         let mut pick_lang = None;
         let Some(setup) = self.setup.as_mut() else { return };
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(48, 40))).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin::symmetric(48, 40))).show(ctx, |ui| {
             ui.vertical_centered_justified(|ui| {
                 ui.set_max_width(640.0);
                 ui.horizontal(|ui| {
@@ -819,7 +994,7 @@ impl Gui {
                     ui.vertical(|ui| {
                         ui.add_space(4.0);
                         ui.label(egui::RichText::new(t("Willkommen in der Werkbank")).size(24.0).strong());
-                        ui.label(egui::RichText::new(t("Einmalige Einrichtung")).size(13.0).color(MUTED));
+                        ui.label(egui::RichText::new(t("Einmalige Einrichtung")).size(13.0).color(muted()));
                     });
                 });
                 ui.add_space(20.0);
@@ -832,7 +1007,7 @@ impl Gui {
                 ui.label(
                     egui::RichText::new(t("Der Ordner wird angelegt, falls er fehlt. Unter C:\\Program Files fragt Windows einmalig nach Administratorrechten; danach braucht die Werkbank keine mehr."))
                     .size(13.0)
-                    .color(MUTED),
+                    .color(muted()),
                 );
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
@@ -842,9 +1017,15 @@ impl Gui {
                         browse = true;
                     }
                 });
+                if !core::has_token() {
+                    ui.add_space(16.0);
+                    ui.label(egui::RichText::new(t("Zugang zu GitHub")).size(16.0).strong());
+                    ui.label(egui::RichText::new(t("Nur nötig, wenn das Werkbank-Repository privat ist: persönlicher Zugriffsschlüssel (fine-grained token) mit Lesezugriff auf «Contents» dieses Repositorys.")).size(13.0).color(muted()));
+                    ui.add_sized([ui.available_width(), 34.0], egui::TextEdit::singleline(&mut setup.token).password(true).hint_text("github_pat_…"));
+                }
                 if let Some(e) = &setup.error {
                     ui.add_space(6.0);
-                    ui.label(egui::RichText::new(e).color(WARN));
+                    ui.label(egui::RichText::new(e).color(warn()));
                 }
                 ui.add_space(18.0);
                 ui.horizontal(|ui| {
@@ -874,6 +1055,15 @@ impl Gui {
                     let l = sprache::lang();
                     if let Some(setup) = self.setup.take() {
                         self.set_language(l);
+                        let tok = Some(setup.token.trim().to_string()).filter(|s| !s.is_empty());
+                        if tok.is_some() {
+                            let mut cfg = core::load_config();
+                            cfg.github_token = tok.clone();
+                            let _ = core::save_config(&cfg);
+                            core::set_token(tok);
+                        }
+                        let dark_now = dark();
+                        self.set_dark(ctx, dark_now);
                         self.cfg = core::load_config();
                         let manifest = (setup.load)();
                         self.begin(ctx, manifest, setup.bundle, setup.online);
@@ -894,7 +1084,7 @@ impl Gui {
         let mut apply = false;
         let Some(types) = self.types.as_mut() else { return };
         let apps: Vec<App> = self.manifest.app.iter().filter(|a| !a.types.is_empty()).cloned().collect();
-        egui::TopBottomPanel::top("typen-kopf").frame(egui::Frame::new().fill(HEADER).inner_margin(egui::Margin::symmetric(24, 14))).show(ctx, |ui| {
+        egui::TopBottomPanel::top("typen-kopf").frame(egui::Frame::new().fill(header_bg()).inner_margin(egui::Margin::symmetric(24, 14))).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if !types.first_run && glyph_button(ui, Glyph::Back, t("Zurück")).clicked() {
                     close = true;
@@ -902,7 +1092,7 @@ impl Gui {
                 ui.vertical(|ui| {
                     let title = if types.first_run { t("Einrichtung: Dateitypen") } else { t("Dateitypen") };
                     ui.label(egui::RichText::new(title).size(22.0).strong());
-                    ui.label(egui::RichText::new(t("Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.")).size(12.5).color(MUTED));
+                    ui.label(egui::RichText::new(t("Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.")).size(12.5).color(muted()));
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let label = if types.first_run { t("Weiter") } else { t("Übernehmen") };
@@ -916,23 +1106,23 @@ impl Gui {
                 });
             });
         });
-        egui::TopBottomPanel::bottom("typen-fuss").frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 10))).show(ctx, |ui| {
+        egui::TopBottomPanel::bottom("typen-fuss").frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin::symmetric(24, 10))).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new(t("Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:")).size(12.5).color(MUTED));
+                ui.label(egui::RichText::new(t("Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:")).size(12.5).color(muted()));
                 if link(ui, t("Standard-Apps in Windows öffnen")).clicked() {
                     assoc::open_system_settings();
                 }
             });
             if let Some((m, ok)) = &types.message {
-                ui.label(egui::RichText::new(m).color(if *ok { ACCENT } else { WARN }));
+                ui.label(egui::RichText::new(m).color(if *ok { accent_text() } else { warn() }));
             }
         });
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 18))).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin::symmetric(24, 18))).show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
                 for app in &apps {
                     let exts = assoc::offered(app);
                     let chosen = types.choice.entry(app.id.clone()).or_default();
-                    egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, BORDER)).corner_radius(12u8).inner_margin(14.0).show(ui, |ui| {
+                    egui::Frame::new().fill(panel()).stroke(Stroke::new(1.0, border())).corner_radius(12u8).inner_margin(14.0).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal(|ui| {
                             icon(ui, &mut self.textures, app, 36.0);
@@ -986,7 +1176,8 @@ impl Gui {
     // Kopfzeile, Menü
 
     fn header(&mut self, ctx: &egui::Context, title: Option<&str>) {
-        egui::TopBottomPanel::top("kopf").frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin { left: 18, right: 24, top: 14, bottom: 6 })).show(ctx, |ui| {
+        let mut toggle_dark = false;
+        egui::TopBottomPanel::top("kopf").frame(egui::Frame::new().fill(header_bg()).stroke(Stroke::new(1.0, border())).inner_margin(egui::Margin { left: 18, right: 24, top: 12, bottom: 10 })).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 match title {
                     None => {
@@ -1010,12 +1201,16 @@ impl Gui {
                     if self.view != View::Home && glyph_button(ui, Glyph::Menu, t("Menü")).clicked() {
                         self.menu = !self.menu;
                     }
+                    let (g, hint) = if dark() { (Glyph::Sun, t("Helles Design")) } else { (Glyph::Moon, t("Dunkles Design")) };
+                    if glyph_button(ui, g, hint).clicked() {
+                        toggle_dark = true;
+                    }
                 });
             });
             let mut clear = false;
             if let Some(n) = &self.notice {
                 ui.horizontal_wrapped(|ui| {
-                    ui.label(egui::RichText::new(n).color(WARN));
+                    ui.label(egui::RichText::new(n).color(warn()));
                     if link(ui, t("Ausblenden")).clicked() {
                         clear = true;
                     }
@@ -1025,23 +1220,27 @@ impl Gui {
                 self.notice = None;
             }
         });
+        if toggle_dark {
+            self.set_dark(ctx, !dark());
+        }
     }
 
     fn drawer(&mut self, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let installed = self.manifest.app.iter().filter(|a| snapshot.get(&a.id).is_some_and(Status::installed)).count();
         let total = self.manifest.app.len();
         let updates = snapshot.values().filter(|s| s.update()).count();
-        let mut changed = false;
+        let changed = false;
+        let mut toggle_dark = false;
         let panel = egui::SidePanel::left("menue")
             .exact_width(320.0)
             .resizable(false)
-            .frame(egui::Frame::new().fill(HEADER).stroke(Stroke::new(1.0, BORDER)).inner_margin(egui::Margin::symmetric(14, 18)))
+            .frame(egui::Frame::new().fill(header_bg()).stroke(Stroke::new(1.0, border())).inner_margin(egui::Margin::symmetric(14, 18)))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     logo(ui, &mut self.textures, 40.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(t("Werkbank")).size(20.0).strong());
-                        ui.label(egui::RichText::new(tf("{installed} von {total} Programmen installiert", &[("installed", &installed), ("total", &total)])).size(12.0).color(MUTED));
+                        ui.label(egui::RichText::new(tf("{installed} von {total} Programmen installiert", &[("installed", &installed), ("total", &total)])).size(12.0).color(muted()));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if glyph_button(ui, Glyph::Close, t("Menü schliessen")).clicked() {
@@ -1053,22 +1252,22 @@ impl Gui {
                 let mut item = |ui: &mut egui::Ui, g: Glyph, label: &str, badge: Option<(usize, bool)>, active: bool| -> bool {
                     let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 48.0), Sense::click());
                     if active || resp.hovered() {
-                        ui.painter().rect_filled(rect, 10.0, HOVER);
+                        ui.painter().rect_filled(rect, 10.0, hover());
                     }
                     let gr = Rect::from_center_size(Pos2::new(rect.left() + 26.0, rect.center().y), Vec2::splat(22.0));
-                    glyph(ui.painter(), gr, g, if active { ACCENT } else { MUTED });
+                    glyph(ui.painter(), gr, g, if active { accent_text() } else { muted() });
                     ui.painter().text(
                         Pos2::new(rect.left() + 52.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
                         label,
                         egui::FontId::proportional(15.0),
-                        TEXT,
+                        text(),
                     );
                     if let Some((n, hot)) = badge.filter(|(n, _)| *n > 0) {
                         let text = n.to_string();
                         let r = Rect::from_center_size(Pos2::new(rect.right() - 26.0, rect.center().y), egui::vec2(12.0 + 8.0 * text.len() as f32, 22.0));
-                        ui.painter().rect_filled(r, 11.0, if hot { ACCENT } else { CHIP });
-                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(12.0), if hot { BG } else { SOFT });
+                        ui.painter().rect_filled(r, 11.0, if hot { ACCENT } else { chip() });
+                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(12.0), if hot { INK } else { soft() });
                     }
                     resp.clicked()
                 };
@@ -1098,15 +1297,17 @@ impl Gui {
                 ui.add_space(6.0);
                 ui.separator();
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new(t("STARTSEITE ZEIGT")).size(11.5).color(MUTED));
-                let place = self.place().name;
-                ui.add_space(2.0);
-                changed |= ui.checkbox(&mut self.cfg.home.clock, t("Uhr und Datum")).changed();
-                changed |= ui.checkbox(&mut self.cfg.home.weather, tf("Wetter für {ort}", &[("ort", &place)])).changed();
-                changed |= ui.checkbox(&mut self.cfg.home.recent, t("Zuletzt geöffnete Dateien")).changed();
+                if item(ui, Glyph::Grid, t("Widgets anordnen"), None, self.arrange) {
+                    self.arrange = true;
+                    self.go(View::Home);
+                }
+                let (g, label) = if dark() { (Glyph::Sun, t("Helles Design")) } else { (Glyph::Moon, t("Dunkles Design")) };
+                if item(ui, g, label, None, false) {
+                    toggle_dark = true;
+                }
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"), " ·")).size(12.0).color(MUTED));
+                        ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"), " ·")).size(12.0).color(muted()));
                         if link(ui, t("Über Werkbank")).clicked() {
                             self.about = true;
                         }
@@ -1115,9 +1316,9 @@ impl Gui {
             });
         if changed {
             self.save_cfg();
-            if self.cfg.home.weather {
-                self.fetch_weather(ctx);
-            }
+        }
+        if toggle_dark {
+            self.set_dark(ctx, !dark());
         }
         // Rest abdunkeln; ein Klick daneben schliesst das Menü.
         let screen = ctx.screen_rect();
@@ -1147,7 +1348,7 @@ impl Gui {
                     logo(ui, &mut self.textures, 48.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).size(18.0).strong());
-                        ui.label(egui::RichText::new(t("Programme installieren, starten und einzeln aktualisieren")).color(MUTED));
+                        ui.label(egui::RichText::new(t("Programme installieren, starten und einzeln aktualisieren")).color(muted()));
                     });
                 });
                 ui.add_space(8.0);
@@ -1163,62 +1364,163 @@ impl Gui {
 
     fn home(&mut self, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let mine: Vec<App> = self.manifest.app.iter().filter(|a| snapshot.get(&a.id).is_some_and(|s| s.installed() || s.busy.is_some())).cloned().collect();
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                self.widgets(ui, ctx, snapshot);
-                ui.add_space(14.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let (label, look) = if self.arrange { (t("Fertig"), Look::Accent) } else { (t("Widgets anordnen"), Look::Outline) };
+                    if ui
+                        .add(egui::Button::new(egui::RichText::new(label).size(13.0).color(if self.arrange { INK } else { soft() })).fill(if look == Look::Accent { ACCENT } else { Color32::TRANSPARENT }).stroke(Stroke::new(1.0, if self.arrange { ACCENT } else { border() })).corner_radius(10u8).min_size(egui::vec2(0.0, 30.0)))
+                        .clicked()
+                    {
+                        self.arrange = !self.arrange;
+                    }
+                    if self.arrange {
+                        ui.label(egui::RichText::new(t("Pfeile verschieben, Zahlen ändern die Grösse – Lücken füllen sich selbst.")).size(12.5).color(muted()));
+                    }
+                });
+                ui.add_space(4.0);
+                self.dashboard(ui, ctx, snapshot);
+                ui.add_space(18.0);
                 let updates: usize = mine.iter().filter(|a| snapshot.get(&a.id).is_some_and(Status::update)).count();
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(t("Meine Programme")).size(18.0).strong());
-                    ui.label(egui::RichText::new(mine.len().to_string()).size(14.0).color(MUTED));
+                    ui.label(egui::RichText::new(mine.len().to_string()).size(14.0).color(muted()));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if updates > 0 {
-                            if button(ui, t("Aktualisieren"), Look::Outline).clicked() {
-                                self.update_all(ctx, snapshot);
-                            }
-                            ui.label(egui::RichText::new(if updates == 1 { t("1 Update bereit").to_string() } else { tf("{n} Updates bereit", &[("n", &updates)]) }).color(ACCENT));
-                            let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
-                            ui.painter().circle_filled(r.center(), 4.0, ACCENT);
-                            ui.add_space(12.0);
-                        }
-                        if let Some(g) = segmented(ui, self.cfg.home.grouped, t("Nach Kategorie"), t("Alle")) {
+                        if let Some(g) = segmented(ui, self.cfg.home.grouped, t("Kategorien"), t("Alle")) {
                             self.cfg.home.grouped = g;
                             self.save_cfg();
                         }
+                        if updates > 0 {
+                            ui.add_space(8.0);
+                            if button(ui, t("Aktualisieren"), Look::Outline).clicked() {
+                                self.update_all(ctx, snapshot);
+                            }
+                            ui.label(egui::RichText::new(if updates == 1 { t("1 Update bereit").to_string() } else { tf("{n} Updates bereit", &[("n", &updates)]) }).color(accent_text()));
+                            let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
+                            ui.painter().circle_filled(r.center(), 4.0, ACCENT);
+                        }
                     });
                 });
-                ui.add_space(6.0);
+                ui.add_space(8.0);
                 if mine.is_empty() {
                     self.empty_home(ui);
                     return;
                 }
                 if self.cfg.home.grouped {
-                    let groups: Vec<(Chip, Vec<&App>)> = CATEGORIES
-                        .iter()
-                        .map(|c| (*c, mine.iter().filter(|a| category(a) == *c).collect::<Vec<_>>()))
-                        .filter(|(_, v)| !v.is_empty())
-                        .collect();
-                    let last = groups.len().saturating_sub(1);
-                    for (i, (c, apps)) in groups.into_iter().enumerate() {
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new(c.label()).size(15.0).color(SOFT));
-                            ui.label(egui::RichText::new(apps.len().to_string()).size(13.0).color(MUTED));
-                        });
-                        ui.add_space(2.0);
-                        let mut items: Vec<Option<&App>> = apps.into_iter().map(Some).collect();
-                        if i == last {
-                            items.push(None);
-                        }
-                        self.tile_grid(ui, ctx, snapshot, &items);
-                        ui.add_space(6.0);
-                    }
+                    self.category_tiles(ui, ctx, snapshot, &mine);
                 } else {
                     let mut items: Vec<Option<&App>> = mine.iter().map(Some).collect();
                     items.push(None);
                     self.tile_grid(ui, ctx, snapshot, &items);
                 }
             });
+        });
+    }
+
+    /// Eine Kachel je Kategorie; ein Klick auf ein Icon startet das Programm.
+    fn category_tiles(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>, mine: &[App]) {
+        let groups: Vec<(Chip, Vec<App>)> = CATEGORIES
+            .iter()
+            .map(|c| (*c, mine.iter().filter(|a| category(a) == *c).cloned().collect::<Vec<_>>()))
+            .filter(|(_, v)| !v.is_empty())
+            .collect();
+        let gap = 16.0;
+        let cols = if ui.available_width() >= 1000.0 { 2 } else { 1 };
+        let w = (ui.available_width() - gap * (cols as f32 - 1.0)) / cols as f32;
+        for row in groups.chunks(cols) {
+            ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for (c, apps) in row {
+                    self.category_card(ui, ctx, snapshot, *c, apps, w);
+                }
+            });
+            ui.add_space(gap - 8.0);
+        }
+    }
+
+    fn category_card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>, c: Chip, apps: &[App], w: f32) {
+        let color = cat_color(c);
+        let fill = mix(color, panel(), if dark() { 0.14 } else { 0.08 });
+        let stroke = mix(color, border(), 0.35);
+        egui::Frame::new().fill(fill).stroke(Stroke::new(1.0, stroke)).corner_radius(20u8).inner_margin(egui::Margin { left: 16, right: 16, top: 14, bottom: 10 }).show(ui, |ui| {
+            ui.set_width(w - 34.0);
+            ui.horizontal(|ui| {
+                let (r, _) = ui.allocate_exact_size(Vec2::splat(12.0), Sense::hover());
+                ui.painter().circle_filled(r.center(), 5.0, color);
+                ui.label(egui::RichText::new(c.label()).size(17.0).strong());
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(apps.len().to_string()).size(13.0).color(muted()));
+                });
+            });
+            ui.add_space(6.0);
+            let cell = 92.0;
+            let per_row = ((ui.available_width() + 4.0) / cell).floor().max(1.0) as usize;
+            let cw = ui.available_width() / per_row as f32;
+            for chunk in apps.chunks(per_row) {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    for app in chunk {
+                        let st = snapshot.get(&app.id).cloned().unwrap_or_default();
+                        self.icon_button(ui, ctx, app, &st, cw);
+                    }
+                });
+            }
+        });
+    }
+
+    /// Icon mit Namen; Klick startet, Rechtsklick zeigt das Menü des Programms.
+    fn icon_button(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
+        let update = st.update();
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 94.0), Sense::click());
+        if resp.hovered() {
+            ui.painter().rect_filled(rect.shrink(2.0), 12.0, hover());
+        }
+        let ir = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 34.0), Vec2::splat(52.0));
+        paint_icon(ui, &mut self.textures, app, ir);
+        let p = ui.painter();
+        let mut job = egui::text::LayoutJob::simple_singleline(app.name.clone(), egui::FontId::proportional(12.5), soft());
+        job.wrap = egui::text::TextWrapping::truncate_at_width(w - 6.0);
+        let galley = p.layout_job(job);
+        p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 66.0), galley, soft());
+        if update {
+            p.circle_filled(Pos2::new(ir.right() - 2.0, ir.top() + 2.0), 6.0, ACCENT);
+            p.circle_stroke(Pos2::new(ir.right() - 2.0, ir.top() + 2.0), 6.0, Stroke::new(2.0, panel()));
+        }
+        if let Some((_, frac)) = &st.busy {
+            let bar = Rect::from_min_size(Pos2::new(rect.left() + 10.0, rect.bottom() - 6.0), egui::vec2(w - 20.0, 4.0));
+            p.rect_filled(bar, 2.0, border());
+            p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 4.0)), 2.0, ACCENT);
+            ctx.request_repaint_after(Duration::from_millis(200));
+        }
+        let mut hint = app.about_text().to_string();
+        if let Some(v) = st.current() {
+            hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
+        }
+        if let (true, Some(l)) = (update, st.latest) {
+            hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
+        }
+        let resp = resp.on_hover_text(hint);
+        if resp.clicked() && st.busy.is_none() {
+            self.launch(ctx, app, st);
+        }
+        resp.context_menu(|ui| {
+            if st.native.is_some() && !app.web_only && ui.button(t("Starten")).clicked() {
+                self.launch(ctx, app, st);
+                ui.close_menu();
+            }
+            if !app.no_web && ui.button(t("Im Browser öffnen")).clicked() {
+                self.open_web(ctx, app);
+                ui.close_menu();
+            }
+            if update && ui.button(tf("Aktualisieren auf {v}", &[("v", &st.latest.map(fmt_version).unwrap_or_default())])).clicked() {
+                self.install(ctx, app, st.update_kind(), None);
+                ui.close_menu();
+            }
+            ui.separator();
+            if ui.button(t("Entfernen")).clicked() {
+                self.remove(app);
+                ui.close_menu();
+            }
         });
     }
 
@@ -1244,11 +1546,11 @@ impl Gui {
     }
 
     fn empty_home(&mut self, ui: &mut egui::Ui) {
-        egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, BORDER)).corner_radius(16u8).inner_margin(28.0).show(ui, |ui| {
+        egui::Frame::new().fill(panel()).stroke(Stroke::new(1.0, border())).corner_radius(16u8).inner_margin(28.0).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.vertical_centered(|ui| {
                 ui.label(egui::RichText::new(t("Noch keine Programme installiert")).size(18.0).strong());
-                ui.label(egui::RichText::new(t("Programme für Büro, Bild, Video, Ton und mehr – einfach auswählen und installieren.")).color(MUTED));
+                ui.label(egui::RichText::new(t("Programme für Büro, Bild, Video, Ton und mehr – einfach auswählen und installieren.")).color(muted()));
                 ui.add_space(8.0);
                 if button(ui, t("Programme entdecken"), Look::Accent).clicked() {
                     self.open_catalog(Chip::All);
@@ -1261,20 +1563,20 @@ impl Gui {
         let update = st.update();
         let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 136.0), Sense::click());
         let p = ui.painter();
-        p.rect(rect, 16.0, if resp.hovered() { HOVER } else { PANEL }, Stroke::new(if update { 1.5 } else { 1.0 }, if update { ACCENT } else { BORDER }), egui::StrokeKind::Inside);
+        p.rect(rect, 16.0, if resp.hovered() { hover() } else { panel() }, Stroke::new(if update { 1.5 } else { 1.0 }, if update { ACCENT } else { border() }), egui::StrokeKind::Inside);
         let ir = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 50.0), Vec2::splat(64.0));
         paint_icon(ui, &mut self.textures, app, ir);
         let p = ui.painter();
-        let galley = p.layout(app.name.clone(), egui::FontId::proportional(14.0), TEXT, w - 16.0);
-        p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 94.0), galley, TEXT);
+        let galley = p.layout(app.name.clone(), egui::FontId::proportional(14.0), text(), w - 16.0);
+        p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 94.0), galley, text());
         if update {
             let b = Rect::from_min_size(Pos2::new(rect.right() - 62.0, rect.top() + 8.0), egui::vec2(54.0, 20.0));
             p.rect_filled(b, 10.0, ACCENT);
-            p.text(b.center(), egui::Align2::CENTER_CENTER, t("Update"), egui::FontId::proportional(11.5), BG);
+            p.text(b.center(), egui::Align2::CENTER_CENTER, t("Update"), egui::FontId::proportional(11.5), INK);
         }
         if let Some((_, frac)) = &st.busy {
             let bar = Rect::from_min_size(Pos2::new(rect.left() + 14.0, rect.bottom() - 14.0), egui::vec2(w - 28.0, 5.0));
-            p.rect_filled(bar, 3.0, BORDER);
+            p.rect_filled(bar, 3.0, border());
             p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 5.0)), 3.0, ACCENT);
             ctx.request_repaint_after(Duration::from_millis(200));
         }
@@ -1320,184 +1622,16 @@ impl Gui {
         let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 136.0), Sense::click());
         let p = ui.painter();
         let r = rect.shrink(1.0);
-        let color = if resp.hovered() { ACCENT } else { OUTLINE };
+        let color = if resp.hovered() { ACCENT } else { outline() };
         let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
         p.extend(egui::Shape::dashed_line(&corners, Stroke::new(1.5, color), 6.0, 5.0));
         let c = Pos2::new(rect.center().x, rect.top() + 50.0);
         p.circle_stroke(c, 22.0, Stroke::new(1.5, color));
         p.line_segment([c - egui::vec2(9.0, 0.0), c + egui::vec2(9.0, 0.0)], Stroke::new(2.0, color));
         p.line_segment([c - egui::vec2(0.0, 9.0), c + egui::vec2(0.0, 9.0)], Stroke::new(2.0, color));
-        p.text(Pos2::new(rect.center().x, rect.top() + 102.0), egui::Align2::CENTER_CENTER, t("Hinzufügen"), egui::FontId::proportional(14.0), MUTED);
+        p.text(Pos2::new(rect.center().x, rect.top() + 102.0), egui::Align2::CENTER_CENTER, t("Hinzufügen"), egui::FontId::proportional(14.0), muted());
         if resp.on_hover_text(t("Weitere Programme installieren")).clicked() {
             self.open_catalog(Chip::All);
-        }
-    }
-
-    fn widgets(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
-        let home = self.cfg.home.clone();
-        let n = [home.clock, home.weather, home.recent].iter().filter(|b| **b).count();
-        if n == 0 {
-            return;
-        }
-        let gap = 16.0;
-        let (cols, w) = grid(ui.available_width(), 270.0, gap, n);
-        let mut cards = Vec::new();
-        if home.clock {
-            cards.push(0);
-        }
-        if home.weather {
-            cards.push(1);
-        }
-        if home.recent {
-            cards.push(2);
-        }
-        let size = egui::vec2(w, 214.0);
-        for row in cards.chunks(cols) {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = gap;
-                for which in row {
-                    match which {
-                        0 => self.clock_card(ui, size),
-                        1 => self.weather_card(ui, ctx, size),
-                        _ => self.recent_card(ui, size, snapshot),
-                    }
-                }
-            });
-            ui.add_space(gap - 8.0);
-        }
-    }
-
-    fn clock_card(&mut self, ui: &mut egui::Ui, size: Vec2) {
-        use chrono::Timelike;
-        let now = chrono::Local::now();
-        card(ui, size, BORDER, |ui| {
-            ui.label(egui::RichText::new(greeting(now.hour())).size(14.0).color(MUTED));
-            ui.add_space(6.0);
-            ui.label(egui::RichText::new(now.format("%H:%M").to_string()).size(66.0).strong());
-            ui.add_space(4.0);
-            ui.label(egui::RichText::new(long_date(now.date_naive())).size(16.0).color(SOFT));
-        });
-    }
-
-    fn weather_card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, size: Vec2) {
-        let place = self.place();
-        let (data, error, busy) = {
-            let s = self.sky.lock().unwrap();
-            (s.data.clone().filter(|w| w.place == place.name), s.error.clone(), s.busy)
-        };
-        let mut prefs = false;
-        let mut retry = false;
-        card(ui, size, BORDER, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(&place.name).size(14.0).color(MUTED));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if link(ui, t("Ort ändern")).clicked() {
-                        prefs = true;
-                    }
-                });
-            });
-            let Some(w) = data else {
-                ui.add_space(30.0);
-                if busy {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(egui::RichText::new(t("Wetter wird geladen …")).color(MUTED));
-                    });
-                } else {
-                    ui.label(egui::RichText::new(t("Kein Wetter verfügbar")).size(16.0));
-                    if let Some(e) = &error {
-                        ui.label(egui::RichText::new(t("Keine Verbindung zum Wetterdienst")).size(12.5).color(MUTED)).on_hover_text(e);
-                    }
-                    if link(ui, t("Erneut versuchen")).clicked() {
-                        retry = true;
-                    }
-                }
-                return;
-            };
-            let top = ui.cursor().min;
-            let width = ui.available_width();
-            ui.label(egui::RichText::new(weather::deg(w.temp)).size(46.0).strong());
-            ui.label(egui::RichText::new(w.code.map(|c| t(weather::describe(c, w.sky != weather::Sky::Moon).0).to_string()).unwrap_or_else(|| w.text.clone())).size(15.0));
-            let mut info = format!("H {} · T {}", weather::deg(w.today_max), weather::deg(w.today_min));
-            if w.rain_prob > 0.0 {
-                info += &format!(" · {}", tf("Regen {p} %", &[("p", &format!("{:.0}", w.rain_prob))]));
-            }
-            ui.label(egui::RichText::new(info).size(12.5).color(MUTED));
-            weather::draw(ui.painter(), Pos2::new(top.x + width - 34.0, top.y + 34.0), 68.0, w.sky, ACCENT, PANEL);
-            // Vorhersage
-            let days = w.days.iter().take(5).collect::<Vec<_>>();
-            if days.is_empty() {
-                return;
-            }
-            let bottom = ui.max_rect().bottom();
-            let rect = Rect::from_min_max(Pos2::new(top.x, (bottom - 52.0).max(ui.cursor().min.y)), Pos2::new(top.x + width, bottom));
-            let cw = rect.width() / days.len() as f32;
-            let p = ui.painter();
-            for (i, d) in days.iter().enumerate() {
-                let x = rect.left() + cw * (i as f32 + 0.5);
-                p.text(Pos2::new(x, rect.top() + 6.0), egui::Align2::CENTER_CENTER, weekday_short(&d.weekday), egui::FontId::proportional(12.0), MUTED);
-                weather::draw(p, Pos2::new(x, rect.top() + 24.0), 22.0, d.sky, ACCENT, PANEL);
-                p.text(Pos2::new(x, rect.top() + 44.0), egui::Align2::CENTER_CENTER, weather::deg(d.max), egui::FontId::proportional(13.0), TEXT);
-            }
-        });
-        if prefs {
-            self.go(View::Prefs);
-        }
-        if retry {
-            self.fetch_weather(ctx);
-        }
-    }
-
-    fn recent_card(&mut self, ui: &mut egui::Ui, size: Vec2, snapshot: &HashMap<String, Status>) {
-        let now = chrono::Local::now();
-        let recent: Vec<Recent> = self.cfg.recent.iter().filter(|r| r.path.exists()).take(3).cloned().collect();
-        let mut open: Option<Recent> = None;
-        let mut pick = false;
-        card(ui, size, BORDER, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(t("Zuletzt geöffnet")).size(14.0).color(MUTED));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if link(ui, t("Datei öffnen …")).clicked() {
-                        pick = true;
-                    }
-                });
-            });
-            if recent.is_empty() {
-                ui.add_space(14.0);
-                ui.label(egui::RichText::new(t("Noch keine Dateien")).size(15.0));
-                ui.label(egui::RichText::new(t("Dateien, die du über die Werkbank öffnest, erscheinen hier.")).size(12.5).color(MUTED));
-                return;
-            }
-            ui.add_space(2.0);
-            for r in &recent {
-                let Some(app) = self.manifest.app.iter().find(|a| a.id == r.app) else { continue };
-                let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 44.0), Sense::click());
-                if resp.hovered() {
-                    ui.painter().rect_filled(rect.expand2(egui::vec2(6.0, 0.0)), 8.0, HOVER);
-                }
-                paint_icon(ui, &mut self.textures, app, Rect::from_min_size(Pos2::new(rect.left(), rect.top() + 6.0), Vec2::splat(32.0)));
-                let name = r.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-                let p = ui.painter();
-                let mut job = egui::text::LayoutJob::simple_singleline(name, egui::FontId::proportional(14.0), TEXT);
-                job.wrap = egui::text::TextWrapping::truncate_at_width(rect.width() - 44.0);
-                p.galley(Pos2::new(rect.left() + 44.0, rect.top() + 5.0), p.layout_job(job), TEXT);
-                p.text(Pos2::new(rect.left() + 44.0, rect.top() + 25.0), egui::Align2::LEFT_TOP, format!("{} · {}", app.name, when(r.when, now)), egui::FontId::proportional(12.0), MUTED);
-                let installed = snapshot.get(&app.id).is_some_and(|s| s.native.is_some());
-                let resp = resp.on_hover_text(r.path.display().to_string());
-                if resp.clicked() {
-                    if installed {
-                        open = Some(r.clone());
-                    } else {
-                        self.notice = Some(tf("{name} ist nicht mehr installiert.", &[("name", &app.name)]));
-                    }
-                }
-            }
-        });
-        if let Some(r) = open {
-            self.open_recent(&r);
-        }
-        if pick {
-            self.open_file(snapshot);
         }
     }
 
@@ -1527,7 +1661,7 @@ impl Gui {
             let s = st(a);
             (!s.update(), s.installed())
         });
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 let w = (ui.available_width() * 0.4).clamp(200.0, 360.0);
                 ui.add_sized([w, 38.0], egui::TextEdit::singleline(&mut self.search).hint_text(t("Suchen: Name, Zweck oder Dateityp")).font(egui::FontId::proportional(15.0)).margin(egui::vec2(12.0, 9.0)));
@@ -1544,10 +1678,10 @@ impl Gui {
             ui.horizontal_wrapped(|ui| {
                 for (chip, n) in &chips {
                     let on = self.chip == *chip;
-                    let text = egui::RichText::new(format!("{} ({n})", chip.label())).size(13.5).color(if on { BG } else { SOFT });
+                    let text = egui::RichText::new(format!("{} ({n})", chip.label())).size(13.5).color(if on { INK } else { soft() });
                     let b = egui::Button::new(if on { text.strong() } else { text })
-                        .fill(if on { ACCENT } else { PANEL })
-                        .stroke(Stroke::new(1.0, if on { ACCENT } else { BORDER }))
+                        .fill(if on { ACCENT } else { panel() })
+                        .stroke(Stroke::new(1.0, if on { ACCENT } else { border() }))
                         .corner_radius(16u8)
                         .min_size(egui::vec2(0.0, 32.0));
                     if ui.add(b).clicked() {
@@ -1565,7 +1699,7 @@ impl Gui {
                             Chip::Installed => t("Noch nichts installiert."),
                             _ => t("Nichts gefunden."),
                         };
-                        ui.label(egui::RichText::new(msg).size(16.0).color(MUTED));
+                        ui.label(egui::RichText::new(msg).size(16.0).color(muted()));
                     });
                     return;
                 }
@@ -1586,7 +1720,7 @@ impl Gui {
 
     fn catalog_card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
         let update = st.update();
-        let border = if update || st.busy.is_some() { ACCENT } else { BORDER };
+        let border = if update || st.busy.is_some() { ACCENT } else { border() };
         card(ui, egui::vec2(w, 178.0), border, |ui| {
             ui.horizontal(|ui| {
                 icon(ui, &mut self.textures, app, 52.0);
@@ -1599,17 +1733,17 @@ impl Gui {
                         (None, Some(l)) => tf("Version {v}", &[("v", &fmt_version(l))]),
                         (None, None) => st.error.clone().unwrap_or_else(|| t("Version wird gesucht …").into()),
                     };
-                    ui.label(egui::RichText::new(line).size(12.5).color(if update { ACCENT } else { MUTED }));
+                    ui.label(egui::RichText::new(line).size(12.5).color(if update { accent_text() } else { muted() }));
                 });
             });
             ui.add_space(4.0);
-            let mut job = egui::text::LayoutJob::simple(app.about_text().to_string(), egui::FontId::proportional(13.0), SOFT, ui.available_width());
+            let mut job = egui::text::LayoutJob::simple(app.about_text().to_string(), egui::FontId::proportional(13.0), soft(), ui.available_width());
             job.wrap.max_rows = 2;
             ui.label(job);
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 if let Some((msg, frac)) = &st.busy {
                     ui.add(egui::ProgressBar::new(*frac).desired_height(6.0).fill(ACCENT));
-                    ui.label(egui::RichText::new(msg).size(12.5).color(MUTED));
+                    ui.label(egui::RichText::new(msg).size(12.5).color(muted()));
                     ctx.request_repaint_after(Duration::from_millis(200));
                     return;
                 }
@@ -1645,11 +1779,11 @@ impl Gui {
         let mut chosen: Option<Place> = None;
         let mut search = false;
         let mut changed = false;
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
                 ui.set_max_width(720.0);
                 let section = |ui: &mut egui::Ui, title: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
-                    egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, BORDER)).corner_radius(14u8).inner_margin(18.0).show(ui, |ui| {
+                    egui::Frame::new().fill(panel()).stroke(Stroke::new(1.0, border())).corner_radius(14u8).inner_margin(18.0).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.label(egui::RichText::new(title).size(17.0).strong());
                         ui.add_space(4.0);
@@ -1660,14 +1794,14 @@ impl Gui {
                 let mut lang = None;
                 section(ui, "Sprache · Language", &mut |ui| {
                     lang = language_pick(ui);
-                    ui.label(egui::RichText::new(t("Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start. Klangwerk und Schauwerk gibt es nur auf Englisch, einige Programme sind nur teilweise übersetzt.")).size(12.5).color(MUTED));
+                    ui.label(egui::RichText::new(t("Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start. Klangwerk und Schauwerk gibt es nur auf Englisch, einige Programme sind nur teilweise übersetzt.")).size(12.5).color(muted()));
                 });
                 if let Some(l) = lang {
                     self.set_language(l);
                 }
                 let place = self.place();
                 section(ui, t("Ort für das Wetter"), &mut |ui| {
-                    ui.label(egui::RichText::new(format!("{}{}", place.name, place.region.as_deref().map(|r| format!(" · {r}")).unwrap_or_default())).color(SOFT));
+                    ui.label(egui::RichText::new(format!("{}{}", place.name, place.region.as_deref().map(|r| format!(" · {r}")).unwrap_or_default())).color(soft()));
                     ui.add_space(4.0);
                     let mut ps = self.places.lock().unwrap();
                     ui.horizontal(|ui| {
@@ -1682,7 +1816,7 @@ impl Gui {
                     });
                     match &ps.result {
                         Some(Ok(list)) if list.is_empty() => {
-                            ui.label(egui::RichText::new(t("Kein Ort gefunden.")).color(MUTED));
+                            ui.label(egui::RichText::new(t("Kein Ort gefunden.")).color(muted()));
                         }
                         Some(Ok(list)) => {
                             for p in list {
@@ -1693,7 +1827,7 @@ impl Gui {
                             }
                         }
                         Some(Err(e)) => {
-                            ui.label(egui::RichText::new(tf("Suche fehlgeschlagen: {fehler}", &[("fehler", e)])).color(WARN));
+                            ui.label(egui::RichText::new(tf("Suche fehlgeschlagen: {fehler}", &[("fehler", e)])).color(warn()));
                         }
                         None => {}
                     }
@@ -1701,10 +1835,30 @@ impl Gui {
                         chosen = Some(Place::sarnen());
                     }
                 });
-                section(ui, t("Startseite zeigt"), &mut |ui| {
-                    changed |= ui.checkbox(&mut self.cfg.home.clock, t("Uhr und Datum")).changed();
-                    changed |= ui.checkbox(&mut self.cfg.home.weather, tf("Wetter für {ort}", &[("ort", &place.name)])).changed();
-                    changed |= ui.checkbox(&mut self.cfg.home.recent, t("Zuletzt geöffnete Dateien")).changed();
+                let mut theme_pick = None;
+                section(ui, t("Design"), &mut |ui| {
+                    if let Some(v) = segmented(ui, dark(), t("Dunkel"), t("Hell")) {
+                        theme_pick = Some(v);
+                    }
+                    ui.label(egui::RichText::new(t("Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start.")).size(12.5).color(muted()));
+                });
+                if let Some(v) = theme_pick {
+                    self.set_dark(ctx, v);
+                }
+                let mut arrange = false;
+                let mut widget_save = false;
+                section(ui, t("Startseite"), &mut |ui| {
+                    if button(ui, t("Widgets anordnen"), Look::Outline).clicked() {
+                        arrange = true;
+                    }
+                    ui.add_space(6.0);
+                    ui.label(egui::RichText::new(t("Kalender für «Termine» (ICS-Adresse, z. B. «Privatadresse im iCal-Format» aus Google Kalender oder ein veröffentlichter Outlook-Kalender)")).size(13.0));
+                    ui.add(egui::TextEdit::singleline(&mut self.cal_input).hint_text("https://…/basic.ics").desired_width(f32::INFINITY));
+                    ui.label(egui::RichText::new(t("Nachrichten-Quelle (RSS-Adresse, leer = SRF News)")).size(13.0));
+                    ui.add(egui::TextEdit::singleline(&mut self.news_input).hint_text(widgets::SRF_NEWS).desired_width(f32::INFINITY));
+                    if button(ui, t("Übernehmen"), Look::Outline).clicked() {
+                        widget_save = true;
+                    }
                     if !self.cfg.recent.is_empty() && link(ui, t("Liste «Zuletzt geöffnet» leeren")).clicked() {
                         let mut cfg = core::load_config();
                         cfg.recent.clear();
@@ -1712,9 +1866,46 @@ impl Gui {
                         self.cfg.recent.clear();
                     }
                 });
+                if arrange {
+                    self.arrange = true;
+                    self.go(View::Home);
+                }
+                if widget_save {
+                    let mut cfg = core::load_config();
+                    cfg.calendar_url = Some(self.cal_input.trim().to_string()).filter(|s| !s.is_empty());
+                    cfg.news_url = Some(self.news_input.trim().to_string()).filter(|s| !s.is_empty());
+                    let _ = core::save_config(&cfg);
+                    self.cfg.calendar_url = cfg.calendar_url;
+                    self.cfg.news_url = cfg.news_url;
+                    self.cal_at = None;
+                    self.news_at = None;
+                    self.notice = Some(t("Gespeichert.").to_string());
+                }
+                let mut token_save = false;
+                section(ui, t("Zugang zu GitHub"), &mut |ui| {
+                    let state = if core::has_token() { t("Schlüssel ist gespeichert.") } else { t("Kein Schlüssel gespeichert.") };
+                    ui.label(egui::RichText::new(state).color(soft()));
+                    ui.label(egui::RichText::new(t("Nur nötig, wenn das Werkbank-Repository privat ist: persönlicher Zugriffsschlüssel (fine-grained token) mit Lesezugriff auf «Contents» dieses Repositorys.")).size(12.5).color(muted()));
+                    ui.horizontal(|ui| {
+                        ui.add(egui::TextEdit::singleline(&mut self.token_input).password(true).hint_text("github_pat_…").desired_width(360.0));
+                        if button(ui, t("Speichern"), Look::Outline).clicked() {
+                            token_save = true;
+                        }
+                    });
+                });
+                if token_save {
+                    let tok = Some(self.token_input.trim().to_string()).filter(|s| !s.is_empty());
+                    let mut cfg = core::load_config();
+                    cfg.github_token = tok.clone();
+                    let _ = core::save_config(&cfg);
+                    core::set_token(tok);
+                    self.token_input.clear();
+                    self.refresh(ctx);
+                    self.notice = Some(t("Gespeichert. Programme und Updates werden neu gesucht.").to_string());
+                }
                 let mut types = false;
                 section(ui, t("Programme und Dateien"), &mut |ui| {
-                    ui.label(egui::RichText::new(tf("Datenordner: {pfad}", &[("pfad", &core::data_dir().display())])).color(SOFT));
+                    ui.label(egui::RichText::new(tf("Datenordner: {pfad}", &[("pfad", &core::data_dir().display())])).color(soft()));
                     ui.horizontal(|ui| {
                         if button(ui, t("Datenordner öffnen"), Look::Outline).clicked() {
                             let _ = open::that(core::data_dir());
@@ -1729,8 +1920,8 @@ impl Gui {
                 }
                 let mut about = false;
                 section(ui, t("Über"), &mut |ui| {
-                    ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).color(SOFT));
-                    ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(MUTED));
+                    ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).color(soft()));
+                    ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(muted()));
                     if link(ui, t("Mehr …")).clicked() {
                         about = true;
                     }

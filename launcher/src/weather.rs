@@ -176,7 +176,6 @@ pub fn search_place(name: &str) -> Result<Vec<Place>> {
 // ---------------------------------------------------------------------------------------------
 // Symbole (gezeichnet, damit keine Schrift fehlen kann)
 
-const CLOUD: Color32 = Color32::from_rgb(0xD6, 0xD9, 0xE0);
 const RAIN: Color32 = Color32::from_rgb(0x7F, 0xB4, 0xE6);
 
 fn cloud(p: &Painter, c: Pos2, s: f32, fill: Color32) {
@@ -197,7 +196,7 @@ fn sun(p: &Painter, c: Pos2, s: f32, color: Color32) {
 }
 
 /// Zeichnet ein Wettersymbol in ein Quadrat der Kantenlänge `s` um `c`.
-pub fn draw(p: &Painter, c: Pos2, s: f32, sky: Sky, accent: Color32, bg: Color32) {
+pub fn draw(p: &Painter, c: Pos2, s: f32, sky: Sky, accent: Color32, bg: Color32, cloud_c: Color32) {
     match sky {
         Sky::Sun => sun(p, c, s, accent),
         Sky::Moon => {
@@ -206,11 +205,11 @@ pub fn draw(p: &Painter, c: Pos2, s: f32, sky: Sky, accent: Color32, bg: Color32
         }
         Sky::Partly => {
             sun(p, Pos2::new(c.x - 0.12 * s, c.y - 0.12 * s), 0.8 * s, accent);
-            cloud(p, Pos2::new(c.x + 0.06 * s, c.y + 0.08 * s), 0.85 * s, CLOUD);
+            cloud(p, Pos2::new(c.x + 0.06 * s, c.y + 0.08 * s), 0.85 * s, cloud_c);
         }
-        Sky::Cloud => cloud(p, c, s, CLOUD),
+        Sky::Cloud => cloud(p, c, s, cloud_c),
         Sky::Fog => {
-            let st = Stroke::new((0.06 * s).max(1.5), CLOUD);
+            let st = Stroke::new((0.06 * s).max(1.5), cloud_c);
             for (i, w) in [0.34, 0.26, 0.34].iter().enumerate() {
                 let y = c.y - 0.16 * s + i as f32 * 0.16 * s;
                 p.line_segment([Pos2::new(c.x - w * s, y), Pos2::new(c.x + w * s, y)], st);
@@ -218,7 +217,7 @@ pub fn draw(p: &Painter, c: Pos2, s: f32, sky: Sky, accent: Color32, bg: Color32
         }
         Sky::Rain | Sky::Snow | Sky::Thunder => {
             let top = Pos2::new(c.x, c.y - 0.1 * s);
-            cloud(p, top, s, CLOUD);
+            cloud(p, top, s, cloud_c);
             match sky {
                 Sky::Rain => {
                     let st = Stroke::new((0.05 * s).max(1.5), RAIN);

@@ -128,6 +128,45 @@ pub struct Config {
     /// Zuletzt über die Werkbank geöffnete Dateien, neueste zuerst.
     #[serde(default)]
     pub recent: Vec<Recent>,
+    /// Persönlicher GitHub-Zugriffsschlüssel (für ein privates Repository).
+    #[serde(default)]
+    pub github_token: Option<String>,
+    /// Widget «Notizen».
+    #[serde(default)]
+    pub notes: Vec<String>,
+    /// Widget «Ordner» (None: Downloads, Dokumente, Bilder).
+    #[serde(default)]
+    pub folders: Option<Vec<PathBuf>>,
+    /// Widget «Termine»: Kalender-Adresse (ICS, auch webcal://).
+    #[serde(default)]
+    pub calendar_url: Option<String>,
+    /// Widget «Nachrichten»: RSS-Adresse (None: SRF News).
+    #[serde(default)]
+    pub news_url: Option<String>,
+}
+
+/// Ein Widget der Startseite: Art und Grösse in Rasterfeldern (6 Spalten, Zeilen à ~92 px).
+#[derive(Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WidgetCfg {
+    pub kind: String,
+    #[serde(default = "two")]
+    pub w: u8,
+    #[serde(default = "two")]
+    pub h: u8,
+}
+
+fn two() -> u8 {
+    2
+}
+
+/// Alle Widget-Arten in der Reihenfolge des Menüs «Widget hinzufügen».
+pub const WIDGET_KINDS: [&str; 10] = ["uhr", "wetter", "mail", "termine", "zuletzt", "notizen", "nachrichten", "timer", "ordner", "computer"];
+
+pub fn default_widgets() -> Vec<WidgetCfg> {
+    [("uhr", 2), ("wetter", 3), ("mail", 1), ("termine", 2), ("zuletzt", 2), ("notizen", 2), ("nachrichten", 3), ("timer", 1), ("ordner", 1), ("computer", 1)]
+        .iter()
+        .map(|(k, w)| WidgetCfg { kind: k.to_string(), w: *w, h: 2 })
+        .collect()
 }
 
 #[derive(Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
@@ -153,9 +192,12 @@ pub struct Home {
     pub weather: bool,
     #[serde(default = "yes")]
     pub recent: bool,
-    /// «Meine Programme» nach Rubriken gruppiert.
-    #[serde(default)]
+    /// «Meine Programme» nach Rubriken gruppiert (Kacheln je Kategorie).
+    #[serde(default = "yes")]
     pub grouped: bool,
+    /// Widgets in ihrer Reihenfolge; leer = Vorgabe.
+    #[serde(default)]
+    pub widgets: Vec<WidgetCfg>,
 }
 
 fn yes() -> bool {
@@ -164,7 +206,7 @@ fn yes() -> bool {
 
 impl Default for Home {
     fn default() -> Self {
-        Home { clock: true, weather: true, recent: true, grouped: false }
+        Home { clock: true, weather: true, recent: true, grouped: true, widgets: Vec::new() }
     }
 }
 
@@ -340,14 +382,81 @@ fn agent() -> ureq::Agent {
         .into()
 }
 
+// ---------------------------------------------------------------------------------------------
+// Zugang zu einem privaten GitHub-Repository: persönlicher Zugriffsschlüssel (Token, nur Lesen).
+
+static TOKEN: std::sync::RwLock<Option<String>> = std::sync::RwLock::new(None);
+
+/// Schlüssel setzen (aus den Einstellungen oder WERKBANK_GITHUB_TOKEN).
+pub fn set_token(token: Option<String>) {
+    let t = token.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
+    if let Ok(mut g) = TOKEN.write() {
+        *g = t;
+    }
+}
+
+pub fn has_token() -> bool {
+    token().is_some()
+}
+
+fn token() -> Option<String> {
+    TOKEN.read().ok().and_then(|g| g.clone())
+}
+
+/// Liest den Schlüssel beim Start: Umgebung vor Einstellungen.
+pub fn init_token() {
+    let t = std::env::var("WERKBANK_GITHUB_TOKEN").ok().or_else(|| load_config().github_token);
+    set_token(t);
+}
+
+fn base64(input: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for c in input.chunks(3) {
+        let b = [c[0], *c.get(1).unwrap_or(&0), *c.get(2).unwrap_or(&0)];
+        let n = (b[0] as u32) << 16 | (b[1] as u32) << 8 | b[2] as u32;
+        for i in 0..4 {
+            if i <= c.len() {
+                out.push(T[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Kopfzeile mit dem Schlüssel, nur für GitHub selbst (nie für den Download-Server dahinter).
+fn auth_header(url: &str) -> Option<String> {
+    let t = token()?;
+    let host = url.strip_prefix("https://")?.split('/').next()?;
+    match host {
+        // Git-Abfragen (Versionen) erwarten Basic-Anmeldung.
+        "github.com" => Some(format!("Basic {}", base64(format!("x-access-token:{t}").as_bytes()))),
+        "api.github.com" | "raw.githubusercontent.com" => Some(format!("Bearer {t}")),
+        _ => None,
+    }
+}
+
 /// GET mit eigener Behandlung von Weiterleitungen. GitHub leitet Release-Downloads auf einen
 /// anderen Server um; der Inhalt der Umleitungs-Antwort wird hier gar nicht erst gelesen, weil
 /// manche Proxys ihn fehlerhaft übertragen. Gefolgt wird nur zu https-Adressen.
 fn fetch(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
+    fetch_accept(url, None)
+}
+
+fn fetch_accept(url: &str, accept: Option<&str>) -> Result<ureq::http::Response<ureq::Body>> {
     let agent = agent();
     let mut url = url.to_string();
     for _ in 0..6 {
-        let resp = agent.get(&url).call().with_context(|| format!("Abruf von {url}"))?;
+        let mut req = agent.get(&url);
+        if let Some(a) = auth_header(&url) {
+            req = req.header("Authorization", a);
+        }
+        if let Some(a) = accept {
+            req = req.header("Accept", a);
+        }
+        let resp = req.call().with_context(|| format!("Abruf von {}", url.split('?').next().unwrap_or(&url)))?;
         if !resp.status().is_redirection() {
             return Ok(resp);
         }
@@ -390,13 +499,45 @@ fn release_url(app: &App, v: Version, file: &str) -> String {
     format!("{}/releases/download/{}{}/{}", app.repo(), app.tag(), fmt_version(v), file)
 }
 
+/// Datei eines Releases holen. Mit Schlüssel über die GitHub-API (nötig bei privaten
+/// Repositories), sonst über die öffentliche Download-Adresse.
+fn release_file(app: &App, v: Version, file: &str) -> Result<ureq::http::Response<ureq::Body>> {
+    let repo = app.repo();
+    if let (true, Some(path)) = (has_token(), repo.strip_prefix("https://github.com/")) {
+        let tag = format!("{}{}", app.tag(), fmt_version(v));
+        let api = format!("https://api.github.com/repos/{path}/releases/tags/{tag}");
+        let body = {
+            let mut resp = fetch_accept(&api, Some("application/vnd.github+json"))?;
+            let mut buf = Vec::new();
+            resp.body_mut().as_reader().take(4 << 20).read_to_end(&mut buf)?;
+            buf
+        };
+        let release: serde_json::Value = serde_json::from_slice(&body).context("Antwort der GitHub-API")?;
+        let asset = release["assets"]
+            .as_array()
+            .and_then(|a| a.iter().find(|x| x["name"].as_str() == Some(file)))
+            .and_then(|x| x["url"].as_str())
+            .ok_or_else(|| anyhow!("{file} fehlt im Release {tag}"))?
+            .to_string();
+        return fetch_accept(&asset, Some("application/octet-stream"));
+    }
+    fetch(&release_url(app, v, file))
+}
+
+fn release_text(app: &App, v: Version, file: &str) -> Result<String> {
+    let mut resp = release_file(app, v, file)?;
+    let mut buf = Vec::new();
+    resp.body_mut().as_reader().take(1 << 20).read_to_end(&mut buf)?;
+    Ok(String::from_utf8_lossy(&buf).into_owned())
+}
+
 /// Neueste Version, zu der tatsächlich ein Release mit Dateien existiert.
 pub fn latest_version(app: &App) -> Result<Version> {
     if let Some(pin) = &app.pin {
         return parse_version(pin).ok_or_else(|| anyhow!("pin \"{pin}\" ist keine Version"));
     }
     for v in remote_versions(app)?.into_iter().take(5) {
-        if http_text(&release_url(app, v, "SHA256SUMS.txt"), 1 << 20).is_ok() {
+        if release_text(app, v, "SHA256SUMS.txt").is_ok() {
             return Ok(v);
         }
     }
@@ -469,8 +610,7 @@ pub fn exe_path(app: &App) -> Option<PathBuf> {
 /// Fortschritt: Text und Anteil 0..1.
 pub type Progress<'a> = &'a (dyn Fn(&str, f32) + Sync);
 
-fn download(url: &str, dest: &Path, progress: Progress) -> Result<String> {
-    let mut resp = fetch(url)?;
+fn download(mut resp: ureq::http::Response<ureq::Body>, dest: &Path, progress: Progress) -> Result<String> {
     let total: f32 = resp
         .headers()
         .get("content-length")
@@ -491,7 +631,7 @@ fn download(url: &str, dest: &Path, progress: Progress) -> Result<String> {
         hasher.update(&buf[..n]);
         done += n as f32;
         let mb = done / 1_048_576.0;
-        progress(&format!("Lade herunter … {mb:.0} MB"), if total > 0.0 { done / total } else { 0.0 });
+        progress(&crate::sprache::tf("Lade herunter … {mb} MB", &[("mb", &format!("{mb:.0}"))]), if total > 0.0 { done / total } else { 0.0 });
     }
     Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
@@ -549,7 +689,7 @@ fn activate(app: &App, kind: Kind, v: Version, archive: &Path, progress: Progres
     let final_dir = version_dir(app, kind, v);
     let tmp_dir = final_dir.with_extension("teil");
     let _ = fs::remove_dir_all(&tmp_dir);
-    progress("Entpacke …", 1.0);
+    progress(crate::sprache::t("Entpacke …"), 1.0);
     extract(archive, &tmp_dir)?;
     if kind == Kind::Native {
         // Die Windows-Portable-Builds speichern Einstellungen neben der .exe, solange
@@ -576,13 +716,13 @@ fn activate(app: &App, kind: Kind, v: Version, archive: &Path, progress: Progres
 /// Installiert oder aktualisiert genau eine App auf die neueste Version.
 /// Gibt die nun installierte Version zurück.
 pub fn install(app: &App, kind: Kind, progress: Progress) -> Result<Version> {
-    progress("Suche neueste Version …", 0.0);
+    progress(crate::sprache::t("Suche neueste Version …"), 0.0);
     let v = latest_version(app)?;
     if installed_version(app, kind) == Some(v) {
         return Ok(v);
     }
     let file = asset_name(app, kind, v)?;
-    let sums = http_text(&release_url(app, v, "SHA256SUMS.txt"), 1 << 20)?;
+    let sums = release_text(app, v, "SHA256SUMS.txt")?;
     let expected = sums
         .lines()
         .find_map(|l| {
@@ -593,7 +733,7 @@ pub fn install(app: &App, kind: Kind, progress: Progress) -> Result<Version> {
 
     fs::create_dir_all(app_dir(app))?;
     let archive = app_dir(app).join(&file);
-    let actual = download(&release_url(app, v, &file), &archive, progress)?;
+    let actual = download(release_file(app, v, &file)?, &archive, progress)?;
     if actual != expected {
         let _ = fs::remove_file(&archive);
         bail!("Prüfsumme von {file} stimmt nicht; Download verworfen");
@@ -612,7 +752,7 @@ pub fn install_file(app: &App, archive: &Path, progress: Progress) -> Result<(Ki
         .find_map(|part| parse_version(part.trim_end_matches(".zip")))
         .ok_or_else(|| anyhow!("keine Version im Dateinamen {name} gefunden"))?;
     let kind = if name.contains("-web-") { Kind::Web } else { Kind::Native };
-    progress(&format!("Prüfsumme: {}", &sha256_file(archive)?[..12]), 0.5);
+    progress(&crate::sprache::tf("Prüfsumme: {s}", &[("s", &sha256_file(archive)?[..12].to_string())]), 0.5);
     fs::create_dir_all(app_dir(app))?;
     activate(app, kind, v, archive, progress)?;
     Ok((kind, v))
@@ -702,6 +842,7 @@ pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
         .args(&file)
         // Sprache der Oberfläche, wie im Launcher gewählt.
         .env("WERKBANK_LANG", crate::sprache::lang().code())
+        .env("WERKBANK_THEME", crate::gui::theme_code())
         .current_dir(exe.parent().unwrap_or(Path::new(".")))
         .spawn()
         .with_context(|| format!("Start von {}", exe.display()))?;
