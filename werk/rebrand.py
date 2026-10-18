@@ -415,6 +415,27 @@ def extras():
                     path.write_bytes("\n".join(out).encode("utf-8"))
         print(f"  {count} Texte übersetzbar gemacht ({func})")
 
+
+# Schweizer Rechtschreibung: in den deutschen Übersetzungen «ss» statt «ß».
+ESZETT_NAMES = {"de.tsv", "de.json", "de-formats.json", "de.rs", "de_werk.rs", "ui_de.rs", "effects_de.rs"}
+# Dateien, die deutsche Tabellen neben anderem Code enthalten.
+ESZETT_EXTRA = {"designcraft": ["crates/ui-egui/src/i18n.rs"], "effectcraft": ["crates/ui-egui/src/i18n.rs"]}
+
+
+def swiss_spelling():
+    base = ROOT / "crates" / "ui-egui"
+    files = [p for p in sorted(base.rglob("*")) if p.is_file() and p.name in ESZETT_NAMES and "target" not in p.parts] if base.is_dir() else []
+    files += [ROOT / f for f in ESZETT_EXTRA.get(APP, []) if (ROOT / f).is_file()]
+    n = 0
+    for p in files:
+        text = read(p)
+        k = text.count("ß") + text.count("ẞ")
+        if k and not CHECK:
+            p.write_bytes(text.replace("ß", "ss").replace("ẞ", "SS").encode("utf-8"))
+        n += k
+    print(f"  {n} × ß → ss in {len(files)} Dateien")
+
+
 def main():
     print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}")
     # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
@@ -422,6 +443,7 @@ def main():
     patch_language()
     print("Ergänzungen:")
     extras()
+    swiss_spelling()
     print("Texte:")
     rewrite_text()
     print("Bilder:")
