@@ -1,0 +1,161 @@
+# Packwerk: deutsch → englisch
+Entpackt	Extracted
+Nach --entpacken fehlt das Archiv.	The archive is missing after --entpacken.
+Zu viele Angaben. Aufruf: packwerk --entpacken <archiv> [ziel]	Too many arguments. Usage: packwerk --entpacken <archive> [destination]
+Unbekannte Option: {o}	Unknown option: {o}
+Kommandozeile	Command line
+Konnte nicht starten: {e}	Could not start: {e}
+Der Auftrag wurde unerwartet beendet.	The task ended unexpectedly.
+Archiv öffnen	Open archive
+Archive	Archives
+Alle Dateien	All files
+Archiv wird gelesen …	Reading archive …
+{name} geöffnet: {n} Einträge.	{name} opened: {n} entries.
+{n} Einträge mit unsicherem Pfad werden nicht entpackt.	{n} entries with unsafe paths will not be extracted.
+Abgebrochen.	Cancelled.
+Archiv lässt sich nicht öffnen	Cannot open archive
+Bitte einen Zielordner wählen.	Please choose a destination folder.
+Entpackt wird das Archiv {g} gross.	Extracted, the archive will take up {g}.
+Ungewöhnlich stark gepackt (Faktor {f}) – typisch für Archiv-Bomben.	Unusually high compression (ratio {f}) – typical of archive bombs.
+Sehr viele Einträge: {n}.	Very many entries: {n}.
+Einträge im ZIP überlappen sich – typisch für Zip-Bomben.	Entries in the ZIP overlap – typical of zip bombs.
+Wird entpackt …	Extracting …
+{n} Dateien ({g}) entpackt.	{n} files ({g}) extracted.
+{n} Ordner angelegt.	{n} folders created.
+{n} übersprungen.	{n} skipped.
+{n} abgelehnt oder fehlgeschlagen.	{n} rejected or failed.
+Entpacken fertig	Extraction complete
+Abgebrochen. Bereits entpackte Dateien bleiben im Zielordner.	Cancelled. Files already extracted remain in the destination folder.
+Entpacken fehlgeschlagen	Extraction failed
+Archiv	Archive
+Archiv speichern unter	Save archive as
+Bitte zuerst Dateien oder Ordner hinzufügen.	Please add files or folders first.
+Bitte Name und Ordner für das Archiv angeben.	Please enter a name and folder for the archive.
+Die beiden Passwörter stimmen nicht überein.	The two passwords do not match.
+Archiv wird erstellt …	Creating archive …
+{name} erstellt.	{name} created.
+{n} Dateien ({g}) → {a}.	{n} files ({g}) → {a}.
+Mit Passwort verschlüsselt (AES-256).	Encrypted with password (AES-256).
+Archiv erstellt	Archive created
+Abgebrochen. Es wurde kein Archiv angelegt.	Cancelled. No archive was created.
+Packen fehlgeschlagen	Compression failed
+Bitte warten, bis der laufende Auftrag fertig ist.	Please wait until the current task has finished.
+📂 Öffnen …	📂 Open …
+Archiv öffnen (ZIP, 7z, TAR, TAR.GZ, GZ)	Open an archive (ZIP, 7z, TAR, TAR.GZ, GZ)
+➕ Neues Archiv	➕ New archive
+Dateien und Ordner zu einem Archiv packen	Pack files and folders into an archive
+🗂 Archiv anzeigen	🗂 Show archive
+Hilfe	Help
+Ziel:	Destination:
+Ordner, in den entpackt wird (wird bei Bedarf angelegt)	Folder to extract to (created if needed)
+Wählen …	Choose …
+Zielordner wählen	Choose destination folder
+Auswahl entpacken	Extract selection
+Nur die markierten Einträge entpacken (relativ zum aktuellen Ordner)	Extract only the selected entries (relative to the current folder)
+Alles entpacken	Extract all
+🔒 Verschlüsselt – Passwort ist gesetzt.	🔒 Encrypted – password is set.
+🔒 Verschlüsselt – beim Entpacken wird nach dem Passwort gefragt.	🔒 Encrypted – you will be asked for the password when extracting.
+Passwort vergessen	Forget password
+Abbrechen	Cancel
+Archiv hierher ziehen	Drop an archive here
+ZIP, 7z, TAR, TAR.GZ und GZ öffnen – oder Dateien und Ordner ablegen, um ein neues Archiv zu packen.	Open ZIP, 7z, TAR, TAR.GZ and GZ – or drop files and folders to pack a new archive.
+Archiv öffnen …	Open archive …
+Neues Archiv …	New archive …
+Eine Ebene höher (Rücktaste)	Up one level (Backspace)
+Name	Name
+Grösse	Size
+Gepackt	Packed
+Geändert	Modified
+Dieser Ordner ist leer.	This folder is empty.
+Unsicherer Pfad – dieser Eintrag wird nicht entpackt.	Unsafe path – this entry will not be extracted.
+{n} Dateien – Doppelklick öffnet den Ordner	{n} files – double-click to open the folder
+{art} · {n} Einträge · {g} entpackt · {a} gepackt	{art} · {n} entries · {g} unpacked · {a} packed
+INHALT DES NEUEN ARCHIVS	CONTENTS OF THE NEW ARCHIVE
+📄 Dateien hinzufügen …	📄 Add files …
+Dateien hinzufügen	Add files
+📁 Ordner hinzufügen …	📁 Add folders …
+Ordner hinzufügen	Add folders
+Liste leeren	Clear list
+Dateien und Ordner hierher ziehen	Drop files and folders here
+oder mit den Knöpfen oben hinzufügen.	or add them with the buttons above.
+Aus der Liste entfernen	Remove from list
+FORMAT	FORMAT
+GZ packt genau eine Datei	GZ packs exactly one file
+Läuft überall, auch ohne Zusatzprogramm (Deflate).	Works everywhere, no extra software needed (Deflate).
+Packt am stärksten (LZMA2, solid).	Strongest compression (LZMA2, solid).
+Nur gebündelt, nicht gepackt.	Bundled only, not compressed.
+Üblich unter Linux.	Common on Linux.
+Eine einzelne Datei packen.	Compress a single file.
+STÄRKE	LEVEL
+Schnell	Fast
+Normal	Normal
+Stark	Maximum
+PASSWORT	PASSWORD
+ohne Passwort leer lassen	leave empty for no password
+Passwort wiederholen	Repeat password
+Passwort anzeigen	Show password
+✔ gleich	✔ match
+✕ verschieden	✕ different
+AES-256; auch die Dateinamen werden verschlüsselt.	AES-256; file names are encrypted too.
+AES-256; die Dateinamen bleiben sichtbar. Ältere Windows-Explorer können AES-ZIPs nicht öffnen.	AES-256; file names stay visible. Older versions of Windows Explorer cannot open AES ZIPs.
+Für TAR und GZ nicht möglich – ZIP oder 7z wählen.	Not available for TAR and GZ – choose ZIP or 7z.
+SPEICHERN UNTER	SAVE AS
+(kein Ordner gewählt)	(no folder chosen)
+Ordner …	Folder …
+Ordner für das Archiv	Folder for the archive
+Speichern unter …	Save as …
+Archiv erstellen	Create archive
+Passwort	Password
+Dateien schon vorhanden	Files already exist
+Vorsicht beim Entpacken	Careful when extracting
+Archiv ersetzen?	Replace archive?
+Das Passwort stimmt nicht. Bitte noch einmal.	The password is wrong. Please try again.
+Das Archiv ist verschlüsselt. Bitte Passwort eingeben:	The archive is encrypted. Please enter the password:
+OK	OK
+{n} Dateien gibt es im Zielordner schon:	{n} files already exist in the destination folder:
+… und {n} weitere	… and {n} more
+Beide behalten	Keep both
+Neue Dateien bekommen «(2)» im Namen	New files get “(2)” added to their name
+Überspringen	Skip
+Vorhandene Dateien bleiben unverändert	Existing files stay unchanged
+Überschreiben	Overwrite
+Das kann sehr viel Speicherplatz belegen. Trotzdem entpacken?	This may use a lot of disk space. Extract anyway?
+Trotzdem entpacken	Extract anyway
+Die Datei gibt es schon:\n{p}\n\nSoll sie durch das neue Archiv ersetzt werden?	The file already exists:\n{p}\n\nReplace it with the new archive?
+Ersetzen	Replace
+Einzelheiten	Details
+Ordner öffnen	Open folder
+Schliessen	Close
+Ohne Passwort lässt sich das Archiv nicht öffnen.	The archive cannot be opened without a password.
+Loslassen, um hinzuzufügen	Release to add
+Loslassen: Archiv öffnen oder neues Archiv packen	Release to open the archive or pack a new one
+Archiv öffnen: «Öffnen …», Doppelklick im Dateimanager («Öffnen mit») oder ins Fenster ziehen.	Open an archive: “Open …”, double-click in the file manager (“Open with”) or drag it into the window.
+Ordner im Archiv mit Doppelklick öffnen, mit ⬆ oder der Rücktaste zurück.	Double-click a folder in the archive to open it; go back with ⬆ or Backspace.
+Markieren: Klick, Strg+Klick (mehrere), Umschalt+Klick (Bereich), Strg+A (alle).	Select: click, Ctrl+click (several), Shift+click (range), Ctrl+A (all).
+«Alles entpacken» oder «Auswahl entpacken» schreibt in den Zielordner oben.	“Extract all” or “Extract selection” writes to the destination folder above.
+Neues Archiv: Dateien und Ordner hineinziehen, Format wählen, «Archiv erstellen».	New archive: drag in files and folders, choose a format, “Create archive”.
+Schutz: Pfade, die aus dem Zielordner zeigen, werden abgelehnt; sehr grosse oder stark gepackte Archive werden vorher gemeldet; vorhandene Dateien werden nie ohne Rückfrage überschrieben.	Protection: paths pointing outside the destination folder are rejected; very large or highly compressed archives are reported beforehand; existing files are never overwritten without asking.
+Dateifehler: {s}	File error: {s}
+Das Archiv ist verschlüsselt. Bitte Passwort eingeben.	The archive is encrypted. Please enter the password.
+Das Passwort stimmt nicht (oder das Archiv ist beschädigt).	The password is wrong (or the archive is damaged).
+Das Archiv ist beschädigt oder ungültig: {s}	The archive is damaged or invalid: {s}
+Unbekanntes Format. Packwerk kennt ZIP, 7z, TAR, TAR.GZ und GZ.	Unknown format. Packwerk supports ZIP, 7z, TAR, TAR.GZ and GZ.
+Nicht unterstützt: {s}	Not supported: {s}
+{n} Dateien gibt es im Ziel schon.	{n} files already exist in the destination.
+Die Datei gibt es schon: {p}	The file already exists: {p}
+Eintrag ist grösser als angegeben (mögliche Archiv-Bombe): {s}	Entry is larger than declared (possible archive bomb): {s}
+GZ packt genau eine Datei. Für mehrere Dateien oder Ordner TAR.GZ wählen.	GZ packs exactly one file. Choose TAR.GZ for several files or folders.
+Nichts zu tun.	Nothing to do.
+leerer Name	empty name
+absoluter Pfad	absolute path
+zeigt mit «..» aus dem Zielordner	points outside the destination folder with “..”
+ungültiger Name «{n}»	invalid name “{n}”
+Im Ziel ist ein Ordner gleichen Namens.	A folder with the same name exists in the destination.
+liegt ausserhalb des Zielordners	lies outside the destination folder
+{n} (Verknüpfung, wird nicht angelegt)	{n} (link, not created)
+{n} (keine normale Datei)	{n} (not a regular file)
+Archiv hat sich seit dem Öffnen verändert.	The archive has changed since it was opened.
+Verknüpfung	Link
+keine normale Datei	not a regular file
+Dateien werden gesammelt …	Collecting files …
+ZIP-Methode {m}	ZIP method {m}

@@ -1,0 +1,35 @@
+[package]
+name = "packwerk"
+version = "0.1.0"
+edition = "2021"
+description = "Archive packen und entpacken – Teil der Werkbank"
+
+[dependencies]
+egui = "0.29"
+eframe = { version = "0.29", default-features = false, features = [
+    "default_fonts",
+    "glow",
+] }
+rfd = "0.14"
+# ZIP lesen und schreiben; AES-256 für Passwörter. Zum Lesen auch Deflate64 (grosse
+# Windows-ZIPs), BZip2, LZMA, XZ und PPMd. Kein zstd (bräuchte einen C-Compiler).
+zip = { version = "8.6", default-features = false, features = [
+    "aes-crypto",
+    "deflate",
+    "deflate64",
+    "bzip2",
+    "lzma",
+    "xz",
+    "ppmd",
+] }
+# 7z lesen und schreiben (LZMA2, AES-256 inkl. verschlüsselter Dateinamen).
+sevenz-rust2 = "0.24"
+tar = { version = "0.4.44", default-features = false }
+flate2 = "1.1"
+# Nur für die Ortszeit (ZIP speichert Ortszeit, TAR und 7z UTC).
+chrono = { version = "0.4.41", default-features = false, features = ["clock", "std"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
