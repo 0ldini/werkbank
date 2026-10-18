@@ -1,0 +1,186 @@
+name: Ladewerk-Test
+
+# Vollständiger Test von Ladewerk (eigene/ladewerk) unter Windows x64/ARM64 und Linux:
+# Downloads, Pause, Prüfsumme, Proxy, Entpacken (eingebautes 7-Zip), Konto, Click'n'Load,
+# Zwischenablage und Fenster. Läuft bei Änderungen an Ladewerk und von Hand.
+# Protokolle und Bildschirmfotos landen im Zweig «ladewerk-test-<name>».
+
+on:
+  push:
+    paths: ["eigene/ladewerk/**", ".github/workflows/ladewerk-test.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            name: x64
+          - runner: windows-11-arm
+            name: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: eigene/ladewerk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust bereitstellen
+        shell: pwsh
+        run: |
+          if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+            $arch = if ('${{ matrix.name }}' -eq 'arm64') { 'aarch64' } else { 'x86_64' }
+            Invoke-WebRequest "https://win.rustup.rs/$arch" -OutFile rustup-init.exe
+            .\rustup-init.exe -y --profile minimal
+            "$env:USERPROFILE\.cargo\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+            $env:PATH += ";$env:USERPROFILE\.cargo\bin"
+          }
+          cargo -V
+
+      - name: 7-Zip holen (wird eingebaut)
+        shell: bash
+        env:
+          KIND: windows
+          GH_TOKEN: ${{ github.token }}
+        run: bash ./werk-prebuild.sh
+
+      - name: Bauen
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | tee build.log
+          cp target/release/ladewerk.exe ladewerk.exe
+          ls -l ladewerk.exe
+
+      - name: Fehler melden
+        if: failure()
+        shell: bash
+        run: |
+          [ -f build.log ] || exit 0
+          grep -E -A12 '^(error|warning)' build.log | head -150 > fehler.txt || true
+          cat fehler.txt
+
+      # Nur für den Test: GitHub-Rechner haben kein OpenGL 2. Mesa (Software-Grafik) neben die
+      # .exe legen, damit sich das egui-Fenster öffnen lässt. Wird nicht mit ausgeliefert.
+      - name: Software-Grafik für den Fenstertest
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest
+          $asset = $rel.assets | Where-Object { $_.name -match 'release-msvc\.7z$' } | Select-Object -First 1
+          Write-Host "Mesa $($rel.tag_name): $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile mesa.7z
+          $sz = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+          if (-not $sz) { $sz = 'C:\Program Files\7-Zip\7z.exe' }
+          & $sz x -y -omesa mesa.7z | Out-Null
+          $dir = if ('${{ matrix.name }}' -eq 'arm64' -and (Test-Path mesa\arm64)) { 'mesa\arm64' } else { 'mesa\x64' }
+          Get-ChildItem $dir -Filter *.dll | Where-Object { $_.Name -match '^(opengl32|libgallium_wgl|libglapi|dxil)' } | ForEach-Object { Copy-Item $_.FullName . ; Write-Host "  $($_.Name)" }
+
+      - name: Test unter Windows
+        shell: pwsh
+        run: |
+          Start-Transcript -Path test.log | Out-Null
+          try { ./test/windows-test.ps1 }
+          catch {
+            Write-Host "FEHLER: $_"
+            Write-Host $_.ScriptStackTrace
+            Write-Host "::error::$_"
+            Stop-Transcript | Out-Null
+            Get-Process ladewerk, python, curl -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+          Stop-Transcript | Out-Null
+
+      - name: Ergebnis ablegen
+        if: always()
+        shell: bash
+        run: |
+          mkdir out
+          cp ladewerk.exe test.log build.log fehler.txt app-*.log py*.log fenster*.png out/ 2>/dev/null || true
+          cd out
+          git init -q -b ladewerk-test-${{ matrix.name }}
+          git add -A
+          git -c user.name=github-actions -c user.email=actions@github.com commit -q -m "Build ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ladewerk-test-${{ matrix.name }}
+
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: eigene/ladewerk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Abhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev pkg-config xvfb imagemagick xdotool p7zip-full libgl1-mesa-dri mesa-utils libxkbcommon-x11-0 xclip
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: eigene/ladewerk
+      - name: Bauen
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | tee build.log
+      - name: Fenster ansehen
+        run: |
+          set -x
+          export LADEWERK_DATA=$PWD/t-data HOME=$PWD/t-home
+          mkdir -p www && head -c 3000000 /dev/urandom > www/film.mkv && (cd www && 7z a -bso0 paket.7z film.mkv && cp paket.7z teil.zip)
+          (cd www && python3 -m http.server 9911 --bind 127.0.0.1 >/dev/null 2>&1 &)
+          sleep 1
+          ./target/release/ladewerk --browser --no-open --port=8790 & sleep 2
+          P() { curl -s -X POST -H 'Content-Type: application/json' -d "$2" http://127.0.0.1:8790$1; echo; }
+          P /api/grab '{"text":"http://127.0.0.1:9911/paket.7z http://127.0.0.1:9911/film.mkv http://127.0.0.1:9911/fehlt.zip","pkg":"Urlaub"}'
+          sleep 2
+          ids=$(curl -s http://127.0.0.1:8790/api/state | python3 -c 'import sys,json;print(json.dumps([i["id"] for i in json.load(sys.stdin)["items"] if i["status"]=="ready"]))')
+          P /api/action "{\"action\":\"confirm\",\"ids\":$ids}"
+          sleep 4
+          P /api/grab '{"text":"http://127.0.0.1:9911/teil.zip http://127.0.0.1:9911/nochmal.zip"}'
+          sleep 2
+          P /api/quit '{}'; sleep 2
+          for lang in de en; do export WERKBANK_THEME=$([ $lang = en ] && echo dunkel || echo hell)
+            WERKBANK_LANG=$lang xvfb-run -a -s "-screen 0 1280x820x24 +extension GLX" bash -c "glxinfo -B | head -8; ./target/release/ladewerk 2>>fenster.log & sleep 8; import -window root fenster-$lang.png; xdotool search --name Ladewerk | head -1; kill %1" || true
+          done
+          WERKBANK_LANG=de xvfb-run -a -s "-screen 0 1280x820x24 +extension GLX" bash -c '
+            ./target/release/ladewerk 2>>fenster.log & sleep 8
+            w=$(xdotool search --name Ladewerk | head -1)
+            xdotool mousemove --window $w 1110 22 click 1; sleep 2
+            import -window root fenster-einstellungen.png
+            xdotool key Escape; xdotool mousemove --window $w 1110 22 click 1; sleep 1
+            xdotool mousemove --window $w 165 47 click 1; sleep 2
+            import -window root fenster-downloads.png
+            kill %1' || true
+          # Strg+V im Fenster: Links aus der Zwischenablage landen im Linksammler
+          WERKBANK_LANG=de xvfb-run -a -s "-screen 0 1280x820x24 +extension GLX" bash -c '
+            ./target/release/ladewerk 2>>fenster.log & sleep 8
+            w=$(xdotool search --name Ladewerk | head -1)
+            printf "Neu: http://127.0.0.1:9911/strgv-test.zip\n" | xclip -selection clipboard
+            xdotool mousemove --window $w 640 600 click 1; sleep 1
+            xdotool key --window $w ctrl+v; sleep 3
+            import -window root fenster-strgv.png
+            curl -s http://127.0.0.1:8765/api/state | grep -o "strgv-test.zip" | head -1 > strgv.txt
+            kill %1' || true
+          echo "Strg+V: $(cat strgv.txt 2>/dev/null)"
+          grep -q strgv-test.zip strgv.txt || echo "::warning::Strg+V im Fenster hat keinen Link übernommen"
+          ls -l *.png
+      - name: Ergebnis ablegen
+        if: always()
+        run: |
+          mkdir out
+          cp target/release/ladewerk build.log fenster*.png fenster.log strgv.txt out/ 2>/dev/null || true
+          cd out
+          git init -q -b ladewerk-test-linux
+          git add -A
+          git -c user.name=github-actions -c user.email=actions@github.com commit -q -m "Build ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ladewerk-test-linux
