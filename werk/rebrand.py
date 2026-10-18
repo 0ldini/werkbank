@@ -73,6 +73,14 @@ def read(path: pathlib.Path) -> str:
 
 
 def text_files():
+    # Einzelne Dokumente, die Programme einbetten (z. B. «Neuigkeiten» in Lichtwerk).
+    for rel in ("docs/whats-new.md",):
+        p = ROOT / rel
+        if p.is_file():
+            try:
+                yield p, read(p)
+            except (UnicodeDecodeError, OSError):
+                pass
     for d in TEXT_DIRS:
         base = ROOT / d
         if not base.is_dir():
@@ -271,11 +279,149 @@ def patch_language():
         print(f"  Sprachwahl der Werkbank in {rel}")
 
 
+# ---------------------------------------------------------------------------------------------
+# Ergänzungen je Programm aus werk/apps/<app>/werk.json und *.extra.json (alle optional):
+#   "merge_tsv":  [{"src": "de.tsv", "dst": "crates/ui-egui/src/i18n/de.tsv"}]
+#                 Zeilen aus werk/apps/<app>/<src> anhängen, deren Schlüssel (alle Spalten ausser
+#                 der letzten) im Ziel noch fehlt. Kommentarzeilen (#) werden übersprungen.
+#   "merge_json": [{"src": "de.json", "dst": "crates/ui-egui/locales/de.json"}]
+#                 Schlüssel ergänzen, die im Ziel (flaches JSON-Objekt) fehlen.
+#   "add_files":  [{"src": "werk_de.rs", "dst": "crates/ui-egui/src/werk_de.rs"}]   kopieren
+#   "patches":    [{"file": …, "anchor": "eine ganze Zeile", "kind": "after|before|replace",
+#                   "skip": 0, "lines": ["…"]}]   wie die Sprach-Einschübe oben
+#   "wrap":       [{"globs": ["crates/ui-egui/src/**/*.rs"], "calls": ["ui.button(", …],
+#                   "func": "crate::werk_de::t", "exclude": ["tests.rs"]}]
+#                 Ein Zeichenketten-Literal direkt nach einem der Aufrufe wird zu func("…").
+#                 Zeilen mit «const », «static », «#[» oder Kommentaren bleiben unberührt.
+
+def _patch_lines(rel, kind, anchor, skip, lines):
+    path = ROOT / rel
+    if not path.is_file():
+        problems.append(f"Einschub: {rel} fehlt")
+        return
+    text = read(path)
+    nl = "\r\n" if "\r\n" in text else "\n"
+    rows = text.split(nl)
+    hits = [i for i, r in enumerate(rows) if r.strip() == anchor.strip()]
+    if len(hits) != 1:
+        problems.append(f"Einschub: Ankerzeile {len(hits)}× statt 1× in {rel}: {anchor}")
+        return
+    i = hits[0]
+    indent = rows[i][: len(rows[i]) - len(rows[i].lstrip())]
+    if kind == "after":
+        inner = indent + ("    " if anchor.rstrip().endswith("{") else "")
+        if skip:
+            r = rows[i + skip]
+            inner = r[: len(r) - len(r.lstrip())]
+        at = i + 1 + skip
+        rows[at:at] = [inner + l for l in lines]
+    elif kind == "before":
+        rows[i:i] = [indent + l for l in lines]
+    else:
+        rows[i : i + 1] = [indent + l for l in lines]
+    if not CHECK:
+        path.write_bytes(nl.join(rows).encode("utf-8"))
+
+
+def _tsv_key(line):
+    parts = line.rstrip("\r").split("\t")
+    return "\t".join(parts[:-1]) if len(parts) > 1 else None
+
+
+def extras():
+    import fnmatch
+    # werk.json und alle Teile werk/apps/<app>/*.extra.json (z. B. sprache.extra.json,
+    # thema.extra.json): Listen gleichen Namens werden aneinandergehängt.
+    cfg = {}
+    for part in [WERK / "werk.json"] + sorted(WERK.glob("*.extra.json")):
+        data = json.loads(read(part))
+        for key in ("merge_tsv", "merge_json", "add_files", "patches", "wrap"):
+            cfg.setdefault(key, []).extend(data.get(key, []))
+    n = 0
+    for m in cfg.get("merge_tsv", []):
+        dst, src = ROOT / m["dst"], WERK / m["src"]
+        if not dst.is_file() or not src.is_file():
+            problems.append(f"merge_tsv: {m['dst']} oder {m['src']} fehlt")
+            continue
+        text = read(dst)
+        nl = "\r\n" if "\r\n" in text else "\n"
+        have = {_tsv_key(l) for l in text.split(nl) if l and not l.startswith("#")}
+        add = []
+        for l in read(src).replace("\r", "").split("\n"):
+            if not l or l.startswith("#"):
+                continue
+            k = _tsv_key(l)
+            if k is not None and k not in have:
+                have.add(k)
+                add.append(l)
+        if add and not CHECK:
+            dst.write_bytes((text.rstrip("\r\n") + nl + nl.join(add) + nl).encode("utf-8"))
+        print(f"  {len(add)} Übersetzungen ergänzt in {m['dst']}")
+        n += 1
+    for m in cfg.get("merge_json", []):
+        dst, src = ROOT / m["dst"], WERK / m["src"]
+        if not dst.is_file() or not src.is_file():
+            problems.append(f"merge_json: {m['dst']} oder {m['src']} fehlt")
+            continue
+        base = json.loads(read(dst))
+        extra = json.loads(read(src))
+        added = 0
+        for k, v in extra.items():
+            if k not in base:
+                base[k] = v
+                added += 1
+        if not CHECK:
+            dst.write_bytes((json.dumps(base, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
+        print(f"  {added} Übersetzungen ergänzt in {m['dst']}")
+    for m in cfg.get("add_files", []):
+        src = WERK / m["src"]
+        if not src.is_file():
+            problems.append(f"add_files: {m['src']} fehlt")
+            continue
+        if not CHECK:
+            (ROOT / m["dst"]).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, ROOT / m["dst"])
+        print(f"  Datei {m['dst']}")
+    for m in cfg.get("patches", []):
+        _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"])
+        print(f"  Einschub in {m['file']}")
+    for m in cfg.get("wrap", []):
+        calls = sorted(m["calls"], key=len, reverse=True)
+        pat = re.compile("(" + "|".join(re.escape(c) for c in calls) + r')\s*("(?:[^"\\\n]|\\.)*")')
+        func = m["func"]
+        skip = re.compile(r"^\s*(//|const |static |pub const |pub static |#\[)")
+        count = 0
+        for g in m["globs"]:
+            for path in sorted(ROOT.glob(g)):
+                rel = path.relative_to(ROOT).as_posix()
+                if any(fnmatch.fnmatch(rel, e) or path.name == e for e in m.get("exclude", [])):
+                    continue
+                text = read(path)
+                out = []
+                changed = False
+                in_test = False
+                for line in text.split("\n"):
+                    if re.match(r"\s*#\[cfg\(test\)\]", line):
+                        in_test = True
+                    if in_test or skip.match(line):
+                        out.append(line)
+                        continue
+                    new, k = pat.subn(lambda mm: f'{mm.group(1)}{func}({mm.group(2)})', line)
+                    if k:
+                        changed = True
+                        count += k
+                    out.append(new)
+                if changed and not CHECK:
+                    path.write_bytes("\n".join(out).encode("utf-8"))
+        print(f"  {count} Texte übersetzbar gemacht ({func})")
+
 def main():
     print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}")
     # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
     print("Sprache:")
     patch_language()
+    print("Ergänzungen:")
+    extras()
     print("Texte:")
     rewrite_text()
     print("Bilder:")

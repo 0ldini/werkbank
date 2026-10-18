@@ -1,0 +1,5 @@
+{
+  "merge_json": [
+    {"src": "de-werk.json", "dst": "crates/ui-egui/locales/de.json"}
+  ]
+}

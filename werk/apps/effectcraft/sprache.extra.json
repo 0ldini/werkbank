@@ -1,0 +1,188 @@
+{
+  "add_files": [
+    {
+      "src": "ui_de.rs",
+      "dst": "crates/ui-egui/src/i18n/ui_de.rs"
+    },
+    {
+      "src": "effects_de.rs",
+      "dst": "crates/ui-egui/src/i18n/effects_de.rs"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": "static ES: OnceLock<Index> = OnceLock::new();",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "static DE: OnceLock<Index> = OnceLock::new();"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": "\"es\" => (&ES, SPANISH),",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "\"de\" => (&DE, GERMAN),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": "/// Japanese: the same rows, in the same order, as the Chinese catalogs below (the tests keep the two in step).",
+      "kind": "before",
+      "skip": 0,
+      "lines": [
+        "// Werkbank: GERMAN, the German rows (i18n/ui_de.rs).",
+        "include!(\"ui_de.rs\");",
+        ""
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": ".chain(SPANISH.iter().copied())",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        ".chain(GERMAN.iter().copied())"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": "for (name, cat) in [(\"Japanese\", JAPANESE), (\"Ukrainian\", UKRAINIAN), (\"Brazilian Portuguese\", PORTUGUESE), (\"Czech\", CZECH), (\"Spanish\", SPANISH)] {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "for (name, cat) in",
+        "    [(\"Japanese\", JAPANESE), (\"Ukrainian\", UKRAINIAN), (\"Brazilian Portuguese\", PORTUGUESE), (\"Czech\", CZECH), (\"Spanish\", SPANISH), (\"German\", GERMAN)]",
+        "{"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/ui.rs",
+      "anchor": "/// Values fill the placeholders in order, and a missing value is dropped instead of panicking.",
+      "kind": "before",
+      "skip": 0,
+      "lines": [
+        "/// German panels translate, fill values in order and keep project content (Werkbank).",
+        "#[test]",
+        "fn german_panels_translate_and_keep_project_content() {",
+        "    set_current(\"de\");",
+        "    assert_eq!(tr(\"Composition Name:\"), \"Kompositionsname:\");",
+        "    assert_eq!(tr(\"Cancel\"), \"Abbrechen\");",
+        "    assert_eq!(tr(\"my layer.mp4\"), \"my layer.mp4\");",
+        "    assert_eq!(tr_args(\"Step {} of {}: {}\", &[&1, &3, &\"Colour\"]), \"Schritt 1 von 3: Colour\");",
+        "    set_current(\"en\");",
+        "    assert_eq!(tr(\"Cancel\"), \"Cancel\");",
+        "}"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "\"cs\" => \"cs\",",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "\"de\" => \"de\","
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "(Some(\"de-DE\"), \"en\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(Some(\"de-DE\"), \"de\"),",
+        "(Some(\"de_CH.UTF-8\"), \"de\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "\"cs\" => (\"Zpět\", \"Není co vrátit\", \"Znovu\", \"Není co zopakovat\"),",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "\"de\" => (\"Rückgängig\", \"Rückgängig nicht möglich\", \"Wiederholen\", \"Wiederholen nicht möglich\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "\"pt-br\" => {",
+      "kind": "before",
+      "skip": 0,
+      "lines": [
+        "\"de\" => {",
+        "    if source == \"Assign Shortcut to Workspace\" {",
+        "        if let Some(name) = shown.strip_prefix(\"Assign Shortcut to “\").and_then(|s| s.strip_suffix(\"” Workspace\")) {",
+        "            return format!(\"Tastenkürzel für Arbeitsfläche «{name}» zuweisen\");",
+        "        }",
+        "    } else if source == \"Assign Shortcut to 3D View\"",
+        "        && let Some(name) = shown.strip_prefix(\"Assign Shortcut to “\").and_then(|s| s.strip_suffix('”'))",
+        "    {",
+        "        return format!(\"Tastenkürzel für 3D-Ansicht «{name}» zuweisen\");",
+        "    }",
+        "}"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/native_menu.rs",
+      "anchor": "} else if crate::i18n::czech(app) {",
+      "kind": "before",
+      "skip": 0,
+      "lines": [
+        "} else if crate::i18n::language(app) == \"de\" {",
+        "    \"Dienste\""
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/effects.rs",
+      "anchor": "static JAPANESE: Catalog = Catalog { rows: JAPANESE_EFFECTS, categories: JAPANESE_CATEGORIES, index: OnceLock::new() };",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "static GERMAN: Catalog = Catalog { rows: GERMAN_EFFECTS, categories: GERMAN_CATEGORIES, index: OnceLock::new() };"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/effects.rs",
+      "anchor": "\"ja\" => Some(&JAPANESE),",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "\"de\" => Some(&GERMAN),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/effects.rs",
+      "anchor": "/// Traditional Chinese (`zh-hant`) category labels, keyed by the registry's English category.",
+      "kind": "before",
+      "skip": 0,
+      "lines": [
+        "// Werkbank: GERMAN_EFFECTS and GERMAN_CATEGORIES (i18n/effects_de.rs).",
+        "include!(\"effects_de.rs\");",
+        ""
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/effects.rs",
+      "anchor": "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS)];",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"de\", GERMAN_EFFECTS)];"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/effects.rs",
+      "anchor": "for (language, rows) in [(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES)] {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "for (language, rows) in",
+        "    [(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"de\", GERMAN_CATEGORIES)]",
+        "{"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+# Werkbank: fehlende deutsche Texte für CADCraft (Planwerk), Format wie crates/ui-egui/src/i18n/de.tsv.
+# UTF-8: context<TAB>English source<TAB>German translation. Wird von rebrand.py (merge_tsv) angehängt.
+	Apply	Anwenden
+	Attach DWG...	DWG anhängen...
+	Bind	Binden
+	Detach	Lösen
+	Loaded	Geladen
+	Make it a block of this drawing, keeping its layer names	Zu einem Block dieser Zeichnung machen, Layernamen beibehalten
+	Make it a block of this drawing; its layers become NAME$0$LAYER	Zu einem Block dieser Zeichnung machen; die Layer werden zu NAME$0$LAYER
+	No external references are attached.	Es sind keine externen Referenzen angehängt.
+	Not Found	Nicht gefunden
+	Not loaded	Nicht geladen
+	Open	Öffnen
+	Overlay	Überlagern
+	Reference Manager	Referenz-Manager
+	Reference Name	Referenzname
+	References: {n}	Referenzen: {n}
+	Reload	Neu laden
+	Reload All	Alle neu laden
+	Saved Path	Gespeicherter Pfad
+	Unload	Entladen
+	Unloaded	Entladen
+	Unreferenced	Nicht referenziert
+	Unresolved	Nicht aufgelöst
+	A variable name starts with a letter and has only letters, digits and _	Ein Variablenname beginnt mit einem Buchstaben und enthält nur Buchstaben, Ziffern und _
+	Additional angles	Zusätzliche Winkel
+	All Annotation Objects	Alle Beschriftungsobjekte
+	Bind...	Binden...
+	Bring Above Objects	Vor Objekte bringen
+	Bring Annotations to Front	Beschriftungen in den Vordergrund
+	Bulleted list	Aufzählung
+	Changed: {n}	Geändert: {n}
+	Clear History	Verlauf löschen
+	Clip	Zuschneiden
+	Clip Viewport	Ansichtsfenster zuschneiden
+	Close All Other Drawings	Alle anderen Zeichnungen schliessen
+	Close Comparison	Vergleich schliessen
+	Command Aliases	Befehlsaliase
+	Clear Command History	Befehlsprotokoll löschen
+	Compare Drawings...	Zeichnungen vergleichen...
+	Convert	Konvertieren
+	Copy Full File Path	Vollständigen Dateipfad kopieren
+	Copy History	Verlauf kopieren
+	Count List	Zählliste
+	Count Table	Zähltabelle
+	DWG Reference...	DWG-Referenz...
+	Data Extraction...	Datenextraktion...
+	Data Link...	Datenverknüpfung...
+	Default Save Version	Standard-Speicherversion
+	Degrees of Freedom	Freiheitsgrade
+	Degrees of freedom: {n}	Freiheitsgrade: {n}
+	Dimension Break	Bemassung unterbrechen
+	Dimension Edit	Bemassung bearbeiten
+	Dimension Objects Only	Nur Bemassungsobjekte
+	Drawing Template (DWT)	Zeichnungsvorlage (DWT)
+	SVG drawings (SVG, SVGZ)	SVG-Zeichnungen (SVG, SVGZ)
+	Dynamic	Dynamisch
+	Edit Attributes...	Attribute bearbeiten...
+	Edit Table Cell	Tabellenzelle bearbeiten
+	End Object Isolation	Objektisolierung beenden
+	Enter	Eingabe
+	Evaluate	Auswerten
+	Evaluate LISP	LISP auswerten
+	Export Table	Tabelle exportieren
+	External Reference	Externe Referenz
+	External References	Externe Referenzen
+	From Template...	Aus Vorlage...
+	Get from the Drawing	Aus der Zeichnung übernehmen
+	Grid snap	Rasterfang
+	Grip Edit	Mit Griffen bearbeiten
+	Grip Option	Griffoption
+	Group Options	Gruppenoptionen
+	Group Selection	Gruppenauswahl
+	Hatch Patterns	Schraffurmuster
+	Hide Objects	Objekte ausblenden
+	History	Verlauf
+	Infer Constraints	Abhängigkeiten ableiten
+	Insert tab	Tabulator einfügen
+	Insert Table Formula	Tabellenformel einfügen
+	Inspection	Prüfung
+	Isolate Objects	Objekte isolieren
+	Jogged	Verkürzt
+	Jogged Linear	Verkürzt linear
+	Isometric Plane	Isometrische Ebene
+	Isometric snap	Isometrischer Fang
+	Hide Palette	Palette ausblenden
+	Leaders Only	Nur Führungslinien
+	Lines of Command History	Zeilen im Befehlsprotokoll
+	Load Application...	Anwendung laden...
+	Lock viewport	Ansichtsfenster sperren
+	Named Views...	Benannte Ansichten...
+	New from Template...	Neu aus Vorlage...
+	Next Change	Nächste Änderung
+	Numbered list	Nummerierte Liste
+	Object Snap Tracking Settings	Einstellungen der Objektfangspur
+	Oblique	Schräg
+	Only in this drawing: {n}	Nur in dieser Zeichnung: {n}
+	Only in {name}: {n}	Nur in {name}: {n}
+	Open Xref	Xref öffnen
+	Open Recent	Zuletzt verwendete öffnen
+	Clear Recent Files	Liste der zuletzt verwendeten Dateien löschen
+	Over-constrained	Überbestimmt
+	Paste to Command Line	In Befehlszeile einfügen
+	Plotter Manager	Plotter-Manager
+	Plotter Manager...	Plotter-Manager...
+	Send Hatches to Back	Schraffuren in den Hintergrund
+	Send Under Objects	Hinter Objekte stellen
+	Text Objects Only	Nur Textobjekte
+	Polar angle measurement	Messung des Polarwinkels
+	Polar distance	Polarabstand
+	PolarSnap	Polarfang
+	Polygonal Viewport	Polygonales Ansichtsfenster
+	Polyline Edit	Polylinie bearbeiten
+	Previous Change	Vorherige Änderung
+	QuickCalc Pick	Für QuickCalc auswählen
+	Recent Commands	Zuletzt verwendete Befehle
+	Recent Input	Letzte Eingaben
+	Recalculate Table Formulas	Tabellenformeln neu berechnen
+	Rectangular snap	Rechteckiger Fang
+	Reinitialize	Neu initialisieren
+	Relative to last segment	Relativ zum letzten Segment
+	Select Similar	Ähnliche auswählen
+	Set Current Viewport	Aktuelles Ansichtsfenster festlegen
+	Set Table Cell Style	Tabellenzellenstil festlegen
+	Show and hide the tools of this category	Werkzeuge dieser Kategorie ein- und ausblenden
+	Show in Tool Sets	In Werkzeuggruppen anzeigen
+	Show command prompting near the crosshairs	Befehlsaufforderungen beim Fadenkreuz anzeigen
+	Snap Overrides	Fangüberschreibungen
+	Snap type	Fangtyp
+	A drawing opened from a file keeps that file's format.	Eine aus einer Datei geöffnete Zeichnung behält das Format dieser Datei.
+	An array that would create more objects than this is refused.	Eine Reihe, die mehr Objekte als diese erzeugen würde, wird abgelehnt.
+	CADCraft keeps these preferences, object snap modes and drafting toggles for your user account and restores them when it starts.	CADCraft speichert diese Einstellungen, Objektfangmodi und Zeichenhilfen für das Benutzerkonto und stellt sie beim Start wieder her.
+	Changes apply at once and are kept for next time.	Änderungen gelten sofort und bleiben für das nächste Mal erhalten.
+	Command line history	Protokoll der Befehlszeile
+	Copy as JSON	Als JSON kopieren
+	Crosshair size	Grösse des Fadenkreuzes
+	Crossing selection color:	Farbe der Kreuzen-Auswahl:
+	Display	Anzeige
+	Exclude:	Ausschliessen:
+	Grip size	Griffgrösse
+	Grips	Griffe
+	Groups	Gruppen
+	Hatches	Schraffuren
+	Hold Shift to add to the selection	Shift gedrückt halten, um zur Auswahl hinzuzufügen
+	Indicate selection area	Auswahlbereich anzeigen
+	Interface language	Oberflächensprache
+	Interface theme	Oberflächendesign
+	Keep the system cursor visible over the drawing area	Systemmauszeiger über dem Zeichenbereich sichtbar lassen
+	Largest array	Grösste Reihe
+	Layout paper	Layoutpapier
+	Model background	Modellhintergrund
+	Multiline text	Mehrzeiliger Text
+	Object grouping	Objektgruppierung
+	Object selection limit for display of grips	Objektauswahl-Grenzwert für die Anzeige von Griffen
+	Object snap aperture	Objektfang-Öffnung
+	Object snap marker size	Grösse der Objektfangmarkierung
+	Objects on locked layers	Objekte auf gesperrten Layern
+	Open and Save	Öffnen und Speichern
+	Options	Optionen
+	Options...	Optionen...
+	Pickbox size	Grösse der Pickbox
+	Preview	Vorschau
+	Profiles	Profile
+	Reset keeps the interface language.	Zurücksetzen behält die Oberflächensprache bei.
+	Reset to Defaults	Auf Standardwerte zurücksetzen
+	Save new drawings as	Neue Zeichnungen speichern als
+	Screen magnifiers, screen readers and recorders follow the system cursor.	Bildschirmlupen, Bildschirmleser und Aufnahmeprogramme folgen dem Systemmauszeiger.
+	Select objects first, then choose a command	Zuerst Objekte auswählen, dann einen Befehl wählen
+	Selection	Auswahl
+	Selection Area Effect	Effekt des Auswahlbereichs
+	Selection Preview Filter	Filter der Auswahlvorschau
+	Selection area opacity:	Deckkraft des Auswahlbereichs:
+	Selection effect color	Farbe des Auswahleffekts
+	Selection modes	Auswahlmodi
+	Selection preview	Auswahlvorschau
+	Settings...	Einstellungen...
+	Show Quick Properties for selected objects	Schnelleigenschaften für ausgewählte Objekte anzeigen
+	Show grips	Griffe anzeigen
+	Snap, grid, polar tracking and Dynamic Input:	Fang, Raster, Polarspur und dynamische Eingabe:
+	Tables	Tabellen
+	The aperture is how near the cursor must come to a point for an object snap to find it.	Die Öffnung bestimmt, wie nah der Mauszeiger einem Punkt kommen muss, damit der Objektfang ihn findet.
+	User Preferences	Benutzereinstellungen
+	Visual Effect Settings	Einstellungen für visuelle Effekte
+	Visual Effect Settings...	Einstellungen für visuelle Effekte...
+	When a command is active	Wenn ein Befehl aktiv ist
+	When no command is active	Wenn kein Befehl aktiv ist
+	Window selection color:	Farbe der Fenster-Auswahl:
+	Xrefs	Xrefs
+	objects	Objekte
+	Spline Edit	Spline bearbeiten
+	To	Bis
+	Table Breaks	Tabellenumbrüche
+	Table Cell Style	Tabellenzellenstil
+	Temporary track point	Temporärer Spurpunkt
+	Thaw Layer	Layer tauen
+	Track orthogonally only	Nur orthogonal spuren
+	Track using all polar angle settings	Mit allen Polarwinkel-Einstellungen spuren
+	Turn On Layer	Layer einschalten
+	Units Conversion	Einheitenumrechnung
+	Unlock viewport	Ansichtsfenster entsperren
+	Update Data Links	Datenverknüpfungen aktualisieren
+	Volume	Volumen
+	Variables	Variablen
+	Version 2000	Version 2000
+	Version 2004	Version 2004
+	Version 2007	Version 2007
+	Version 2010	Version 2010
+	Version 2013	Version 2013
+	Version 2018	Version 2018
+	Viewport is locked	Ansichtsfenster ist gesperrt
+	Viewport scale	Massstab des Ansichtsfensters
+	Zoom Dynamic	Zoom dynamisch
+	Zoom Realtime	Zoom in Echtzeit
+	Import...	Importieren...
+	Export...	Exportieren...
+	Batch Publish...	Stapelveröffentlichung...
+	Scale List...	Massstabsliste...
+	Annotative Object Scale	Massstab beschriftungsabhängiger Objekte
+	Add Current Scale	Aktuellen Massstab hinzufügen
+	Delete Current Scale	Aktuellen Massstab löschen
+	Add/Delete Scales...	Massstäbe hinzufügen/löschen...
+	Synchronize Multiple-scale Positions	Positionen mehrerer Massstäbe synchronisieren
+	Annotative Update	Beschriftungsabhängige aktualisieren
+	Show Annotative Objects	Beschriftungsabhängige Objekte anzeigen
+	Current Scale Only	Nur aktueller Massstab
+	All Scales	Alle Massstäbe
+	Drawing Recovery Manager...	Zeichnungswiederherstellungs-Manager...
+	Tolerance...	Toleranz...
+	Add Vertex	Scheitelpunkt hinzufügen
+	Remove Vertex	Scheitelpunkt entfernen
+	Convert to Arc	In Bogen umwandeln
+	Convert to Line	In Linie umwandeln
+	Stretch Vertex	Scheitelpunkt strecken
+	Edit Array	Reihe bearbeiten
+	Close Array Editing	Reihenbearbeitung schliessen
+	Multiline...	Multilinie...
+	Multiline Style...	Multilinienstil...
+	Solid Editing	Volumenkörper bearbeiten
+	More toolbar commands	Weitere Befehle der Werkzeugleiste
+	Default save version	Standard-Speicherversion
+	Automatic save every	Automatisch speichern alle
+	min	Min.
+	Automatic save file location	Speicherort für automatisches Speichern
+	Drawings with no file yet are saved in the default version. 0 minutes turns automatic save off.	Zeichnungen ohne Datei werden in der Standardversion gespeichert. 0 Minuten schaltet das automatische Speichern aus.
+	Time-sensitive right-click: a quick click is Enter, holding opens the menu	Zeitabhängiger Rechtsklick: Ein kurzer Klick ist Eingabe, Halten öffnet das Menü
+	Turned off, a right-click while a command runs always opens the shortcut menu.	Ausgeschaltet öffnet ein Rechtsklick während eines Befehls immer das Kontextmenü.
+	Run Script...	Skript ausführen...
+	Hatch Pick	Schraffur auswählen
+	Hatch and Gradient	Schraffur und Farbverlauf
+	Color 1	Farbe 1
+	Color 2	Farbe 2
+	Shape	Form
+	Curved	Gekrümmt
+	Spherical	Kugelförmig
+	Hemispherical	Halbkugelförmig
+	Inverted	Umgekehrt
+	Centered	Zentriert
+	Hatch origin	Schraffurursprung
+	Use current origin	Aktuellen Ursprung verwenden
+	Specified origin	Angegebener Ursprung
+	Click to set new origin	Klicken, um neuen Ursprung festzulegen
+	Default to boundary extents	Standardmässig Begrenzungsausdehnung
+	Bottom left	Unten links
+	Bottom right	Unten rechts
+	Top left	Oben links
+	Top right	Oben rechts
+	Boundaries	Begrenzungen
+	Add: Pick points	Hinzufügen: Punkte auswählen
+	Add: Select objects	Hinzufügen: Objekte auswählen
+	Boundaries picked: {n}	Ausgewählte Begrenzungen: {n}
+	Associative	Assoziativ
+	Create separate hatches	Separate Schraffuren erstellen
+	Island detection	Inselerkennung
+	Normal	Normal
+	Outer	Äussere
+	Ignore	Ignorieren
+	Origin: {x}, {y}	Ursprung: {x}, {y}
+	Sheet Books to PDF...	Planbücher als PDF...
+	Dynamic Block Data	Daten des dynamischen Blocks
+	Custom	Benutzerdefiniert
+	Dynamic Block Reference	Dynamische Blockreferenz
+	Set Dynamic Property	Dynamische Eigenschaft festlegen
+	Dynamic Block Grips	Griffe des dynamischen Blocks
+	Drag Dynamic Grip	Dynamischen Griff ziehen
+	Save Block	Block speichern
+	Save Block As	Block speichern unter
+	Close Block Editor	Blockeditor schliessen
+	Unsaved changes	Ungespeicherte Änderungen
+	Edit Block Definition	Blockdefinition bearbeiten
+	Block to create or edit	Zu erstellender oder zu bearbeitender Block
+	Open in Block Editor	Im Blockeditor öffnen
+	This drawing	Diese Zeichnung
+	contains authoring elements. Open in Block Editor?	enthält Autorenelemente. Im Blockeditor öffnen?
+	New block	Neuer Block
+	B	F
+	CADCraft	CADCraft
+	X	X
+	Y	Y
+menu	View	Ansicht
+menu	Draw	Zeichnen
+menu	Dimension	Bemassung
+menu	Modify	Ändern

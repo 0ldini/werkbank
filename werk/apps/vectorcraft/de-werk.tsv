@@ -1,0 +1,494 @@
+# Werkbank: ergänzende deutsche Übersetzungen (Schlüssel, die andere Kataloge schon haben, de.tsv aber noch nicht).
+# rebrand.py hängt Zeilen an crates/ui-egui/src/i18n/de.tsv an, deren Schlüssel dort noch fehlt. Schweizer Rechtschreibung (ss).
+	1 bit	1 Bit
+	1 Layer	1 Ebene
+	16 bit	16 Bit
+	16 bits/pixel	16 Bit/Pixel
+	16 Colors	16 Farben
+	2-Up	2 nebeneinander
+	24 bit	24 Bit
+	24 bits/pixel	24 Bit/Pixel
+	256 Colors	256 Farben
+	2K Cinema	2K-Kino
+	2up	2 nebeneinander
+	3 Colors	3 Farben
+	32 bit	32 Bit
+	32 bits/pixel	32 Bit/Pixel
+	4 bit	4 Bit
+	4-Up	4 nebeneinander
+	4K Cinema	4K-Kino
+	4K UHD	4K UHD
+	4up	4 nebeneinander
+	6 Colors	6 Farben
+	8 bit	8 Bit
+	8 Colors	8 Farben
+	8K UHD	8K UHD
+	[Custom]	[Benutzerdefiniert]
+	[Default]	[Standard]
+	[High Quality Print]	[Druck in hoher Qualität]
+	[High Resolution]	[Hohe Auflösung]
+	[Low Resolution]	[Niedrige Auflösung]
+	[Medium Resolution]	[Mittlere Auflösung]
+	[PDF/X-1a:2001]	[PDF/X-1a:2001]
+	[PDF/X-3:2002]	[PDF/X-3:2002]
+	[PDF/X-4:2010]	[PDF/X-4:2010]
+	[Press Quality]	[Druckausgabequalität]
+	[Smallest File Size]	[Kleinste Dateigrösse]
+	[VectorCraft Default]	[VectorCraft-Standard]
+	A3	A3
+	A4	A4
+	A5	A5
+	A6	A6
+	Absolute Colorimetric	Absolut farbmetrisch
+	Adaptive	Adaptiv
+	All Affected Objects	Alle betroffenen Objekte
+	All Layers	Alle Ebenen
+	All Rasterized Regions	Alle gerasterten Bereiche
+	All shortcuts reset to defaults.	Alle Tastaturbefehle auf Standard zurückgesetzt.
+	All Slices	Alle Slices
+	Alt+Click	Alt+Klick
+	Alt+Drag	Alt+Ziehen
+	Analogous	Analog
+	Analogous 2	Analog 2
+	Anchors	Ankerpunkte
+	Any except extracting pages	Alle ausser Extrahieren von Seiten
+	Arrow	Pfeil
+	Arrow (open)	Pfeil (offen)
+	Art & Illustration	Kunst und Illustration
+	Art and Bright Colors	Illustration und leuchtende Farben
+	Art Optimized	Optimiert für Illustration
+	Artboard Options: edit with the Artboard tool	Zeichenflächenoptionen: mit dem Zeichenflächen-Werkzeug bearbeiten
+	Ascent	Oberlänge
+	Auto Size	Automatische Grösse
+	Automate	Automatisieren
+	B4	B4
+	B5	B5
+	Bar	Balken
+	Barbed	Mit Widerhaken
+	Baseline (Standard)	Baseline (Standard)
+	Baseline Optimized	Baseline optimiert
+	Bicubic	Bikubisch
+	Black & White	Schwarzweiss
+	Black Outline	Schwarze Kontur
+	Border Thickness	Rahmenstärke
+	Bounding Box	Begrenzungsrahmen
+	Bracket	Klammer
+	Branding	Markenauftritt
+	Brick	Ziegel
+	Brown	Braun
+	Burlap	Sackleinen
+	Business Card 3.5 × 2 in	Visitenkarte 3,5 × 2 in
+	Business Card 85 × 55 mm	Visitenkarte 85 × 55 mm
+	Cap Height	Versalhöhe
+	Cell Size	Zellengrösse
+	Channel 1	Kanal 1
+	Channel 2	Kanal 2
+	Channel 3	Kanal 3
+	Channel 4	Kanal 4
+	Chevron	Winkel
+	Circle (open)	Kreis (offen)
+	Click, then press the new shortcut (Esc cancels)	Klicken und dann den neuen Tastaturbefehl drücken (Esc bricht ab)
+	Clip Group	Schnittgruppe
+	Clumped	Verklumpt
+	Coarse Dots	Grobe Punkte
+	Color Halftone	Farbraster
+	Color Table (4 colors)	Farbtabelle (4 Farben)
+	Command	Befehl
+	Commenting, filling in form fields and signing	Kommentieren, Formularfelder ausfüllen und unterschreiben
+	Complementary	Komplementär
+	Complementary 2	Komplementär 2
+	Complete	Vollständig
+	Composite	Composite
+	Compound	Zusammengesetzt
+	Compound 2	Zusammengesetzt 2
+	Concave	Konkav
+	Contrasty	Kontrastreich
+	Convert to destination	In Zielprofil konvertieren
+	Convert to destination (preserve numbers)	In Zielprofil konvertieren (Werte beibehalten)
+	Convert to Global	In global umwandeln
+	Cool	Kalt
+	Copyright and Contact Info	Copyright und Kontaktdaten
+	Copyrighted	Urheberrechtlich geschützt
+	Crack Brightness	Helligkeit der Risse
+	Crack Depth	Tiefe der Risse
+	Crack Spacing	Abstand der Risse
+	Craquelure	Risse
+	Create New Fields by	Neue Halbbilder erzeugen durch
+	CRLF (Windows)	CRLF (Windows)
+	Cross	Kreuz
+	Crystallize	Kristallisieren
+	Current Colors	Aktuelle Farben
+	Current Colors (0)	Aktuelle Farben (0)
+	Custom Scale	Eigene Skalierung
+	De-Interlace	De-Interlace
+	Default Graphic Style	Standard-Grafikstil
+	Delete Group	Gruppe löschen
+	Diamond (open)	Raute (offen)
+	Differences from [Default]:	Unterschiede zu [Standard]:
+	Differences from VectorCraft Default:	Unterschiede zum VectorCraft-Standard:
+	Diffusion	Diffusion
+	Direct Selection	Direktauswahl
+	Distance:	Abstand:
+	Do Not Scale	Nicht skalieren
+	Don't include profiles	Keine Profile einschliessen
+	Dot Gain 15%	Tonwertzuwachs 15 %
+	Dot on Bar	Punkt auf Balken
+	Double Arrow	Doppelpfeil
+	Double Bar	Doppelbalken
+	Double Slash	Doppelter Schrägstrich
+	Down (right reading)	Nach unten (lesbar)
+	Drop	Tropfen
+	Duplication	Duplikation
+	DWG (use DXF)	DWG (DXF verwenden)
+	Edge	Kante
+	Eliminate	Entfernen
+	Enlarged	Vergrössert
+	Envelope	Umschlag
+	Envelope #10	Umschlag #10
+	Envelope DL	Umschlag DL
+	Even Fields	Gerade Halbbilder
+	Exact	Genau
+	Expand 1 Selected	1 ausgewähltes Objekt umwandeln
+	Expand Object	Objekt umwandeln
+	Expanded Patterns	Umgewandelte Muster
+	Export Library…	Bibliothek exportieren…
+	Feather	Feder
+	Filling in form fields and signing	Formularfelder ausfüllen und unterschreiben
+	Film & Video	Film und Video
+	Fine Dots	Feine Punkte
+	First Baseline	Erste Grundlinie
+	Fit to Page	An Seite anpassen
+	Fork	Gabel
+	Freeform	Freiform
+	GIF, 128 colours	GIF, 128 Farben
+	Go to Conflict	Zum Konflikt gehen
+	Grain Type	Körnungsart
+	Grainy Dots	Körnige Punkte
+	Graphic Styles (4)	Grafikstile (4)
+	Gray	Grau
+	Gray Gamma 2.2	Graustufen Gamma 2,2
+	Greeting Card	Grusskarte
+	Grey	Grau
+	Group Selection	Gruppenauswahl
+	Grout Width	Fugenbreite
+	Guide	Hilfslinie
+	Gutter	Spaltenabstand
+	Gutter:	Spaltenabstand:
+	Half Arrow (left)	Halber Pfeil (links)
+	Half Arrow (right)	Halber Pfeil (rechts)
+	Half Circle	Halbkreis
+	Hand	Hand
+	Harmony Rules	Harmonieregeln
+	HDTV 1080p	HDTV 1080p
+	HDTV 720p	HDTV 720p
+	Heavy Ink	Starker Farbauftrag
+	Hexagon	Sechseck
+	Hexagon (open)	Sechseck (offen)
+	High Contrast	Hoher Kontrast
+	High Contrast 2	Hoher Kontrast 2
+	High Contrast 3	Hoher Kontrast 3
+	High Fidelity Photo	Foto mit hoher Wiedergabetreue
+	High Quality Print	Druck in hoher Qualität
+	High resolution	Hohe Auflösung
+	High Resolution	Hohe Auflösung
+	HTML and Images	HTML und Bilder
+	Images Only	Nur Bilder
+	Import Library…	Bibliothek importieren…
+	Include all profiles	Alle Profile einschliessen
+	Include All Subdirectories	Alle Unterordner einschliessen
+	Include destination profile	Zielprofil einschliessen
+	Include tagged source profiles	Quellprofile mit Tags einschliessen
+	Inserting, deleting and rotating pages	Seiten einfügen, löschen und drehen
+	Interpolation	Interpolation
+	Joins:	Ecken:
+	Justify	Blocksatz
+	Keeps the document editable: VectorCraft reopens the PDF with nothing lost. For files you'll edit again.	Hält das Dokument bearbeitbar: VectorCraft öffnet die PDF-Datei ohne Verluste wieder. Für Dateien, die später weiter bearbeitet werden.
+	Keyboard Shortcuts	Tastaturbefehle
+	Kite	Drachen
+	Lab Spot Colors	Lab-Volltonfarben
+	Landscape (flipped)	Querformat (gespiegelt)
+	Language Level 2	Sprachebene 2
+	Language Level 3	Sprachebene 3
+	Lasso	Lasso
+	Leaf	Blatt
+	Left Complement	Linkes Komplement
+	Legal	Legal
+	Length	Länge
+	Length:	Länge:
+	Letterhead A4	Briefpapier A4
+	Letterhead Letter	Briefpapier Letter
+	LF (macOS, Linux)	LF (macOS, Linux)
+	Light Direction	Lichtrichtung
+	Lighten Grout	Fugen aufhellen
+	Line Art	Strichzeichnung
+	Logo 1000×1000	Logo 1000×1000
+	Long Lines	Lange Linien
+	Long Strokes	Lange Striche
+	Low Fidelity Photo	Foto mit geringer Wiedergabetreue
+	Low Resolution	Niedrige Auflösung
+	Low resolution (150 ppi)	Niedrige Auflösung (150 ppi)
+	Max. Radius	Max. Radius
+	Maximize Editability	Bearbeitbarkeit maximieren
+	Measure	Messen
+	Medium Dots	Mittlere Punkte
+	Medium Lines	Mittlere Linien
+	Medium Resolution	Mittlere Auflösung
+	Medium Strokes	Mittlere Striche
+	Menu Commands	Menübefehle
+	Mesh	Gitter
+	Mezzotint	Mezzotint
+	Minimum	Minimum
+	Mobile	Mobil
+	Monochromatic	Monochromatisch
+	Monochrome	Monochrom
+	Mosaic Tiles	Mosaikfliesen
+	Muted	Gedämpft
+	Negative	Negativ
+	New Group…	Neue Gruppe…
+	No conversion	Keine Konvertierung
+	No Dither	Kein Dithering
+	No downsampling	Keine Neuberechnung
+	No Group	Keine Gruppe
+	No Slices	Keine Slices
+	None (Color Preview)	Ohne (Farbvorschau)
+	Odd Fields	Ungerade Halbbilder
+	of	von
+	Orange	Orange
+	Outlined Strokes	Konturierte Konturen
+	Outlined Text	In Pfade umgewandelter Text
+	Oval	Oval
+	Override Action "Export" Commands	Befehle „Exportieren“ in Aktionen übergehen
+	Override Action "Open" Commands	Befehle „Öffnen“ in Aktionen übergehen
+	Override Action "Save" Commands	Befehle „Speichern“ in Aktionen übergehen
+	Page Cover 1640×624	Seitentitelbild 1640×624
+	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Teil von ArtCraft. MIT OR Apache-2.0. Schriften: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Symbole: Lucide (ISC) + VectorCraft.
+	Patchwork	Patchwork
+	Pattern Swatches	Musterfelder
+	PDF 1.7	PDF 1.7
+	PDF/X-1a:2001	PDF/X-1a:2001
+	PDF/X-3:2002	PDF/X-3:2002
+	PDF/X-4:2010	PDF/X-4:2010
+	Pentagram	Pentagramm
+	Perceptual	Perzeptiv
+	Phone 360×800	Telefon 360×800
+	Phone 375×667	Telefon 375×667
+	Phone 375×812	Telefon 375×812
+	Phone 393×852	Telefon 393×852
+	Phone 412×915	Telefon 412×915
+	Phone 430×932	Telefon 430×932
+	Photo Low Fidelity	Foto mit geringer Wiedergabetreue
+	Pixel	Pixel
+	Placed Document	Platziertes Dokument
+	Play:	Abspielen:
+	Plus	Plus
+	Pointillize	Punktieren
+	Points:	Punkte:
+	Portrait (flipped)	Hochformat (gespiegelt)
+	Positive	Positiv
+	Poster 18 × 24 in	Poster 18 × 24 in
+	Poster 24 × 36 in	Poster 24 × 36 in
+	Preserve	Beibehalten
+	Preserve Appearance	Aussehen beibehalten
+	Preserve Tints	Farbtöne beibehalten
+	Press keys…	Tasten drücken…
+	Press Quality	Druckausgabequalität
+	Print & Proof	Print & Proof
+	Printing & Proofing	Printing & Proofing
+	Profile Cover 1500×500	Profiltitelbild 1500×500
+	Public Domain	Gemeinfrei
+	Purple	Violett
+	Rasterized Complex Regions	Gerasterte komplexe Bereiche
+	RECENT (1)	ZULETZT VERWENDET (1)
+	Relative Colorimetric	Relativ farbmetrisch
+	Relief	Relief
+	Remove the shortcut	Tastaturbefehl entfernen
+	Rename Group…	Gruppe umbenennen…
+	Reset Automation	Automation zurücksetzen
+	Reset Essentials Classic	Essentials Classic zurücksetzen
+	Reset Layout	Layout zurücksetzen
+	Reset Painting	Painting zurücksetzen
+	Reset Printing and Proofing	Printing and Proofing zurücksetzen
+	Reset to Defaults	Auf Standardwerte zurücksetzen
+	Reset Tracing	Tracing zurücksetzen
+	Reset Typography	Typography zurücksetzen
+	Reset Web	Web zurücksetzen
+	Restricted Colors	Eingeschränkte Farben
+	Reverse Triangle	Umgekehrtes Dreieck
+	RGB	RGB
+	Right Complement	Rechtes Komplement
+	Run Length	Lauflängenkodierung
+	Sandstone	Sandstein
+	Save and Close	Speichern und schliessen
+	Scale Tints	Farbtöne skalieren
+	Scale X	Skalierung X
+	Scale X:	Skalierung X:
+	Scale Y	Skalierung Y
+	Scale Y:	Skalierung Y:
+	Scissors	Schere
+	Selected Slices	Ausgewählte Slices
+	Selected Styles Only (0)	Nur ausgewählte Stile (0)
+	Selected Swatches Only (0)	Nur ausgewählte Farbfelder (0)
+	Selective	Selektiv
+	Separations	Separationen
+	Set:	Satz:
+	Shades	Schattierungen
+	Shades of Gray	Graustufen
+	Shear:	Verbiegen:
+	Shift+Click	Umschalt+Klick
+	Shift+Drag	Umschalt+Ziehen
+	Short Lines	Kurze Linien
+	Short Strokes	Kurze Striche
+	Shrink Text to Fit	Text verkleinern, bis er passt
+	Silhouettes	Silhouetten
+	Simplified Chinese	Chinesisch (vereinfacht)
+	Simulate	Simulieren
+	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	„Simulieren“ druckt Überdruckungen so, wie die Überdruckenvorschau sie zeigt; Separationen behalten sie immer bei. Eine Vorgabe reduziert die Transparenz vor dem Drucken (PostScript-Dateien reduzieren sie immer).
+	Sketched Art	Skizzierte Kunst
+	Slash	Schrägstrich
+	Smallest File Size	Kleinste Dateigrösse
+	Social	Soziale Medien
+	Social Landscape Post 1200×630	Social-Media-Beitrag quer 1200×630
+	Social Portrait Post 1080×1350	Social-Media-Beitrag hoch 1080×1350
+	Social Story 1080×1920	Social-Media-Story 1080×1920
+	Social Tall Post 1000×1500	Social-Media-Beitrag schmal 1000×1500
+	Sort by Hue	Nach Farbton sortieren
+	Sort by Luminance	Nach Luminanz sortieren
+	Sort by Popularity	Nach Beliebtheit sortieren
+	Speckle	Gesprenkelt
+	Spectrum	Spektrum
+	Split Complementary	Geteilt komplementär
+	Spot Colors (0)	Volltonfarben (0)
+	Sprinkles	Streusel
+	Square (open)	Quadrat (offen)
+	Square 8 × 8 in	Quadrat 8 × 8 in
+	Square Size	Quadratgrösse
+	sRGB IEC61966-2.1	sRGB IEC61966-2.1
+	Stained Glass	Buntglas-Mosaik
+	Stippled	Getupft
+	Stop on Errors	Bei Fehlern anhalten
+	Subsample	Unterabtastung
+	Subset	Teilmenge
+	Sunshine	Sonnenschein
+	SVG 1.1	SVG 1.1
+	Swallowtail	Schwalbenschwanz
+	Symbol	Symbol
+	Tablet 1024×1366	Tablet 1024×1366
+	Tablet 1024×768	Tablet 1024×768
+	Tablet 768×1024	Tablet 768×1024
+	Tablet 800×1280	Tablet 800×1280
+	Tablet 820×1180	Tablet 820×1180
+	Tablet 834×1194	Tablet 834×1194
+	Tabloid	Tabloid
+	Tag	Etikett
+	Tag (open)	Etikett (offen)
+	Technical Drawing	Technische Zeichnung
+	Tetrad	Tetrade
+	Tetrad 2	Tetrade 2
+	Tetrad 3	Tetrade 3
+	Text Displayed in Cell	In der Zelle angezeigter Text
+	Texturizer	Mit Struktur versehen
+	TIFF (8-bit Color)	TIFF (8-Bit-Farbe)
+	TIFF (Black & White)	TIFF (Schwarzweiss)
+	Tile Imageable Areas	Druckbare Bereiche kacheln
+	Tile Size	Kachelgrösse
+	Tool	Werkzeug
+	Transparent Objects	Transparente Objekte
+	Triad	Triade
+	Triad 2	Triade 2
+	Triad 3	Triade 3
+	Triangle	Dreieck
+	Triangle (open)	Dreieck (offen)
+	Triangle to Bar	Dreieck zu Balken
+	True Colors	Echte Farben
+	Type Optimized	Optimiert für Text
+	Unknown	Unbekannt
+	Unsorted	Unsortiert
+	Up (right reading)	Nach oben (lesbar)
+	Use Default	Standard verwenden
+	UTF-16 (Unicode)	UTF-16 (Unicode)
+	Variation	Variation
+	VectorCraft Default	VectorCraft-Standard
+	VectorCraft Defaults	VectorCraft-Standardwerte
+	VectorCraft Generic CMYK (SWOP-like)	VectorCraft Generic CMYK (SWOP-ähnlich)
+	VectorCraft Swatches (.vcswatches)	VectorCraft-Farbfelder (.vcswatches)
+	Vertical Align	Vertikale Ausrichtung
+	Vertical Area Type	Vertikaler Flächentext
+	Vertical Type	Vertikaler Text
+	Vertical Type on a Path	Vertikaler Pfadtext
+	Video 1920×1080	Video 1920×1080
+	Video 3840×2160	Video 3840×2160
+	Video Banner 2560×1440	Videobanner 2560×1440
+	Video Thumbnail 1280×720	Video-Miniatur 1280×720
+	Visible & Printable Layers	Sichtbare und druckbare Ebenen
+	Visible Layers	Sichtbare Ebenen
+	Vivid	Lebhaft
+	Warm	Warm
+	Watch 184×224	Uhr 184×224
+	Watch 198×242	Uhr 198×242
+	Web 1024×768	Web 1024×768
+	Web 1280×720	Web 1280×720
+	Web 1280×800	Web 1280×800
+	Web 1366×768	Web 1366×768
+	Web 1440×900	Web 1440×900
+	Web 1600×900	Web 1600×900
+	WebP	WebP
+	Working RGB	RGB-Arbeitsfarbraum
+	x Height	x-Höhe
+	▾ Default Actions	▾ Standardaktionen
+	⚠ {chord} was already used by {names} — it has been removed there.	⚠ {chord} wurde bereits von {names} verwendet – dort wurde es entfernt.
+@id	file.close	Schliessen
+@id	pathfinder.add	Vereinen
+@msg	give corners of the path: anchors between two straight sides	Ecken des Pfads setzen: Ankerpunkte zwischen zwei geraden Seiten
+@msg	the PSD file is cut short	die PSD-Datei ist unvollständig
+@msg	the PSD file's header is damaged	der Header der PSD-Datei ist beschädigt
+@msg	the PSD file's image data can't be read: {e}	die Bilddaten der PSD-Datei können nicht gelesen werden: {e}
+@msg	this is a PostScript file (an .ai saved in an older format or without PDF compatibility, or an EPS file), which can't be opened yet: save it as PDF, PDF-compatible .ai or SVG	dies ist eine PostScript-Datei (eine .ai-Datei in einem älteren Format oder ohne PDF-Kompatibilität, oder eine EPS-Datei), die noch nicht geöffnet werden kann: als PDF, PDF-kompatible .ai-Datei oder SVG speichern
+@plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} Tastaturbefehl ist mehrfach zugewiesen|{n} Tastaturbefehle sind mehrfach zugewiesen
+effect	Horizontal	Horizontal
+effect	Soft	Weich
+effect	Vertical	Vertikal
+swatch	[None]	[Ohne]
+swatch	[Registration]	[Passermarken]
+swatch	Amber	Bernstein
+swatch	Aqua	Aqua
+swatch	Azure	Azurblau
+swatch	Black	Schwarz
+swatch	Blue	Blau
+swatch	Bright Blue	Hellblau
+swatch	Bright Green	Hellgrün
+swatch	Bright Red	Hellrot
+swatch	Bright Violet	Hellviolett
+swatch	Bright Yellow	Hellgelb
+swatch	Brights	Leuchtfarben
+swatch	Brown	Braun
+swatch	Chocolate	Schokolade
+swatch	Coffee	Kaffee
+swatch	Copper	Kupfer
+swatch	Cyan	Cyan
+swatch	Cyan Green	Cyangrün
+swatch	Emerald	Smaragd
+swatch	Espresso	Espresso
+swatch	Grays	Grautöne
+swatch	Green	Grün
+swatch	Indigo	Indigo
+swatch	Lime	Limette
+swatch	Magenta	Magenta
+swatch	Ocean	Ozean
+swatch	Orange	Orange
+swatch	Orange Red	Orangerot
+swatch	Pink	Pink
+swatch	Purple	Lila
+swatch	Radial White, Black	Radial Weiss, Schwarz
+swatch	Red	Rot
+swatch	Rose	Rose
+swatch	Rust	Rost
+swatch	Sand	Sand
+swatch	Sunset	Sonnenuntergang
+swatch	Tan	Hellbraun
+swatch	Teal	Blaugrün
+swatch	Violet	Violett
+swatch	Walnut	Walnuss
+swatch	White	Weiss
+swatch	White, Black	Weiss, Schwarz
+swatch	Yellow	Gelb
+swatch	Yellow Green	Gelbgrün

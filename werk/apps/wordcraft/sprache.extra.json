@@ -1,0 +1,46 @@
+{
+  "merge_tsv": [
+    {
+      "src": "de-werk.tsv",
+      "dst": "crates/ui-egui/src/i18n/de.tsv"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/i18n/tests.rs",
+      "anchor": "assert_eq!(keys(de.0.source), keys(lang(\"zh-hans\").0.source));",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: Deutsch hat zusätzlich die Schlüssel der grösseren Kataloge (de-werk.tsv).",
+        "assert!(keys(lang(\"zh-hans\").0.source).is_subset(&keys(de.0.source)), \"zh-hans has keys German lacks\");"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/tests.rs",
+      "anchor": "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"pl\" | \"it\" | \"hu\" | \"bg\" | \"vi\" | \"sv\" | \"hr\")) {",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
+        "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"pl\" | \"it\" | \"hu\" | \"bg\" | \"vi\" | \"sv\" | \"hr\" | \"de\")) {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/tests.rs",
+      "anchor": "for other in Lang::all().filter(|l| *l != Lang::EN && l.code() != \"hr\") {",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
+        "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"hr\" | \"de\")) {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/tests.rs",
+      "anchor": "for other in Lang::all().filter(|l| *l != Lang::EN && l.code() != \"vi\") {",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
+        "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"vi\" | \"de\")) {"
+      ]
+    }
+  ]
+}

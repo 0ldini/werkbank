@@ -1,0 +1,26 @@
+{
+  "add_files": [
+    {
+      "src": "de_werk.rs",
+      "dst": "crates/ui-egui/src/i18n/de_werk.rs"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "mod de;",
+      "kind": "after",
+      "lines": [
+        "mod de_werk;"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "&& let Some(text) = GERMAN.get_or_init(|| de::TABLE.iter().copied().collect()).get(s).copied()",
+      "kind": "replace",
+      "lines": [
+        "&& let Some(text) = GERMAN.get_or_init(|| de_werk::TABLE.iter().chain(de::TABLE).copied().collect()).get(s).copied()"
+      ]
+    }
+  ]
+}

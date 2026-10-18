@@ -1,0 +1,665 @@
+{
+  "add_files": [
+    {
+      "src": "werk_de.rs",
+      "dst": "crates/ui-egui/src/werk_de.rs"
+    },
+    {
+      "src": "werk_de.tsv",
+      "dst": "crates/ui-egui/src/werk_de.tsv"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/lib.rs",
+      "anchor": "pub mod windows;",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "pub mod werk_de;"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/menus.rs",
+      "anchor": "ui.menu_button(&root.label, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.menu_button(crate::werk_de::menu(&root.path, &root.label), |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/menus.rs",
+      "anchor": "ui.menu_button(&n.label, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.menu_button(crate::werk_de::menu(&n.path, &n.label), |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/menus.rs",
+      "anchor": "let label = live_label(app, id.as_deref()).unwrap_or_else(|| n.label.clone());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let label = live_label(app, id.as_deref()).unwrap_or_else(|| crate::werk_de::menu(&n.path, &n.label).to_string());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/menus.rs",
+      "anchor": "\"edit.undo\" => Some(e.undo_label().map_or_else(|| \"Can't Undo\".into(), |l| format!(\"Undo {l}\"))),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "\"edit.undo\" => Some(e.undo_label().map_or_else(|| crate::werk_de::t(\"Can't Undo\").into(), |l| crate::werk_de::t(\"Undo {l}\").replace(\"{l}\", crate::werk_de::t(l)))),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/menus.rs",
+      "anchor": "\"edit.redo\" => Some(e.redo_label().map_or_else(|| \"Can't Redo\".into(), |l| format!(\"Redo {l}\"))),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "\"edit.redo\" => Some(e.redo_label().map_or_else(|| crate::werk_de::t(\"Can't Redo\").into(), |l| crate::werk_de::t(\"Redo {l}\").replace(\"{l}\", crate::werk_de::t(l)))),"
+      ]
+    },
+    {
+      "file": "apps/soundcraft/src/native_menu.rs",
+      "anchor": "let submenu = Submenu::new(&node.label, true);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let submenu = Submenu::new(soundcraft_ui_egui::werk_de::menu(&node.path, &node.label), true);"
+      ]
+    },
+    {
+      "file": "apps/soundcraft/src/native_menu.rs",
+      "anchor": "let item = CheckMenuItem::new(label, enabled, checked, None);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let item = CheckMenuItem::new(soundcraft_ui_egui::werk_de::menu(path, label), enabled, checked, None);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/palette.rs",
+      "anchor": "id: c.id.to_string(), label: c.label.to_string(), path: c.menu.join(\" › \"), shortcut: c.shortcut.unwrap_or(\"\").to_string()",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "id: c.id.to_string(), label: crate::werk_de::t(c.label).to_string(), path: crate::werk_de::menu_path(&c.menu.join(\" > \"), \" › \"), shortcut: c.shortcut.unwrap_or(\"\").to_string()"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/palette.rs",
+      "anchor": "v.push(Entry { id: id.to_string(), label: label.to_string(), path: path.replace(\" > \", \" › \"), shortcut: sc.unwrap_or(\"\").to_string() });",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "v.push(Entry { id: id.to_string(), label: crate::werk_de::menu(path, label).to_string(), path: crate::werk_de::menu_path(path, \" › \"), shortcut: sc.unwrap_or(\"\").to_string() });"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "let title = format!(\"{} — {}\", spec.menu.last().copied().unwrap_or(\"File\"), spec.label.trim_end_matches(\"...\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let title = format!(\"{} — {}\", crate::werk_de::t(spec.menu.last().copied().unwrap_or(\"File\")), crate::werk_de::t(spec.label).trim_end_matches(\"...\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "egui::Window::new(egui::RichText::new(&title).font(bold(13.0)))",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "egui::Window::new(egui::RichText::new(crate::werk_de::t(&title)).font(bold(13.0)))"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "fn buttons(ui: &mut egui::Ui, ok: &str, enter: bool) -> bool {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let ok = crate::werk_de::t(ok);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "(format!(\"Revert “{name}” to its last saved version?\"), \"Revert\")",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"Revert “{name}” to its last saved version?\").replace(\"{name}\", name), \"Revert\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "(format!(\"Close “{name}” without saving?\"), \"Don't Save\")",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"Close “{name}” without saving?\").replace(\"{name}\", name), \"Don't Save\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "ui.label(format!(\"{question} Your changes will be lost.\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::t(\"{question} Your changes will be lost.\").replace(\"{question}\", &question));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "ui.label(format!(\"Save changes to “{name}” before closing?\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::t(\"Save changes to “{name}” before closing?\").replace(\"{name}\", name));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "ui.label(format!(\"“{}” already exists. Do you want to replace it?\", file.file_name().unwrap_or_default().to_string_lossy()));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::t(\"“{}” already exists. Do you want to replace it?\").replace(\"{}\", &file.file_name().unwrap_or_default().to_string_lossy()));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/recovery.rs",
+      "anchor": "ui.label(format!(\"“{}” has {what} from an earlier run, autosaved {age}.\", left.name));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::t(\"“{name}” has {what} from an earlier run, autosaved {age}.\").replace(\"{what}\", what).replace(\"{age}\", &age).replace(\"{name}\", &left.name));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/recovery.rs",
+      "anchor": "0..60 => return \"less than a minute ago\".into(),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "0..60 => return crate::werk_de::t(\"less than a minute ago\").into(),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/recovery.rs",
+      "anchor": "format!(\"{n} {unit}{} ago\", if n == 1 { \"\" } else { \"s\" })",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let key = format!(\"{{n}} {unit}{} ago\", if n == 1 { \"\" } else { \"s\" });",
+        "crate::werk_de::t(&key).replace(\"{n}\", &n.to_string())"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "pub fn icon_button(ui: &mut Ui, size: egui::Vec2, icon: &str, on: bool, tip: &str) -> Response {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let tip = crate::werk_de::t(tip);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "pub fn text_toggle(ui: &mut Ui, size: egui::Vec2, text: &str, on: bool, on_color: Color32, tip: &str) -> Response {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let tip = crate::werk_de::t(tip);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "pub fn rec_toggle(ui: &mut Ui, size: egui::Vec2, on: bool, tip: &str) -> Response {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let tip = crate::werk_de::t(tip);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "pub(crate) fn selector_box_with_tooltip(ui: &mut Ui, width: f32, height: f32, text: &str, color: Color32, tooltip: &str) -> Response {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let tooltip = crate::werk_de::t(tooltip);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "pub fn pan_knob(ui: &mut Ui, size: f32, value: &mut f32, tip: &str) -> Response {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let tip = crate::werk_de::t(tip);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/windows.rs",
+      "anchor": "fn win(ctx: &egui::Context, open: &mut bool, title: &str, size: egui::Vec2, body: impl FnOnce(&mut egui::Ui)) {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let title = crate::werk_de::t(title);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/windows.rs",
+      "anchor": "ui.label(egui::RichText::new(h).strong());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(h)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/windows.rs",
+      "anchor": "ui.label(k);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::t(k));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/windows.rs",
+      "anchor": "col.label(egui::RichText::new(title).strong());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "col.label(egui::RichText::new(crate::werk_de::t(title)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "fn panel_header(ui: &mut Ui, title: &str) {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let title = crate::werk_de::t(title);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "if ui.selectable_label(on, label).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(on, crate::werk_de::t(label)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "ui.label(egui::RichText::new(h).strong());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(h)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "if ui.selectable_label(tab == i, l).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(tab == i, crate::werk_de::t(l)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "if ui.selectable_label(i + 1 == n, format!(\"{}  {h}\", i + 1)).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(i + 1 == n, format!(\"{}  {}\", i + 1, crate::werk_de::t(h))).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels.rs",
+      "anchor": "ui.label(egui::RichText::new(format!(\"(redo) {r}\")).italics().color(Tokens::current().text_dim));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(\"(redo) {r}\").replace(\"{r}\", crate::werk_de::t(r))).italics().color(Tokens::current().text_dim));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/mix_window.rs",
+      "anchor": "fn show(ui: &mut Ui, id: egui::Id, hint: &str) -> Self {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let hint = crate::werk_de::t(hint);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "ui.label(RichText::new(h).strong());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(RichText::new(crate::werk_de::t(h)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "if ui.selectable_label(v.names == m, m.label()).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(v.names == m, crate::werk_de::t(m.label())).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "egui::ComboBox::from_id_salt(\"credits_sort\").selected_text(v.key.label().0).show_ui(ui, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "egui::ComboBox::from_id_salt(\"credits_sort\").selected_text(crate::werk_de::t(v.key.label().0)).show_ui(ui, |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "if ui.selectable_label(v.key == k, k.label().0).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(v.key == k, crate::werk_de::t(k.label().0)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "if ui.button(RichText::new(format!(\"{}{arrow}\", k.label().1)).strong()).on_hover_text(k.label().0).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.button(RichText::new(format!(\"{}{arrow}\", crate::werk_de::t(k.label().1))).strong()).on_hover_text(crate::werk_de::t(k.label().0)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/docking.rs",
+      "anchor": "|panel| panel.label().into(),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "|panel| crate::werk_de::t(panel.label()).into(),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "for (label, cmd) in items {",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "(\"Send to Back\", \"clip.send_to_back\"),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "let g = ui.painter().layout_no_wrap(label.to_string(), bold(10.5), if on { Color32::WHITE } else { t.text_dim });",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let g = ui.painter().layout_no_wrap(crate::werk_de::t(label).to_string(), bold(10.5), if on { Color32::WHITE } else { t.text_dim });"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "resp.on_hover_text(label)",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "resp.on_hover_text(crate::werk_de::t(label))"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "ui.painter().text(pos2(lab.max.x - 12.0, lab.center().y), Align2::RIGHT_CENTER, ruler_label(id), bold(11.0), t.ruler_text);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.painter().text(pos2(lab.max.x - 12.0, lab.center().y), Align2::RIGHT_CENTER, crate::werk_de::t(ruler_label(id)), bold(11.0), t.ruler_text);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "if ui.selectable_label(track.ticks_timebase == ticks, label).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(track.ticks_timebase == ticks, crate::werk_de::t(label)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/edit_window.rs",
+      "anchor": "let undo = app.engine.undo_label().map_or(String::new(), |l| format!(\"Undo {l}\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let undo = app.engine.undo_label().map_or(String::new(), |l| crate::werk_de::t(\"Undo {l}\").replace(\"{l}\", crate::werk_de::t(l)));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "ui.painter().text(pos2(r.min.x + 214.0, y), Align2::RIGHT_CENTER, *label, regular(11.0), t.counter_label);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.painter().text(pos2(r.min.x + 214.0, y), Align2::RIGHT_CENTER, crate::werk_de::t(label), regular(11.0), t.counter_label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "if ui.button(label).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.button(crate::werk_de::t(label)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "let tip = format!(\"{}{}\", tool.label(), tool.fkey().map(|k| format!(\" ({k})\")).unwrap_or_default());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let tip = format!(\"{}{}\", crate::werk_de::t(tool.label()), tool.fkey().map(|k| format!(\" ({k})\")).unwrap_or_default());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "EditMode::Shuffle if locked => format!(\"Shuffle is locked ({cmd}-click to unlock)\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "EditMode::Shuffle if locked => crate::werk_de::t(\"Shuffle is locked ({cmd}-click to unlock)\").replace(\"{cmd}\", &cmd),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "EditMode::Shuffle => format!(\"Shuffle mode ({fkey}); {cmd}-click locks it out\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "EditMode::Shuffle => crate::werk_de::t(\"Shuffle mode ({fkey}); {cmd}-click locks it out\").replace(\"{fkey}\", fkey).replace(\"{cmd}\", &cmd),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "EditMode::Grid => format!(\"Grid mode ({fkey}; again for Relative); Shift-click: Snap to Grid in the other modes\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "EditMode::Grid => crate::werk_de::t(\"Grid mode ({fkey}; again for Relative); Shift-click: Snap to Grid in the other modes\").replace(\"{fkey}\", fkey),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "_ => format!(\"{} mode ({fkey}); Shift-click adds Snap to Grid\", if m == EditMode::Slip { \"Slip\" } else { \"Spot\" }),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "_ => crate::werk_de::t(if m == EditMode::Slip { \"Slip mode ({fkey}); Shift-click adds Snap to Grid\" } else { \"Spot mode ({fkey}); Shift-click adds Snap to Grid\" }).replace(\"{fkey}\", fkey),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/mix_window.rs",
+      "anchor": "let tip = format!(\"{name}: click to open · {cmd}click to bypass · right-click to change\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let tip = crate::werk_de::t(\"{name}: click to open · {cmd}click to bypass · right-click to change\").replace(\"{cmd}\", cmd).replace(\"{name}\", name);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/lib.rs",
+      "anchor": "\"Nothing to record on yet: add a track with Track › New…, then click its R button.\"",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "crate::werk_de::t(\"Nothing to record on yet: add a track with Track › New…, then click its R button.\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/lib.rs",
+      "anchor": "\"No track is record-enabled: click the R button on the track to record.\"",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "crate::werk_de::t(\"No track is record-enabled: click the R button on the track to record.\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/lib.rs",
+      "anchor": "self.ui.status = \"Stop recording before recovering other work.\".into();",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "self.ui.status = crate::werk_de::t(\"Stop recording before recovering other work.\").into();"
+      ]
+    }
+  ],
+  "wrap": [
+    {
+      "globs": [
+        "crates/ui-egui/src/*.rs"
+      ],
+      "calls": [
+        "ui.button(",
+        "ui.small_button(",
+        "tb.small_button(",
+        "ui.label(",
+        "ui.strong(",
+        "ui.weak(",
+        "ui.heading(",
+        "ui.menu_button(",
+        "egui::RichText::new(",
+        "RichText::new(",
+        "egui::Button::new(",
+        "egui::Window::new(",
+        ".on_hover_text(",
+        ".on_disabled_hover_text(",
+        ".hint_text(",
+        ".text(",
+        ".prefix(",
+        "egui::ComboBox::from_label(",
+        "ui.hyperlink_to(",
+        "app.ui.status = ",
+        "self.ui.status = ",
+        "let tip = ",
+        "} else { ",
+        "Align2::LEFT_CENTER, ",
+        "Align2::RIGHT_CENTER, ",
+        "Align2::CENTER_CENTER, ",
+        "panel_header(ui, ",
+        "win(ctx, &mut open, ",
+        "ui.selectable_label(!v.table, ",
+        "ui.selectable_label(v.table, ",
+        "ui.selectable_value(timebase, \"samples\".to_string(), ",
+        "ui.selectable_value(timebase, \"ticks\".to_string(), ",
+        "crate::widgets::checkbox(ui, demo, ",
+        "crate::widgets::checkbox(ui, normalize, ",
+        "crate::widgets::checkbox(ui, edit, ",
+        "crate::widgets::checkbox(ui, mix, ",
+        "crate::widgets::checkbox(ui, show_track_names, ",
+        ".checkbox(&mut separate, ",
+        "crate::widgets::checkbox(ui, &mut mute, ",
+        "crate::widgets::checkbox(ui, &mut pre, ",
+        "crate::widgets::checkbox(ui, &mut app.ops.beat_separate, ",
+        "crate::widgets::checkbox(ui, &mut app.ops.beat_set_tempo, ",
+        "crate::widgets::checkbox(ui, &mut burn, ",
+        "ui.selectable_value(value, None, ",
+        "crate::widgets::checkbox(ui, &mut dc, ",
+        "ui.selectable_label(bypass, ",
+        ".selected_text(if timebase == \"ticks\" { ",
+        ".on_hover_text(if track.folder_open { ",
+        ".on_hover_text(if showing { ",
+        ".on_hover_text(if track.frozen { ",
+        "let tip = if track.ticks_timebase { ",
+        "ui.button(if input { ",
+        "ui.menu_button(if v.is_empty() { ",
+        "ui.button(if active { ",
+        "let label = if ins.bypass { ",
+        "let label = if open { ",
+        "let what = if left.recording { ",
+        "let dev = app.player.as_ref().map_or(",
+        ".map_or(\"no audio engine\", |p| if p.silent { ",
+        "let st = if app.engine.is_dirty() { ",
+        ".on_hover_text(if kind == 0 { ",
+        "Route::None => ",
+        "vendor: d.vendor }).collect(), ",
+        ".map_or_else(|_| ",
+        "let shown = value.map_or(",
+        "ui.label(app.recorder.as_ref().map_or("
+      ],
+      "func": "crate::werk_de::t",
+      "exclude": [
+        "control.rs",
+        "theme.rs",
+        "fonts.rs",
+        "icons.rs"
+      ]
+    },
+    {
+      "globs": [
+        "apps/soundcraft/src/native_menu.rs"
+      ],
+      "calls": [
+        "MenuItem::with_id(\"hide\", ",
+        "MenuItem::with_id(\"hide_others\", "
+      ],
+      "func": "soundcraft_ui_egui::werk_de::t"
+    },
+    {
+      "globs": [
+        "crates/ui-egui/src/toolbar.rs"
+      ],
+      "calls": [
+        "|p| if p.silent { "
+      ],
+      "func": "crate::werk_de::t"
+    }
+  ]
+}

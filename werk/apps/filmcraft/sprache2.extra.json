@@ -1,0 +1,21 @@
+{
+  "merge_tsv": [
+    {
+      "src": "de-werk-2.tsv",
+      "dst": "crates/ui-egui/src/i18n/de.tsv"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/i18n/mod.rs",
+      "anchor": "let (entries, _) = catalog::parse_entries(include_str!(\"de.tsv\"));",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "// Werkbank (sprache2): German also covers the rest of the interface; entries that are Spanish entries or tl! literals need not be menu labels",
+        "let werk_lits2: Vec<String> = sources().iter().flat_map(|(_, text)| tl_literals(text)).collect();",
+        "let entries: Vec<_> = entries.into_iter().filter(|(ctx, en, _)| !(ctx.is_empty() && (Language::Es.has(en) || werk_lits2.contains(en)))).collect();"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "add_files": [
+    {
+      "src": "werk_de.rs",
+      "dst": "crates/ui-egui/src/werk_de.rs"
+    }
+  ],
+  "patches": [
+    {
+      "file": "crates/ui-egui/src/lib.rs",
+      "anchor": "pub mod i18n;",
+      "kind": "after",
+      "lines": [
+        "pub mod werk_de;"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n.rs",
+      "anchor": "ctx.data_mut(|d| d.insert_temp(lang_key(), language));",
+      "kind": "after",
+      "lines": [
+        "crate::werk_de::set(language);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/de.rs",
+      "anchor": "pub(super) fn translate(text: &str) -> Option<&'static str> {",
+      "kind": "after",
+      "lines": [
+        "if let Some(found) = crate::werk_de::translate(text) {",
+        "    return Some(found);",
+        "}"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs.rs",
+      "anchor": "for f in d.fields.clone() {",
+      "kind": "replace",
+      "lines": [
+        "for f in d.fields.clone().into_iter().map(crate::werk_de::field) {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "ui.label(egui::RichText::new(title).strong());",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::ts(&title)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "ui.add(egui::Label::new(msg).wrap());",
+      "kind": "replace",
+      "lines": [
+        "ui.add(egui::Label::new(crate::werk_de::ts(&msg)).wrap());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "ui.label(msg);",
+      "kind": "replace",
+      "lines": [
+        "ui.label(crate::werk_de::ts(&msg));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "if ui.button(none_label).clicked() {",
+      "kind": "replace",
+      "lines": [
+        "if ui.button(crate::werk_de::t(none_label)).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "ui.label(egui::RichText::new(&notice.text).font(theme::ui_font(12.5)).color(t.text));",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::ts(&notice.text)).font(theme::ui_font(12.5)).color(t.text));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/widgets.rs",
+      "anchor": "&& ui.button(egui::RichText::new(label).font(theme::ui_font(12.5))).clicked()",
+      "kind": "replace",
+      "lines": [
+        "&& ui.button(egui::RichText::new(crate::werk_de::ts(label)).font(theme::ui_font(12.5))).clicked()"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panes.rs",
+      "anchor": "ui.label(egui::RichText::new(title).font(theme::ui_bold(15.0)));",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(title)).font(theme::ui_bold(15.0)));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panes.rs",
+      "anchor": "(\"Radar\", \"radar\", \"\"),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let l = crate::werk_de::t(l);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panes.rs",
+      "anchor": "for (l, v) in [(\"None\", \"none\"), (\"Bottom\", \"bottom\"), (\"Top\", \"top\"), (\"Left\", \"left\"), (\"Right\", \"right\")] {",
+      "kind": "after",
+      "lines": [
+        "let l = crate::werk_de::t(l);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panes.rs",
+      "anchor": "if ui.small_button(if c.resolved { \"Reopen\" } else { \"Resolve\" }).clicked() {",
+      "kind": "replace",
+      "lines": [
+        "if ui.small_button(crate::werk_de::t(if c.resolved { \"Reopen\" } else { \"Resolve\" })).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/tabs.rs",
+      "anchor": "parts.push(format!(\"Sum: {}\", fmt(st.sum)));",
+      "kind": "replace",
+      "lines": [
+        "parts.push(format!(\"{}: {}\", crate::werk_de::t(\"Sum\"), fmt(st.sum)));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/tabs.rs",
+      "anchor": "parts.push(format!(\"Count: {}\", st.count));",
+      "kind": "replace",
+      "lines": [
+        "parts.push(format!(\"{}: {}\", crate::werk_de::t(\"Count\"), st.count));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/tabs.rs",
+      "anchor": "parts.push(format!(\"Average: {}\", fmt(a)));",
+      "kind": "replace",
+      "lines": [
+        "parts.push(format!(\"{}: {}\", crate::werk_de::t(\"Average\"), fmt(a)));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/tabs.rs",
+      "anchor": "ui.label(egui::RichText::new(format!(\"Circular References: {name}!{}\", c.a1())).font(theme::ui_font(12.5)).color(t.danger));",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(format!(\"{}: {name}!{}\", crate::werk_de::t(\"Circular References\"), c.a1())).font(theme::ui_font(12.5)).color(t.danger));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/tabs.rs",
+      "anchor": "if ui.button(if protected { \"Unprotect Sheet…\" } else { \"Protect Sheet…\" }).clicked() {",
+      "kind": "replace",
+      "lines": [
+        "if ui.button(crate::werk_de::t(if protected { \"Unprotect Sheet…\" } else { \"Protect Sheet…\" })).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/grid.rs",
+      "anchor": "let label = if needle.is_empty() { \"(Select All)\" } else { \"(Select All Search Results)\" };",
+      "kind": "after",
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/border_preview.rs",
+      "anchor": "ui.painter().text(pos2(response.rect.left() + 36.0, response.rect.center().y), Align2::LEFT_CENTER, label, theme::ui_font(12.5), t.text);",
+      "kind": "replace",
+      "lines": [
+        "ui.painter().text(pos2(response.rect.left() + 36.0, response.rect.center().y), Align2::LEFT_CENTER, crate::werk_de::t(label), theme::ui_font(12.5), t.text);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"Calculate Now\", \"formulas.calculateNow\"),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "[(\"Save a Copy as Excel Workbook (.xlsx)…\", \"xlsx\"), (\"Export as CSV…\", \"csv\"), (\"Export as Web Page (.html)…\", \"html\")]",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "for (label, op) in [(\"Greater Than…\", \"greater\"), (\"Less Than…\", \"less\"), (\"Between…\", \"between\"), (\"Equal To…\", \"equal\")] {",
+      "kind": "after",
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "[(\"Blue\", \"#638EC6\"), (\"Green\", \"#63BE7B\"), (\"Red\", \"#F8696B\"), (\"Orange\", \"#FFB628\"), (\"Light Blue\", \"#008AEF\"), (\"Purple\", \"#D6007B\")]",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"White - Red\", vec![\"#FCFCFF\", \"#F8696B\"]),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"5 Quarters\", \"5Quarters\"),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "ui.label(egui::RichText::new(fam).strong());",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(fam)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "ui.label(egui::RichText::new(*g).strong());",
+      "kind": "replace",
+      "lines": [
+        "ui.label(egui::RichText::new(crate::werk_de::t(g)).strong());"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "*n,",
+      "kind": "replace",
+      "lines": [
+        "crate::werk_de::t(n),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "for (label, placement) in [(\"Place in Cell\", \"cell\"), (\"Place over Cells\", \"overCells\")] {",
+      "kind": "after",
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"Text Box\", \"textBox\"),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(Icon::ChartPie, \"Pie or Doughnut\", \"insert.chart.pie\", vec![(\"Pie\", \"pie\", \"\"), (\"Doughnut\", \"doughnut\", \"\")]),",
+      "kind": "after",
+      "skip": 6,
+      "lines": [
+        "    let label = &crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"Combo\", \"combo\", \"\"),",
+      "kind": "after",
+      "skip": 8,
+      "lines": [
+        "    let label = &crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "for (label, kind) in [(\"Line\", \"line\"), (\"Column\", \"column\"), (\"Win/Loss\", \"winLoss\")] {",
+      "kind": "after",
+      "lines": [
+        "let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"Banded Rows\", \"table.bandedRows\", banded),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "(\"Banded Columns\", \"table.bandedColumns\", banded_c),",
+      "kind": "after",
+      "skip": 1,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon.rs",
+      "anchor": "for (label, k, s) in [",
+      "kind": "after",
+      "skip": 13,
+      "lines": [
+        "    let label = crate::werk_de::t(label);"
+      ]
+    }
+  ],
+  "wrap": [
+    {
+      "globs": [
+        "crates/ui-egui/src/*.rs"
+      ],
+      "calls": [
+        "ui.label(",
+        "ui.button(",
+        ".on_hover_text(",
+        ".on_hover_text_at_pointer(",
+        "ui.heading(",
+        "RichText::new(",
+        "ui.strong(",
+        "ui.weak(",
+        "Button::new(",
+        "ui.menu_button(",
+        "ui.hyperlink_to(",
+        "ui.small_button(",
+        ".hint_text(",
+        "ui.collapsing(",
+        ".prefix(",
+        "ui.checkbox(&mut d.show_password, ",
+        "ui.checkbox(&mut case, ",
+        "ui.checkbox(&mut whole, ",
+        "ui.checkbox(&mut wb, ",
+        "ui.checkbox(&mut header, ",
+        "ui.selectable_value(&mut by, \"values\".into(), ",
+        "ui.selectable_value(&mut by, \"cellColor\".into(), ",
+        "ui.selectable_value(&mut by, \"fontColor\".into(), ",
+        "ui.radio_value(&mut desc, false, ",
+        "ui.radio_value(&mut desc, true, ",
+        "ui.checkbox(&mut nonneg, ",
+        "ui.radio(!restore, ",
+        "ui.radio(restore, ",
+        "ui.selectable_label(!v.table, ",
+        "ui.selectable_label(v.table, ",
+        "ui.checkbox(&mut dl, ",
+        "ui.checkbox(&mut gl, "
+      ],
+      "func": "crate::werk_de::t",
+      "exclude": [
+        "i18n.rs",
+        "werk_de.rs"
+      ]
+    }
+  ]
+}

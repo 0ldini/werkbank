@@ -1,0 +1,14 @@
+{
+  "patches": [
+    {
+      "file": "apps/designcraft/src/main.rs",
+      "anchor": "load_prefs(&mut app);",
+      "kind": "after",
+      "skip": 0,
+      "lines": [
+        "// Werkbank: Hell/Dunkel aus dem Launcher (vor gespeicherter Einstellung und System).",
+        "if let Some(dark) = (std::env::var(\"WERKBANK_THEME\").ok().or_else(|| { let base = if cfg!(windows) { std::path::PathBuf::from(std::env::var_os(\"LOCALAPPDATA\")?).join(\"Werkbank\").join(\"config\") } else if cfg!(target_os = \"macos\") { std::path::PathBuf::from(std::env::var_os(\"HOME\")?).join(\"Library/Application Support/Werkbank\") } else { std::env::var_os(\"XDG_CONFIG_HOME\").map(std::path::PathBuf::from).filter(|p| p.is_absolute()).or_else(|| std::env::var_os(\"HOME\").map(|h| std::path::PathBuf::from(h).join(\".config\")))?.join(\"werkbank\") }; std::fs::read_to_string(base.join(\"thema.txt\")).ok() }).and_then(|v| match v.trim().to_ascii_lowercase().as_str() { \"dunkel\" | \"dark\" => Some(true), \"hell\" | \"light\" => Some(false), _ => None })) { use designcraft_ui_egui::theme::{Brightness, Tokens}; if Tokens::for_brightness(app.ui.brightness).dark != dark { app.ui.brightness = if dark { Brightness::MediumDark } else { Brightness::Light }; } }"
+      ]
+    }
+  ]
+}
