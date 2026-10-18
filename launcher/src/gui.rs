@@ -1443,6 +1443,7 @@ impl Gui {
         let fill = mix(color, panel(), if dark() { 0.14 } else { 0.08 });
         let stroke = mix(color, border(), 0.35);
         egui::Frame::new().fill(fill).stroke(Stroke::new(1.0, stroke)).corner_radius(20u8).inner_margin(egui::Margin { left: 16, right: 16, top: 14, bottom: 10 }).show(ui, |ui| {
+          ui.vertical(|ui| {
             ui.set_width(w - 34.0);
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(Vec2::splat(12.0), Sense::hover());
@@ -1465,6 +1466,7 @@ impl Gui {
                     }
                 });
             }
+          });
         });
     }
 
