@@ -4,6 +4,7 @@ mod app;
 mod qr;
 mod save;
 mod sprache;
+mod thema;
 
 use app::App;
 #[cfg(not(target_arch = "wasm32"))]

@@ -6,6 +6,7 @@ mod pwcheck;
 mod recycle;
 mod sprache;
 mod sys;
+mod thema;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

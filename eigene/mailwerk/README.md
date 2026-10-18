@@ -95,3 +95,13 @@ Deutsch oder Englisch, wie im Werkbank-Launcher gewählt (`WERKBANK_LANG` bzw. `
 siehe `src/sprache.rs`); im Browser immer Deutsch. Die englischen Texte stehen in `src/en.tsv`.
 Prüfen, ob alles übersetzt ist: `rustc --edition 2021 --test src/sprache.rs -o /tmp/sprache && /tmp/sprache`.
 Der Inhalt von Mails (auch im Beispielkonto) wird nicht übersetzt.
+
+## Hell/Dunkel und Launcher-Widget
+
+Hell oder dunkel, wie im Werkbank-Launcher gewählt (`WERKBANK_THEME` bzw. `thema.txt`, siehe
+`src/thema.rs`); im Browser immer hell.
+
+Auf dem Desktop schreibt Mailwerk nach jedem Abruf `mailwerk-status.json` in den
+Einstellungsordner der Werkbank (neben `sprache.txt`) für das «Mail»-Widget im Launcher:
+Anzahl Ungelesene im Posteingang über alle Konten und die neuesten bis zu fünf ungelesenen
+(Absender, Betreff, Zeit) – keine Inhalte, keine Passwörter (`src/status.rs`).

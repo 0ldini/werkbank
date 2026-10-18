@@ -10,18 +10,32 @@ use crate::model::{
     self, Aspect, AudioFmt, AudioTrack, Fit, ImageFmt, MediaKind, Quality, Target, VideoFmt,
 };
 use crate::sprache::{t, tf};
+use crate::thema;
 
+/// Violett für Schrift und Linien – je Design lesbar auf dem Hintergrund.
 fn vio() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x6d, 0x49, 0xe0), egui::Color32::from_rgb(0xa7, 0x8b, 0xfa))
+}
+/// Füllung von Schaltflächen/Flächen mit weisser Schrift darauf – in beiden Designs gleich.
+fn vio_fill() -> egui::Color32 {
     egui::Color32::from_rgb(0x6d, 0x49, 0xe0)
 }
+/// Hintergrund für Gewähltes (Datei-Zeile, Chip).
 fn vio_soft() -> egui::Color32 {
-    egui::Color32::from_rgb(0xef, 0xea, 0xfc)
+    thema::pick(egui::Color32::from_rgb(0xef, 0xea, 0xfc), egui::Color32::from_rgb(0x2f, 0x27, 0x4d))
 }
+fn green() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x15, 0x80, 0x3d), egui::Color32::from_rgb(0x4a, 0xde, 0x80))
+}
+fn red() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
+}
+/// Füllung der Typ-Symbole (weisser Buchstabe darauf) – in beiden Designs gleich.
 fn kind_color(k: MediaKind) -> egui::Color32 {
     match k {
         MediaKind::Audio => egui::Color32::from_rgb(0x16, 0xa3, 0x4a),
         MediaKind::Image => egui::Color32::from_rgb(0x25, 0x63, 0xeb),
-        MediaKind::Video => vio(),
+        MediaKind::Video => vio_fill(),
     }
 }
 
@@ -67,6 +81,7 @@ impl App {
             f.size *= 1.04;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         App {
             entries: Vec::new(),
             sel: 0,
@@ -207,7 +222,7 @@ impl App {
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, vio());
+                ui.painter().rect_filled(r, 7.0, vio_fill());
                 paint_convert_logo(ui.painter(), r.center());
                 ui.add_space(4.0);
                 ui.heading("Wandelwerk");
@@ -236,9 +251,9 @@ impl App {
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
                 let (col, txt) = if self.ffmpeg.is_some() {
                     let txt = if convert::HAS_EMBEDDED_FFMPEG { t("ffmpeg eingebaut") } else { t("ffmpeg gefunden") };
-                    (egui::Color32::from_rgb(0x16, 0xa3, 0x4a), txt)
+                    (green(), txt)
                 } else {
-                    (egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("ffmpeg fehlt (nur Bilder möglich)"))
+                    (red(), t("ffmpeg fehlt (nur Bilder möglich)"))
                 };
                 ui.painter().circle_filled(dot.center(), 4.0, col);
                 ui.weak(txt);
@@ -264,7 +279,7 @@ impl App {
                         if ui
                             .add(egui::Button::new(
                                 egui::RichText::new(format!("   {}   ", t("Dateien hinzufügen"))).color(egui::Color32::WHITE),
-                            ).fill(vio()))
+                            ).fill(vio_fill()))
                             .clicked()
                         {
                             self.pick_files();
@@ -286,7 +301,7 @@ impl App {
             let kind = self.entries[self.sel].kind;
             let name = self.entries[self.sel].name.clone();
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(t("AUSGABE")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("AUSGABE")).size(11.0).strong().color(thema::muted()));
                 ui.add(egui::Label::new(egui::RichText::new(format!("· {name}")).weak()).truncate());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.add(egui::Label::new(egui::RichText::new(t("Für alle übernehmen")).color(vio()).size(12.0)).sense(egui::Sense::click())).clicked() {
@@ -336,7 +351,7 @@ impl App {
                     match tracks {
                         Some(tl) if tl.is_empty() => {
                             ui.add_space(6.0);
-                            ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("Dieses Video hat keine Tonspur."));
+                            ui.colored_label(red(), t("Dieses Video hat keine Tonspur."));
                         }
                         Some(tl) if tl.len() > 1 => {
                             ui.add_space(10.0);
@@ -418,7 +433,7 @@ impl App {
             let btn = egui::Button::new(
                 egui::RichText::new(tf("{n} Dateien umwandeln", &[("n", &n)])).color(egui::Color32::WHITE).size(15.0),
             )
-            .fill(vio())
+            .fill(vio_fill())
             .min_size(egui::vec2(ui.available_width(), 46.0));
             if ui.add(btn).clicked() {
                 self.start_all();
@@ -431,13 +446,13 @@ impl App {
             ui.add_space(10.0);
             card(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(t("DATEIEN")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+                    ui.label(egui::RichText::new(t("DATEIEN")).size(11.0).strong().color(thema::muted()));
                     ui.weak(format!("{}", self.entries.len()));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button(t("Leeren")).clicked() {
                             self.entries.clear();
                         }
-                        if ui.add(egui::Button::new(egui::RichText::new(t("+ Hinzufügen")).color(egui::Color32::WHITE)).fill(vio())).clicked() {
+                        if ui.add(egui::Button::new(egui::RichText::new(t("+ Hinzufügen")).color(egui::Color32::WHITE)).fill(vio_fill())).clicked() {
                             self.pick_files();
                         }
                     });
@@ -461,8 +476,8 @@ impl App {
 
     fn file_row(&mut self, ui: &mut egui::Ui, i: usize, remove: &mut Option<usize>) {
         let sel = i == self.sel;
-        let fill = if sel { vio_soft() } else { egui::Color32::WHITE };
-        let stroke = if sel { vio() } else { egui::Color32::from_gray(228) };
+        let fill = if sel { vio_soft() } else { thema::panel() };
+        let stroke = if sel { vio() } else { thema::border() };
         let resp = egui::Frame::none()
             .fill(fill)
             .rounding(11.0)
@@ -483,7 +498,7 @@ impl App {
                         ui.weak(source_line(e));
                         if let Some(j) = &e.job {
                             if j.running.load(std::sync::atomic::Ordering::SeqCst) {
-                                ui.add(egui::ProgressBar::new(j.percent()).fill(vio()));
+                                ui.add(egui::ProgressBar::new(j.percent()).fill(vio_fill()));
                             }
                         }
                     });
@@ -526,9 +541,9 @@ impl App {
 
 fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
     egui::Frame::none()
-        .fill(egui::Color32::WHITE)
+        .fill(thema::panel())
         .rounding(14.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(228)))
+        .stroke(egui::Stroke::new(1.0, thema::border()))
         .inner_margin(egui::Margin::symmetric(16.0, 15.0))
         .show(ui, |ui| {
             body(ui);
@@ -549,7 +564,7 @@ fn paint_convert_logo(p: &egui::Painter, c: egui::Pos2) {
 }
 
 fn sub(ui: &mut egui::Ui, text: &str) {
-    ui.label(egui::RichText::new(text).size(12.0).color(egui::Color32::from_gray(110)));
+    ui.label(egui::RichText::new(text).size(12.0).color(thema::muted()));
     ui.add_space(6.0);
 }
 
@@ -559,10 +574,10 @@ fn chip(ui: &mut egui::Ui, sel: bool, label: &str) -> egui::Response {
         egui::Button::new(
             egui::RichText::new(label)
                 .size(12.5)
-                .color(if sel { col } else { egui::Color32::from_gray(80) }),
+                .color(if sel { col } else { thema::text() }),
         )
-        .fill(if sel { vio_soft() } else { egui::Color32::WHITE })
-        .stroke(egui::Stroke::new(1.0, if sel { col } else { egui::Color32::from_gray(222) })),
+        .fill(if sel { vio_soft() } else { thema::panel() })
+        .stroke(egui::Stroke::new(1.0, if sel { col } else { thema::border() })),
     )
 }
 
@@ -583,10 +598,10 @@ fn status_badge(ui: &mut egui::Ui, e: &Entry) {
     match &e.job {
         Some(j) if j.done.load(std::sync::atomic::Ordering::SeqCst) => {
             if j.ok.load(std::sync::atomic::Ordering::SeqCst) {
-                ui.colored_label(egui::Color32::from_rgb(0x16, 0xa3, 0x4a), t("fertig"));
+                ui.colored_label(green(), t("fertig"));
             } else {
                 let m = j.msg.lock().unwrap().clone();
-                ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("Fehler")).on_hover_text(m);
+                ui.colored_label(red(), t("Fehler")).on_hover_text(m);
             }
         }
         Some(j) if j.running.load(std::sync::atomic::Ordering::SeqCst) => {
@@ -646,7 +661,7 @@ fn track_label(tr: &AudioTrack) -> String {
 /// Zeichnet eine kleine Seitenverhältnis-Vorschau (Crop/Pad/Stretch).
 fn draw_preview(ui: &mut egui::Ui, area: egui::Rect, dims: Option<(u32, u32)>, aspect: Aspect, fit: Fit) {
     let p = ui.painter();
-    p.rect_filled(area, 10.0, egui::Color32::from_gray(247));
+    p.rect_filled(area, 10.0, thema::bg());
     let sr = match dims {
         Some((w, h)) if h > 0 => w as f32 / h as f32,
         _ => 16.0 / 9.0,
@@ -656,13 +671,13 @@ fn draw_preview(ui: &mut egui::Ui, area: egui::Rect, dims: Option<(u32, u32)>, a
 
     match aspect.ratio() {
         None => {
-            p.rect_filled(src, 4.0, vio());
+            p.rect_filled(src, 4.0, vio_fill());
         }
         Some(tr) => {
             let tr = tr as f32;
             match fit {
                 Fit::Crop => {
-                    p.rect_filled(src, 4.0, vio());
+                    p.rect_filled(src, 4.0, vio_fill());
                     let crop = fit_rect_inside(src, tr);
                     // Ränder abdunkeln
                     let dim = egui::Color32::from_black_alpha(110);
@@ -673,13 +688,14 @@ fn draw_preview(ui: &mut egui::Ui, area: egui::Rect, dims: Option<(u32, u32)>, a
                 }
                 Fit::Pad => {
                     let canvas = fit_rect(inner, tr);
-                    p.rect_filled(canvas, 4.0, egui::Color32::from_gray(40));
+                    // Leere Ränder: dunkel, im dunklen Design etwas heller, damit sie sich abheben.
+                    p.rect_filled(canvas, 4.0, thema::pick(egui::Color32::from_gray(40), egui::Color32::from_gray(64)));
                     let inside = fit_rect_inside(canvas, sr);
-                    p.rect_filled(inside, 2.0, vio());
+                    p.rect_filled(inside, 2.0, vio_fill());
                 }
                 Fit::Stretch => {
                     let stretched = fit_rect(inner, tr);
-                    p.rect_filled(stretched, 4.0, vio());
+                    p.rect_filled(stretched, 4.0, vio_fill());
                 }
             }
         }

@@ -42,6 +42,14 @@ und weiterverwenden), Import/Export von draw.io-Dateien, mehrere Seiten, Ebenen,
 Schriftarten und Linienstile, Bilder in Karten, Verbinder an frei wählbaren Seiten,
 Android.
 
+## Sprache und Design
+
+Deutsch oder Englisch, hell oder dunkel, wie im Werkbank-Launcher gewählt (`src/sprache.rs`,
+`src/thema.rs`); im Browser Deutsch und hell. Die englischen Texte stehen in `src/en.tsv`;
+was im Diagramm steht, wird nicht übersetzt (nur der Vorgabetext neuer Formen). Die
+Zeichenfläche bleibt auch im dunklen Design hell (wie das Diagramm im SVG).
+Prüfen, ob alles übersetzt ist: `rustc --edition 2021 --test src/sprache.rs -o /tmp/sprache && /tmp/sprache`.
+
 ## Bauen
 
 Voraussetzung: Rust (`https://rustup.rs`).

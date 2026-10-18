@@ -1,6 +1,6 @@
 [package]
 name = "codewerk"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Codewerk – QR-Codes erstellen (Teil der Werkbank-Suite)"
 authors = ["Oli"]

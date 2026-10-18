@@ -5,6 +5,7 @@ mod frames;
 mod model;
 mod render;
 mod sprache;
+mod thema;
 mod tool;
 
 fn main() -> eframe::Result<()> {

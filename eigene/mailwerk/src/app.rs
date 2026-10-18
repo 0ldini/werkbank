@@ -11,13 +11,30 @@ use crate::presets;
 use crate::role::Role;
 use crate::save;
 use crate::sprache::{is_en, t, tf};
+use crate::status;
 use crate::store::Saved;
+use crate::thema;
 use crate::textutil;
 use crate::timeutil;
 use crate::types::{Account, Cmd, Ev, HeaderRow, Kind, MailBody, Security};
 
+/// Programmfarbe als Fläche (weisse Schrift darauf), in beiden Designs gleich.
 const ACCENT: Color32 = Color32::from_rgb(0x0B, 0x7A, 0x70);
-const ERR: Color32 = Color32::from_rgb(0xC0, 0x39, 0x2B);
+
+/// Programmfarbe für Text, Zahlen und Links (im dunklen Design heller, damit lesbar).
+fn accent_text() -> Color32 {
+    thema::pick(ACCENT, Color32::from_rgb(0x3C, 0xC4, 0xB4))
+}
+
+/// Fehlerfarbe für Text.
+fn err_color() -> Color32 {
+    thema::pick(Color32::from_rgb(0xC0, 0x39, 0x2B), Color32::from_rgb(0xFF, 0x7B, 0x6E))
+}
+
+/// Hintergrund einer gewählten Zeile (Seitenleiste, Nachrichtenliste).
+fn sel_row() -> Color32 {
+    thema::pick(Color32::from_rgb(0xD3, 0xEC, 0xE9), Color32::from_rgb(0x1E, 0x3D, 0x3B))
+}
 const STORAGE_KEY: &str = "mailwerk_v1";
 const HEADERS_PER_LOAD: u32 = 100;
 const REFRESH_SECS: f64 = 300.0;
@@ -121,6 +138,9 @@ pub struct App {
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Hell/Dunkel wie im Werkbank-Launcher gewählt (nicht nach dem System).
+        cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
+        thema::apply(&cc.egui_ctx);
         let saved = cc
             .storage
             .and_then(|s| s.get_string(STORAGE_KEY))
@@ -735,7 +755,7 @@ fn nav_row(ui: &mut egui::Ui, selected: bool, text: &str, badge: u32, indent: f3
         let vis = ui.visuals();
         let p = ui.painter_at(rect);
         if selected {
-            p.rect_filled(rect, 6.0, vis.selection.bg_fill.gamma_multiply(0.25));
+            p.rect_filled(rect, 6.0, sel_row());
         } else if resp.hovered() {
             p.rect_filled(rect, 6.0, vis.widgets.hovered.weak_bg_fill);
         }
@@ -743,8 +763,8 @@ fn nav_row(ui: &mut egui::Ui, selected: bool, text: &str, badge: u32, indent: f3
         let right = rect.max.x - 10.0;
         let mut text_w = right - rect.min.x - 10.0 - indent;
         if badge > 0 {
-            let g = p.layout_no_wrap(badge.to_string(), FontId::proportional(12.5), ACCENT);
-            p.galley(pos2(right - g.size().x, rect.center().y - g.size().y / 2.0), g.clone(), ACCENT);
+            let g = p.layout_no_wrap(badge.to_string(), FontId::proportional(12.5), accent_text());
+            p.galley(pos2(right - g.size().x, rect.center().y - g.size().y / 2.0), g.clone(), accent_text());
             text_w -= g.size().x + 8.0;
         }
         let g = fit(&p, text, FontId::proportional(14.5), color, text_w);
@@ -761,12 +781,12 @@ fn mail_row(ui: &mut egui::Ui, h: &HeaderRow, selected: bool, now: i64) -> egui:
     let vis = ui.visuals();
     let p = ui.painter_at(rect);
     if selected {
-        p.rect_filled(rect, 0.0, vis.selection.bg_fill.gamma_multiply(0.25));
+        p.rect_filled(rect, 0.0, sel_row());
     } else if resp.hovered() {
         p.rect_filled(rect, 0.0, vis.widgets.hovered.weak_bg_fill);
     }
     if h.unread {
-        p.rect_filled(egui::Rect::from_min_size(rect.min, vec2(3.0, rect.height())), 0.0, ACCENT);
+        p.rect_filled(egui::Rect::from_min_size(rect.min, vec2(3.0, rect.height())), 0.0, accent_text());
     }
     avatar(&p, pos2(rect.min.x + 32.0, rect.center().y), 18.0, &h.from_display(), &h.from_email);
 
@@ -821,7 +841,7 @@ impl App {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             ui.add_space(6.0);
-            ui.heading(RichText::new("Mailwerk").color(ACCENT));
+            ui.heading(RichText::new("Mailwerk").color(accent_text()));
         });
         ui.add_space(8.0);
         let w = ui.available_width();
@@ -1017,7 +1037,7 @@ impl App {
     fn ui_welcome(&self, ui: &mut egui::Ui, acts: &mut Vec<Act>) {
         ui.add_space(60.0);
         ui.vertical_centered(|ui| {
-            ui.heading(RichText::new("Mailwerk").color(ACCENT).size(32.0));
+            ui.heading(RichText::new("Mailwerk").color(accent_text()).size(32.0));
             ui.add_space(6.0);
             ui.label(t("Dein eigenes Mailprogramm. Ohne Server, ohne Konto bei uns."));
             ui.add_space(24.0);
@@ -1123,11 +1143,11 @@ impl App {
                     }
                     if wasm && s.acc.kind == Kind::Imap {
                         ui.add_space(4.0);
-                        ui.colored_label(ERR, t("Im Browser geht das nicht. Bitte die Desktop-Version verwenden oder einen Anbieter mit JMAP wählen."));
+                        ui.colored_label(err_color(), t("Im Browser geht das nicht. Bitte die Desktop-Version verwenden oder einen Anbieter mit JMAP wählen."));
                     }
                     if !s.error.is_empty() {
                         ui.add_space(4.0);
-                        ui.colored_label(ERR, &s.error);
+                        ui.colored_label(err_color(), &s.error);
                     }
                 });
                 ui.add_space(8.0);
@@ -1138,7 +1158,7 @@ impl App {
                     if ui.button(t("Abbrechen")).clicked() {
                         acts.push(Act::CancelSetup);
                     }
-                    if !s.is_new && ui.button(RichText::new(t("Konto entfernen")).color(ERR)).clicked() {
+                    if !s.is_new && ui.button(RichText::new(t("Konto entfernen")).color(err_color())).clicked() {
                         acts.push(Act::AskDeleteAccount(s.acc.id));
                     }
                 });
@@ -1201,7 +1221,7 @@ impl App {
             }
             if !c.error.is_empty() {
                 ui.add_space(4.0);
-                ui.colored_label(ERR, &c.error);
+                ui.colored_label(err_color(), &c.error);
             }
             ui.add_space(8.0);
             ui.horizontal(|ui| {
@@ -1230,7 +1250,7 @@ impl App {
             ui.label(tf("«{name}» wird aus Mailwerk entfernt. Die Nachrichten auf dem Server bleiben erhalten.", &[("name", &name)]));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.button(RichText::new(t("Entfernen")).color(ERR)).clicked() {
+                if ui.button(RichText::new(t("Entfernen")).color(err_color())).clicked() {
                     acts.push(Act::DeleteAccount(id));
                 }
                 if ui.button(t("Abbrechen")).clicked() {
@@ -1254,14 +1274,26 @@ impl eframe::App for App {
         if self.styled_dark != Some(dark) {
             self.styled_dark = Some(dark);
             ctx.style_mut(|s| {
-                s.visuals.selection.bg_fill = ACCENT;
-                s.visuals.hyperlink_color = ACCENT;
+                s.visuals.selection.bg_fill = thema::pick(Color32::from_rgb(0xA8, 0xDD, 0xD6), Color32::from_rgb(0x1F, 0x6A, 0x62));
+                s.visuals.selection.stroke = egui::Stroke::new(1.0, accent_text());
+                s.visuals.hyperlink_color = accent_text();
             });
         }
 
         // Neue Ereignisse einlesen.
+        let mut status_changed = false;
         for ev in self.backend.poll() {
+            // Nach jedem Abruf (und nach Gelesen/Verschieben/Löschen) die Statusdatei fürs
+            // «Mail»-Widget im Werkbank-Launcher neu schreiben.
+            status_changed |= match &ev {
+                Ev::Folders { .. } | Ev::Headers { .. } => true,
+                Ev::Done { what, .. } => what.starts_with("seen:") || what.starts_with("move:") || what.starts_with("delete:"),
+                _ => false,
+            };
             self.on_event(ev);
+        }
+        if status_changed {
+            status::write(&self.saved, timeutil::now_ts());
         }
 
         // Alle fünf Minuten automatisch aktualisieren.
@@ -1303,7 +1335,7 @@ impl eframe::App for App {
                 if let Some((text, err)) = &self.status {
                     ui.horizontal_wrapped(|ui| {
                         let r = RichText::new(text);
-                        ui.label(if *err { r.color(ERR) } else { r });
+                        ui.label(if *err { r.color(err_color()) } else { r });
                         if ui.small_button("OK").clicked() {
                             acts.push(Act::ClearStatus);
                         }

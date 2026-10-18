@@ -4,6 +4,7 @@
 
 use crate::scan::{self, fmt_size, group_thousands, Node};
 use crate::sprache::{t, tf};
+use crate::thema;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -11,8 +12,13 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
 
+/// Türkis für Schrift, Balken und Linien – je Design lesbar auf dem Hintergrund.
 fn teal() -> egui::Color32 {
-    egui::Color32::from_rgb(0x0f, 0x9f, 0x8a)
+    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x2d, 0xd4, 0xbf))
+}
+/// Füllung der Hauptschaltfläche (weisse Schrift darauf) – in beiden Designs gleich.
+fn teal_fill() -> egui::Color32 {
+    egui::Color32::from_rgb(0x0f, 0x76, 0x6e)
 }
 
 struct Prog {
@@ -43,6 +49,7 @@ impl App {
             f.size *= 1.03;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         App {
             root: None,
             tree: None,
@@ -127,7 +134,7 @@ impl eframe::App for App {
                 let open = egui::Button::new(
                     egui::RichText::new(format!("   {}   ", t("Ordner wählen"))).color(egui::Color32::WHITE),
                 )
-                .fill(teal());
+                .fill(teal_fill());
                 if ui.add_enabled(!self.scanning, open).clicked() {
                     if let Some(d) = rfd::FileDialog::new().pick_folder() {
                         self.start_scan(d);
@@ -211,7 +218,7 @@ impl eframe::App for App {
                 .show(ctx, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new(t("GRÖSSTE DATEIEN")).strong().size(11.0).color(egui::Color32::from_gray(130)));
+                        ui.label(egui::RichText::new(t("GRÖSSTE DATEIEN")).strong().size(11.0).color(thema::muted()));
                         ui.add_space(4.0);
                         let maxf = self.largest.first().map(|x| x.1).unwrap_or(1).max(1);
                         for (name, sz) in self.largest.iter().take(15) {
@@ -226,7 +233,7 @@ impl eframe::App for App {
                         ui.add_space(12.0);
                         ui.separator();
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new(t("DATEITYPEN")).strong().size(11.0).color(egui::Color32::from_gray(130)));
+                        ui.label(egui::RichText::new(t("DATEITYPEN")).strong().size(11.0).color(thema::muted()));
                         ui.add_space(4.0);
                         let maxe = self.exts.first().map(|x| x.1).unwrap_or(1).max(1);
                         for (ext, sz, _c) in self.exts.iter().take(15) {
@@ -294,11 +301,7 @@ fn short(path: &str) -> String {
 fn tri_toggle(ui: &mut egui::Ui, open: bool) -> bool {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(14.0, 16.0), egui::Sense::click());
     let c = rect.center();
-    let col = if resp.hovered() {
-        teal()
-    } else {
-        egui::Color32::from_gray(110)
-    };
+    let col = if resp.hovered() { teal() } else { thema::muted() };
     let pts = if open {
         vec![
             egui::pos2(c.x - 4.0, c.y - 2.5),
@@ -320,7 +323,7 @@ fn tri_toggle(ui: &mut egui::Ui, open: bool) -> bool {
 fn bar(ui: &mut egui::Ui, frac: f32, color: egui::Color32, w: f32) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(w, 8.0), egui::Sense::hover());
     let p = ui.painter();
-    p.rect_filled(rect, 4.0, egui::Color32::from_gray(235));
+    p.rect_filled(rect, 4.0, thema::pick(egui::Color32::from_gray(235), egui::Color32::from_rgb(0x32, 0x35, 0x3d)));
     let mut fr = rect;
     fr.set_width(rect.width() * frac.clamp(0.0, 1.0));
     p.rect_filled(fr, 4.0, color);
@@ -351,11 +354,11 @@ fn node_ui(
         let label = if node.is_dir {
             egui::RichText::new(node.name.as_str()).strong()
         } else {
-            egui::RichText::new(node.name.as_str()).color(egui::Color32::from_gray(90))
+            egui::RichText::new(node.name.as_str()).color(thema::muted())
         };
         ui.add(egui::Label::new(label).truncate());
         let frac = node.size as f32 / total as f32;
-        let col = if node.is_dir { teal() } else { egui::Color32::from_gray(150) };
+        let col = if node.is_dir { teal() } else { thema::pick(egui::Color32::from_gray(150), egui::Color32::from_gray(110)) };
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.monospace(fmt_size(node.size));
             ui.weak(format!("{:>3.0}%", frac * 100.0));

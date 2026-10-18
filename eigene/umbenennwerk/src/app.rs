@@ -5,6 +5,7 @@
 use crate::datefmt::fmt_date;
 use crate::rename::{self, Case, Pos, Rules};
 use crate::sprache::{t, tf};
+use crate::thema;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -32,8 +33,17 @@ fn mtime_secs(p: &Path) -> i64 {
         .unwrap_or(0)
 }
 
+/// Füllung der Umbenennen-Schaltfläche (weisse Schrift darauf) – in beiden Designs gleich.
 fn accent() -> egui::Color32 {
     egui::Color32::from_rgb(0x1f, 0x6f, 0xeb)
+}
+/// Akzent als Schriftfarbe (neue Namen), lesbar im hellen und dunklen Design.
+fn accent_text() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x1d, 0x4e, 0xd8), egui::Color32::from_rgb(0x60, 0xa5, 0xfa))
+}
+/// Warn-/Konfliktfarbe als Schrift.
+fn warn() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }
 
 impl App {
@@ -43,6 +53,7 @@ impl App {
             f.size *= 1.03;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         App {
             rows: Vec::new(),
             rules: Rules::default(),
@@ -226,7 +237,7 @@ impl eframe::App for App {
                     ui.add_space(10.0);
                     if nconf > 0 {
                         ui.colored_label(
-                            egui::Color32::from_rgb(0xc0, 0x39, 0x2b),
+                            warn(),
                             tf("{n} Konflikt(e)", &[("n", &nconf)]),
                         );
                         ui.label("·");
@@ -241,7 +252,7 @@ impl eframe::App for App {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 if self.status_warn {
-                    ui.colored_label(egui::Color32::from_rgb(0xc0, 0x39, 0x2b), self.status.as_str());
+                    ui.colored_label(warn(), self.status.as_str());
                 } else {
                     ui.weak(self.status.as_str());
                 }
@@ -288,13 +299,13 @@ impl eframe::App for App {
                             ui.weak("→");
                             if conf[i] {
                                 ui.colored_label(
-                                    egui::Color32::from_rgb(0xc0, 0x39, 0x2b),
+                                    warn(),
                                     format!("{}  ⚠", new[i]),
                                 );
                             } else if new[i] == r.name {
                                 ui.weak(new[i].as_str());
                             } else {
-                                ui.colored_label(accent(), new[i].as_str());
+                                ui.colored_label(accent_text(), new[i].as_str());
                             }
                             ui.end_row();
                         }
@@ -397,7 +408,7 @@ impl App {
 }
 
 fn section(ui: &mut egui::Ui, title: &str) {
-    ui.label(egui::RichText::new(title).strong().size(12.0).color(egui::Color32::from_gray(120)));
+    ui.label(egui::RichText::new(title).strong().size(12.0).color(thema::muted()));
 }
 
 fn seg_pos(ui: &mut egui::Ui, pos: &mut Pos) {

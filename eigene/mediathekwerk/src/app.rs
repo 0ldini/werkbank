@@ -9,19 +9,34 @@ use std::sync::{Arc, Mutex};
 use crate::model::{self, Entry, Filter, Kind, Status};
 use crate::sprache::{t, tf};
 use crate::store::{self, Config};
+use crate::thema;
 use crate::tmdb;
 
+/// Bernstein für Flächen, Sterne, Logo und Auswahlrahmen – in beiden Designs gleich.
 fn am() -> egui::Color32 {
     egui::Color32::from_rgb(0xe0, 0x98, 0x2a)
 }
-fn am_soft() -> egui::Color32 {
-    egui::Color32::from_rgb(0xfb, 0xf0, 0xdb)
+/// Dunkle Schrift auf `am()`-Flächen (weiss wäre auf Bernstein zu schwach lesbar).
+fn on_am() -> egui::Color32 {
+    egui::Color32::from_rgb(0x17, 0x18, 0x1c)
 }
+/// Bernstein als Schriftfarbe – je Design lesbar auf dem Hintergrund.
+fn am_text() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x8a, 0x5a, 0x0f), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
+}
+/// Hintergrund gewählter Chips.
+fn am_soft() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0xfb, 0xf0, 0xdb), egui::Color32::from_rgb(0x3a, 0x2e, 0x17))
+}
+fn red() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
+}
+/// Füllung der Status-Plakette auf dem Poster (weisse Schrift) – in beiden Designs gleich.
 fn status_color(s: Status) -> egui::Color32 {
     match s {
         Status::Geplant => egui::Color32::from_rgb(0x3a, 0x6e, 0xa5),
-        Status::AmSchauen => am(),
-        Status::Gesehen => egui::Color32::from_rgb(0x1f, 0x9d, 0x55),
+        Status::AmSchauen => egui::Color32::from_rgb(0xb4, 0x53, 0x09),
+        Status::Gesehen => egui::Color32::from_rgb(0x18, 0x86, 0x4a),
     }
 }
 
@@ -74,6 +89,7 @@ impl App {
             f.size *= 1.03;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         let cfg = store::load_config();
         let lib = store::load_library();
         let settings_open = cfg.api_key.trim().is_empty();
@@ -224,7 +240,7 @@ impl App {
             };
 
             if let Some(e) = err {
-                ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), e);
+                ui.colored_label(red(), e);
                 return;
             }
             if display.is_empty() {
@@ -296,17 +312,17 @@ impl App {
                     if sel.rating > 0.0 {
                         let (sr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
                         paint_star(ui.painter(), sr.center(), 6.0, true, am());
-                        ui.label(egui::RichText::new(format!("{:.1}", sel.rating)).color(am()).strong());
+                        ui.label(egui::RichText::new(format!("{:.1}", sel.rating)).color(am_text()).strong());
                     }
                 });
 
                 ui.add_space(10.0);
                 egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
-                    ui.label(egui::RichText::new(&sel.overview).size(12.5).color(egui::Color32::from_gray(70)));
+                    ui.label(egui::RichText::new(&sel.overview).size(12.5).color(thema::text()));
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new(t("STATUS")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("STATUS")).size(11.0).strong().color(thema::muted()));
                 ui.add_space(6.0);
                 let mut set_status: Option<Status> = None;
                 ui.horizontal(|ui| {
@@ -318,7 +334,7 @@ impl App {
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new(t("MEINE BEWERTUNG")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("MEINE BEWERTUNG")).size(11.0).strong().color(thema::muted()));
                 ui.add_space(6.0);
                 let set_rating = star_row(ui, sel.my_rating);
 
@@ -326,10 +342,10 @@ impl App {
                 let mut do_add = false;
                 let mut do_remove = false;
                 if in_lib.is_some() {
-                    if ui.add(egui::Button::new(egui::RichText::new(t("Aus Sammlung entfernen")).color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(0xe5, 0x34, 0x2e)).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new(t("Aus Sammlung entfernen")).color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c)).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
                         do_remove = true;
                     }
-                } else if ui.add(egui::Button::new(egui::RichText::new(t("In Sammlung aufnehmen")).color(egui::Color32::WHITE)).fill(am()).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
+                } else if ui.add(egui::Button::new(egui::RichText::new(t("In Sammlung aufnehmen")).color(on_am())).fill(am()).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
                     do_add = true;
                 }
 
@@ -389,7 +405,7 @@ impl App {
                         });
                 });
                 ui.add_space(12.0);
-                if ui.add(egui::Button::new(egui::RichText::new(t("Speichern")).color(egui::Color32::WHITE)).fill(am())).clicked() {
+                if ui.add(egui::Button::new(egui::RichText::new(t("Speichern")).color(on_am())).fill(am())).clicked() {
                     store::save_config(&self.cfg);
                     self.msg = t("Einstellungen gespeichert.").into();
                 }
@@ -407,10 +423,10 @@ fn chip(ui: &mut egui::Ui, sel: bool, label: &str) -> egui::Response {
         egui::Button::new(
             egui::RichText::new(label)
                 .size(12.5)
-                .color(if sel { egui::Color32::from_rgb(0x9a, 0x67, 0x13) } else { egui::Color32::from_gray(80) }),
+                .color(if sel { am_text() } else { thema::text() }),
         )
-        .fill(if sel { am_soft() } else { egui::Color32::WHITE })
-        .stroke(egui::Stroke::new(1.0, if sel { am() } else { egui::Color32::from_gray(222) })),
+        .fill(if sel { am_soft() } else { thema::panel() })
+        .stroke(egui::Stroke::new(1.0, if sel { am() } else { thema::border() })),
     )
 }
 
@@ -437,7 +453,8 @@ fn poster_card(ui: &mut egui::Ui, e: &Entry, pw: f32, ph: f32, selected: bool, s
 /// Poster-Fläche: Bild per URL, sonst Platzhalter mit Titel. Dazu Bewertung und
 /// (in der Sammlung) ein Status-Badge als Overlay.
 fn draw_poster(ui: &mut egui::Ui, rect: egui::Rect, e: &Entry, show_status: bool) {
-    ui.painter().rect_filled(rect, 8.0, egui::Color32::from_rgb(0x2a, 0x2e, 0x38));
+    // Platzhalter-Fläche: dunkel wie ein Poster; im dunklen Design etwas heller, damit sie sich abhebt.
+    ui.painter().rect_filled(rect, 8.0, thema::pick(egui::Color32::from_rgb(0x2a, 0x2e, 0x38), egui::Color32::from_rgb(0x33, 0x37, 0x42)));
     if let Some(path) = &e.poster {
         let url = model::image_url("w342", path);
         egui::Image::new(url.as_str()).rounding(8.0).paint_at(ui, rect);
@@ -469,7 +486,7 @@ fn star_row(ui: &mut egui::Ui, rating: u8) -> Option<u8> {
         for i in 0..5u8 {
             let (r, resp) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
             let filled = i < rating;
-            paint_star(ui.painter(), r.center(), 10.0, filled, if filled { am() } else { egui::Color32::from_gray(205) });
+            paint_star(ui.painter(), r.center(), 10.0, filled, if filled { am() } else { thema::pick(egui::Color32::from_gray(205), egui::Color32::from_rgb(0x6b, 0x70, 0x7b)) });
             if resp.clicked() {
                 set = Some(if rating == i + 1 { i } else { i + 1 });
             }

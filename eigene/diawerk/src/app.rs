@@ -12,19 +12,25 @@ use std::time::{Duration, Instant};
 use crate::model::{self, Item, Kind, OutFmt, Quality, Settings, Transition};
 use crate::render::{self, Control, Preview};
 use crate::sprache::{t, tf};
+use crate::thema;
 use crate::tool;
 
+// Schrift- und Linienfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
 fn vio() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x6d, 0x49, 0xe0), egui::Color32::from_rgb(0xa7, 0x8b, 0xfa))
+}
+/// Füllung der Hauptschaltfläche (weisse Schrift darauf) – in beiden Designs gleich.
+fn vio_fill() -> egui::Color32 {
     egui::Color32::from_rgb(0x6d, 0x49, 0xe0)
 }
 fn blue() -> egui::Color32 {
-    egui::Color32::from_rgb(0x25, 0x63, 0xeb)
+    thema::pick(egui::Color32::from_rgb(0x25, 0x63, 0xeb), egui::Color32::from_rgb(0x60, 0xa5, 0xfa))
 }
 fn orange() -> egui::Color32 {
-    egui::Color32::from_rgb(0xd9, 0x77, 0x06)
+    thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
 }
 fn red() -> egui::Color32 {
-    egui::Color32::from_rgb(0xdc, 0x26, 0x26)
+    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }
 
 /// Meldungen aus model.rs/render.rs übersetzen. Diese Dateien bleiben ohne Sprachmodul
@@ -146,6 +152,7 @@ impl App {
             f.size *= 1.04;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         let ffmpeg = tool::find_ffmpeg();
         let status = if ffmpeg.is_some() {
             t("Bilder und Videos hineinziehen oder oben hinzufügen.").to_string()
@@ -714,7 +721,7 @@ impl eframe::App for App {
                 } else {
                     let can_start = self.ffmpeg.is_some() && !self.items.is_empty() && self.probing.is_none();
                     let btn = egui::Button::new(egui::RichText::new(t("Diashow erstellen")).strong().color(egui::Color32::WHITE))
-                        .fill(vio());
+                        .fill(vio_fill());
                     let can_start = can_start && (!self.only_sel || !self.sel.is_empty());
                     if ui.add_enabled(can_start, btn).clicked() {
                         self.start_render();

@@ -1,0 +1,71 @@
+# Organiwerk: deutsch → englisch
+Neu	New
+Öffnen	Open
+Speichern	Save
+Als SVG	Export SVG
+Rückgängig	Undo
+Wiederholen	Redo
+Auswählen	Select
+Verbinden	Connect
+Einpassen	Fit
+Einrasten	Snap
+Raster	Grid
+Einfügen:	Insert:
+Organigramm anordnen	Arrange org chart
+Ordnet die verbundenen Karten als Baum an (nur die Auswahl, wenn etwas gewählt ist).	Arranges the connected cards as a tree (only the selection, if anything is selected).
+Beispiel	Example
+Rechteck	Rectangle
+Abgerundet	Rounded
+Ellipse	Ellipse
+Raute	Diamond
+Person / Stelle	Person / Position
+Text	Text
+Gruppe	Group
+Verbinder	Connector
+Beschriftung	Label
+Pfeilspitze	Arrowhead
+Rechtwinklig	Elbow
+Gerade	Straight
+Richtung umkehren	Reverse direction
+Löschen	Delete
+Form	Shape
+Name, Funktion (zweite Zeile)	Name, role (second line)
+Breite	Width
+Höhe	Height
+Schrift	Font size
+Farbe	Color
+Untergeordnet hinzufügen	Add subordinate
+Strg+Enter	Ctrl+Enter
+Gleiche Ebene hinzufügen	Add on same level
+Strg+Umschalt+Enter	Ctrl+Shift+Enter
+Duplizieren	Duplicate
+{n} Formen gewählt	{n} shapes selected
+Ausrichten	Align
+Links	Left
+Mitte	Center
+Rechts	Right
+Oben	Top
+Mitte ↕	Middle ↕
+Unten	Bottom
+Gleichmässig ↔	Distribute ↔
+Gleichmässig ↕	Distribute ↕
+Nichts gewählt	Nothing selected
+{s} Formen, {e} Verbinder	{s} shapes, {e} connectors
+So geht's	How it works
+Doppelklick auf die Fläche: neue Karte	Double-click the canvas: new card
+Doppelklick auf eine Karte: Text ändern	Double-click a card: edit text
+Verbinden: Werkzeug «Verbinden» wählen und von Karte zu Karte ziehen (oder nacheinander antippen)	Connect: choose the “Connect” tool and drag from card to card (or tap them one after the other)
+Karte wählen, dann «Untergeordnet hinzufügen»: Karte samt Verbinder	Select a card, then “Add subordinate”: new card with connector
+«Organigramm anordnen» richtet alles als Baum aus	“Arrange org chart” lays everything out as a tree
+Rechteck aufziehen: mehrere wählen; Umschalt: dazuwählen	Drag a rectangle: select several; Shift: add to selection
+Fläche verschieben: Mausrad, Leertaste+Ziehen oder rechte Maustaste. Zoom: Strg+Mausrad	Pan: mouse wheel, Space+drag or right mouse button. Zoom: Ctrl+mouse wheel
+Strg+Z / Strg+Y: Rückgängig / Wiederholen, Strg+D: Duplizieren, Entf: Löschen	Ctrl+Z / Ctrl+Y: Undo / Redo, Ctrl+D: Duplicate, Del: Delete
+Doppelklick auf die Fläche legt eine Karte an.\nOder oben bei «Einfügen» eine Form wählen.	Double-click the canvas to add a card.\nOr choose a shape under “Insert” at the top.
+Die Datei ist kein Text.	The file is not a text file.
+«{name}» geöffnet.	Opened “{name}”.
+«{name}» konnte nicht geöffnet werden: {e}	Could not open “{name}”: {e}
+Das ist keine Organiwerk-Datei.	This is not an Organiwerk file.
+Datei	File
+Name\nFunktion	Name\nRole
+Entscheid?	Decision?
+Abteilung	Department

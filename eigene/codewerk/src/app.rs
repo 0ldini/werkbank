@@ -4,6 +4,7 @@
 use crate::qr::{self, Content, Ec, Style, SwissQr, WifiEnc};
 use crate::save::save_bytes;
 use crate::sprache::t;
+use crate::thema;
 
 #[derive(PartialEq, Clone, Copy)]
 enum Kind {
@@ -73,6 +74,8 @@ impl App {
             f.size *= 1.05;
         }
         cc.egui_ctx.set_style(style);
+        // Im Browser (wasm) gibt es weder Umgebungsvariable noch Datei – dort bleibt es hell.
+        thema::apply(&cc.egui_ctx);
         Self::default()
     }
 
@@ -224,7 +227,7 @@ impl eframe::App for App {
             ui.vertical_centered(|ui| {
                 if let Some(err) = &self.err {
                     ui.add_space(40.0);
-                    ui.colored_label(egui::Color32::from_rgb(0xc0, 0x39, 0x2b), err);
+                    ui.colored_label(thema::pick(egui::Color32::from_rgb(0xc0, 0x39, 0x2b), egui::Color32::from_rgb(0xf8, 0x71, 0x71)), err);
                 } else if let Some(tex) = &self.tex {
                     let avail = ui.available_width().min(ui.available_height() - 90.0);
                     let d = avail.clamp(120.0, 440.0);

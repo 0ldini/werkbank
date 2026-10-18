@@ -5,6 +5,8 @@ mod app;
 mod json;
 mod model;
 mod save;
+mod sprache;
+mod thema;
 
 use app::App;
 

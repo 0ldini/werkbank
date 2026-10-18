@@ -17,8 +17,10 @@ mod role;
 mod save;
 mod smtp;
 mod sprache;
+mod status;
 mod store;
 mod textutil;
+mod thema;
 mod timeutil;
 mod types;
 

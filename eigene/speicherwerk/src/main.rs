@@ -3,6 +3,7 @@
 mod app;
 mod scan;
 mod sprache;
+mod thema;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

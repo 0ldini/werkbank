@@ -6,8 +6,18 @@ use egui::{pos2, vec2, Color32, FontId, Key, Modifiers, Pos2, Rect, RichText, Se
 
 use crate::model::{self, Align, Doc, Kind, P, PALETTE};
 use crate::save;
+use crate::sprache::{t, tf};
+use crate::thema;
 
+/// Programmfarbe auf der (immer hellen) Zeichenfläche: Auswahl, Griffe, Verbindungslinie.
 const ACCENT: Color32 = Color32::from_rgb(0x2F, 0x5F, 0xB3);
+/// Zeichenfläche («Papier»): bleibt in beiden Designs hell, wie das Diagramm im SVG.
+const PAPER: Color32 = Color32::from_rgb(0xFA, 0xFB, 0xFC);
+
+/// Programmfarbe für Text in der Oberfläche (im dunklen Design heller, damit lesbar).
+fn accent_text() -> Color32 {
+    thema::pick(ACCENT, Color32::from_rgb(0x7F, 0xA8, 0xF0))
+}
 const INK: Color32 = Color32::from_rgb(0x3A, 0x46, 0x50);
 const STORAGE_KEY: &str = "organiwerk_v1";
 const GRID: f32 = 10.0;
@@ -75,11 +85,18 @@ pub struct App {
     status: String,
     open_tx: Sender<(String, Vec<u8>)>,
     open_rx: Receiver<(String, Vec<u8>)>,
-    styled: bool,
 }
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Hell/Dunkel wie im Werkbank-Launcher gewählt (nicht nach dem System).
+        cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
+        thema::apply(&cc.egui_ctx);
+        cc.egui_ctx.style_mut(|s| {
+            s.visuals.selection.bg_fill = thema::pick(Color32::from_rgb(0xC7, 0xD7, 0xF2), Color32::from_rgb(0x2D, 0x4A, 0x7A));
+            s.visuals.selection.stroke = Stroke::new(1.0, accent_text());
+            s.visuals.hyperlink_color = accent_text();
+        });
         let doc = cc
             .storage
             .and_then(|s| s.get_string(STORAGE_KEY))
@@ -109,7 +126,22 @@ impl App {
             status: String::new(),
             open_tx,
             open_rx,
-            styled: false,
+        }
+    }
+
+    /// Vorgabetext einer neuen Form in der gewählten Sprache (eingegebene Texte bleiben, wie sie sind).
+    fn localize_new(&mut self, id: u64) {
+        if let Some(s) = self.doc.shape_mut(id) {
+            let de: Option<&'static str> = match s.text.as_str() {
+                "Name\nFunktion" => Some("Name\nFunktion"),
+                "Entscheid?" => Some("Entscheid?"),
+                "Abteilung" => Some("Abteilung"),
+                "Text" => Some("Text"),
+                _ => None,
+            };
+            if let Some(de) = de {
+                s.text = t(de).to_string();
+            }
         }
     }
 
@@ -172,6 +204,7 @@ impl App {
         let off = (self.spawn % 6) as f32 * 24.0;
         self.spawn += 1;
         let id = self.doc.add_shape(kind, self.snap_v(c.0 + off), self.snap_v(c.1 + off));
+        self.localize_new(id);
         self.sel = vec![id];
         self.sel_edge = None;
         self.focus_text = true;
@@ -188,6 +221,7 @@ impl App {
     fn add_child(&mut self) {
         if let Some(id) = self.sel.first().copied() {
             if let Some(n) = self.doc.add_child(id) {
+                self.localize_new(n);
                 self.sel = vec![n];
                 self.focus_text = true;
             }
@@ -197,6 +231,7 @@ impl App {
     fn add_sibling(&mut self) {
         if let Some(id) = self.sel.first().copied() {
             if let Some(n) = self.doc.add_sibling(id) {
+                self.localize_new(n);
                 self.sel = vec![n];
                 self.focus_text = true;
             }
@@ -399,7 +434,7 @@ fn paint_arrow(painter: &egui::Painter, from: Pos2, tip: Pos2, color: Color32, s
 
 impl App {
     fn paint_doc(&self, painter: &egui::Painter, v: View, rect: Rect) {
-        painter.rect_filled(rect, 0.0, Color32::from_rgb(0xFA, 0xFB, 0xFC));
+        painter.rect_filled(rect, 0.0, PAPER);
         if self.show_grid {
             let step = GRID * 2.0 * v.zoom;
             if step >= 8.0 {
@@ -439,7 +474,7 @@ impl App {
                 let m = v.s(model::polyline_mid(&pts));
                 let g = painter.layout_no_wrap(e.label.clone(), FontId::proportional((12.0 * v.zoom).max(8.0)), INK);
                 let r = Rect::from_center_size(m, g.size() + vec2(8.0, 4.0));
-                painter.rect_filled(r, 3.0, Color32::from_rgb(0xFA, 0xFB, 0xFC));
+                painter.rect_filled(r, 3.0, PAPER);
                 painter.galley(pos2(m.x - g.size().x / 2.0, m.y - g.size().y / 2.0), g, INK);
             }
         }
@@ -471,7 +506,7 @@ impl App {
             }
         }
         if self.doc.shapes.is_empty() {
-            painter.text(rect.center(), egui::Align2::CENTER_CENTER, "Doppelklick auf die Fläche legt eine Karte an.\nOder oben bei «Einfügen» eine Form wählen.", FontId::proportional(15.0), Color32::from_rgb(0x8E, 0x9A, 0xA3));
+            painter.text(rect.center(), egui::Align2::CENTER_CENTER, t("Doppelklick auf die Fläche legt eine Karte an.\nOder oben bei «Einfügen» eine Form wählen."), FontId::proportional(15.0), Color32::from_rgb(0x5B, 0x61, 0x6E));
         }
     }
 
@@ -675,6 +710,7 @@ impl App {
                     }
                     None => {
                         let id = self.doc.add_shape(Kind::Org, self.snap_v(wp.0), self.snap_v(wp.1));
+                        self.localize_new(id);
                         self.sel = vec![id];
                         self.sel_edge = None;
                         self.focus_text = true;
@@ -694,32 +730,32 @@ impl App {
     fn ui_toolbar(&mut self, ui: &mut egui::Ui) {
         ui.add_space(4.0);
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Organiwerk").strong().color(ACCENT));
-            if ui.button("Neu").clicked() {
+            ui.label(RichText::new("Organiwerk").strong().color(accent_text()));
+            if ui.button(t("Neu")).clicked() {
                 self.doc = Doc::default();
                 self.sel.clear();
                 self.sel_edge = None;
                 self.fitted = false;
             }
-            if ui.button("Öffnen").clicked() {
+            if ui.button(t("Öffnen")).clicked() {
                 self.open_file(&ui.ctx().clone());
             }
-            if ui.button("Speichern").clicked() {
+            if ui.button(t("Speichern")).clicked() {
                 self.save_file();
             }
-            if ui.button("Als SVG").clicked() {
+            if ui.button(t("Als SVG")).clicked() {
                 self.export_svg();
             }
             ui.separator();
-            if ui.add_enabled(!self.undo.is_empty(), egui::Button::new("Rückgängig")).clicked() {
+            if ui.add_enabled(!self.undo.is_empty(), egui::Button::new(t("Rückgängig"))).clicked() {
                 self.do_undo();
             }
-            if ui.add_enabled(!self.redo.is_empty(), egui::Button::new("Wiederholen")).clicked() {
+            if ui.add_enabled(!self.redo.is_empty(), egui::Button::new(t("Wiederholen"))).clicked() {
                 self.do_redo();
             }
             ui.separator();
-            ui.selectable_value(&mut self.tool, Tool::Select, "Auswählen");
-            ui.selectable_value(&mut self.tool, Tool::Connect, "Verbinden");
+            ui.selectable_value(&mut self.tool, Tool::Select, t("Auswählen"));
+            ui.selectable_value(&mut self.tool, Tool::Connect, t("Verbinden"));
             ui.separator();
             if ui.button("−").clicked() {
                 self.zoom_by(1.0 / 1.2);
@@ -728,24 +764,24 @@ impl App {
             if ui.button("+").clicked() {
                 self.zoom_by(1.2);
             }
-            if ui.button("Einpassen").clicked() {
+            if ui.button(t("Einpassen")).clicked() {
                 self.fitted = false;
             }
-            ui.checkbox(&mut self.snap, "Einrasten");
-            ui.checkbox(&mut self.show_grid, "Raster");
+            ui.checkbox(&mut self.snap, t("Einrasten"));
+            ui.checkbox(&mut self.show_grid, t("Raster"));
         });
         ui.horizontal_wrapped(|ui| {
-            ui.label("Einfügen:");
+            ui.label(t("Einfügen:"));
             for k in Kind::ALL {
-                if ui.button(k.label()).clicked() {
+                if ui.button(t(k.label())).clicked() {
                     self.add_at_center(k);
                 }
             }
             ui.separator();
-            if ui.button("Organigramm anordnen").on_hover_text("Ordnet die verbundenen Karten als Baum an (nur die Auswahl, wenn etwas gewählt ist).").clicked() {
+            if ui.button(t("Organigramm anordnen")).on_hover_text(t("Ordnet die verbundenen Karten als Baum an (nur die Auswahl, wenn etwas gewählt ist).")).clicked() {
                 self.arrange();
             }
-            if ui.button("Beispiel").clicked() {
+            if ui.button(t("Beispiel")).clicked() {
                 self.doc = Doc::example();
                 self.sel.clear();
                 self.fitted = false;
@@ -778,100 +814,100 @@ impl App {
             ui.add_space(6.0);
             let sel = self.sel.clone();
             if let Some(eid) = self.sel_edge {
-                ui.label(RichText::new("Verbinder").strong());
+                ui.label(RichText::new(t("Verbinder")).strong());
                 if let Some(e) = self.doc.edge_mut(eid) {
-                    ui.label("Beschriftung");
+                    ui.label(t("Beschriftung"));
                     let r = ui.add(egui::TextEdit::singleline(&mut e.label).desired_width(f32::INFINITY));
                     self.typing |= r.has_focus();
-                    ui.checkbox(&mut e.arrow, "Pfeilspitze");
-                    ui.radio_value(&mut e.elbow, true, "Rechtwinklig");
-                    ui.radio_value(&mut e.elbow, false, "Gerade");
-                    if ui.button("Richtung umkehren").clicked() {
+                    ui.checkbox(&mut e.arrow, t("Pfeilspitze"));
+                    ui.radio_value(&mut e.elbow, true, t("Rechtwinklig"));
+                    ui.radio_value(&mut e.elbow, false, t("Gerade"));
+                    if ui.button(t("Richtung umkehren")).clicked() {
                         std::mem::swap(&mut e.a, &mut e.b);
                     }
                 }
-                if ui.button("Löschen").clicked() {
+                if ui.button(t("Löschen")).clicked() {
                     self.delete_selection();
                 }
             } else if sel.len() == 1 && self.doc.shape(sel[0]).is_some() {
                 let id = sel[0];
-                ui.label(RichText::new("Form").strong());
+                ui.label(RichText::new(t("Form")).strong());
                 let want_focus = std::mem::take(&mut self.focus_text);
                 if let Some(s) = self.doc.shape_mut(id) {
-                    ui.label(if s.kind == Kind::Org { "Name, Funktion (zweite Zeile)" } else { "Text" });
+                    ui.label(if s.kind == Kind::Org { t("Name, Funktion (zweite Zeile)") } else { t("Text") });
                     let r = ui.add(egui::TextEdit::multiline(&mut s.text).desired_rows(3).desired_width(f32::INFINITY));
                     if want_focus {
                         r.request_focus();
                     }
                     self.typing |= r.has_focus();
                     ui.add_space(4.0);
-                    egui::ComboBox::from_id_salt("kind").selected_text(s.kind.label()).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt("kind").selected_text(t(s.kind.label())).show_ui(ui, |ui| {
                         for k in Kind::ALL {
-                            ui.selectable_value(&mut s.kind, k, k.label());
+                            ui.selectable_value(&mut s.kind, k, t(k.label()));
                         }
                     });
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
-                        ui.label("Breite");
+                        ui.label(t("Breite"));
                         ui.add(egui::DragValue::new(&mut s.w).range(24.0..=2000.0).speed(1.0));
-                        ui.label("Höhe");
+                        ui.label(t("Höhe"));
                         ui.add(egui::DragValue::new(&mut s.h).range(20.0..=2000.0).speed(1.0));
                     });
                     ui.horizontal(|ui| {
-                        ui.label("Schrift");
+                        ui.label(t("Schrift"));
                         ui.add(egui::DragValue::new(&mut s.font).range(8.0..=60.0).speed(0.2));
                     });
                 }
                 ui.add_space(4.0);
-                ui.label("Farbe");
+                ui.label(t("Farbe"));
                 self.swatches(ui, &[id]);
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button("Untergeordnet hinzufügen").on_hover_text("Strg+Enter").clicked() {
+                    if ui.button(t("Untergeordnet hinzufügen")).on_hover_text(t("Strg+Enter")).clicked() {
                         self.add_child();
                     }
-                    if ui.button("Gleiche Ebene hinzufügen").on_hover_text("Strg+Umschalt+Enter").clicked() {
+                    if ui.button(t("Gleiche Ebene hinzufügen")).on_hover_text(t("Strg+Umschalt+Enter")).clicked() {
                         self.add_sibling();
                     }
                 });
                 ui.horizontal(|ui| {
-                    if ui.button("Duplizieren").clicked() {
+                    if ui.button(t("Duplizieren")).clicked() {
                         self.duplicate();
                     }
-                    if ui.button("Löschen").clicked() {
+                    if ui.button(t("Löschen")).clicked() {
                         self.delete_selection();
                     }
                 });
             } else if sel.len() > 1 {
-                ui.label(RichText::new(format!("{} Formen gewählt", sel.len())).strong());
+                ui.label(RichText::new(tf("{n} Formen gewählt", &[("n", &sel.len())])).strong());
                 ui.add_space(4.0);
-                ui.label("Ausrichten");
+                ui.label(t("Ausrichten"));
                 ui.horizontal_wrapped(|ui| {
                     for (label, how) in [("Links", Align::Left), ("Mitte", Align::HCenter), ("Rechts", Align::Right), ("Oben", Align::Top), ("Mitte ↕", Align::VCenter), ("Unten", Align::Bottom), ("Gleichmässig ↔", Align::DistributeH), ("Gleichmässig ↕", Align::DistributeV)] {
-                        if ui.button(label).clicked() {
+                        if ui.button(t(label)).clicked() {
                             self.doc.align(&sel, how);
                         }
                     }
                 });
                 ui.add_space(4.0);
-                ui.label("Farbe");
+                ui.label(t("Farbe"));
                 self.swatches(ui, &sel);
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Duplizieren").clicked() {
+                    if ui.button(t("Duplizieren")).clicked() {
                         self.duplicate();
                     }
-                    if ui.button("Löschen").clicked() {
+                    if ui.button(t("Löschen")).clicked() {
                         self.delete_selection();
                     }
                 });
             } else {
-                ui.label(RichText::new("Nichts gewählt").strong());
+                ui.label(RichText::new(t("Nichts gewählt")).strong());
                 ui.add_space(4.0);
-                ui.label(format!("{} Formen, {} Verbinder", self.doc.shapes.len(), self.doc.edges.len()));
+                ui.label(tf("{s} Formen, {e} Verbinder", &[("s", &self.doc.shapes.len()), ("e", &self.doc.edges.len())]));
                 ui.add_space(8.0);
-                ui.label(RichText::new("So geht's").strong());
-                for t in [
+                ui.label(RichText::new(t("So geht's")).strong());
+                for h in [
                     "Doppelklick auf die Fläche: neue Karte",
                     "Doppelklick auf eine Karte: Text ändern",
                     "Verbinden: Werkzeug «Verbinden» wählen und von Karte zu Karte ziehen (oder nacheinander antippen)",
@@ -881,7 +917,7 @@ impl App {
                     "Fläche verschieben: Mausrad, Leertaste+Ziehen oder rechte Maustaste. Zoom: Strg+Mausrad",
                     "Strg+Z / Strg+Y: Rückgängig / Wiederholen, Strg+D: Duplizieren, Entf: Löschen",
                 ] {
-                    ui.label(RichText::new(format!("• {t}")).small());
+                    ui.label(RichText::new(format!("• {}", t(h))).small());
                 }
             }
         });
@@ -896,25 +932,21 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if !self.styled {
-            self.styled = true;
-            ctx.style_mut(|s| {
-                s.visuals.selection.bg_fill = ACCENT;
-                s.visuals.hyperlink_color = ACCENT;
-            });
-        }
-
         // Geöffnete Dateien einlesen
         while let Ok((name, data)) = self.open_rx.try_recv() {
-            match String::from_utf8(data).map_err(|_| "Die Datei ist kein Text.".to_string()).and_then(|t| Doc::from_json_str(&t)) {
+            match String::from_utf8(data).map_err(|_| t("Die Datei ist kein Text.").to_string()).and_then(|t| Doc::from_json_str(&t)) {
                 Ok(d) => {
                     self.doc = d;
                     self.sel.clear();
                     self.sel_edge = None;
                     self.fitted = false;
-                    self.status = format!("«{name}» geöffnet.");
+                    self.status = tf("«{name}» geöffnet.", &[("name", &name)]);
                 }
-                Err(e) => self.status = format!("«{name}» konnte nicht geöffnet werden: {e}"),
+                Err(e) => {
+                    // Bekannte Meldung aus model.rs übersetzen (model.rs bleibt ohne sprache.rs testbar).
+                    let e = if e == "Das ist keine Organiwerk-Datei." { t("Das ist keine Organiwerk-Datei.").to_string() } else { e };
+                    self.status = tf("«{name}» konnte nicht geöffnet werden: {e}", &[("name", &name), ("e", &e)]);
+                }
             }
         }
 

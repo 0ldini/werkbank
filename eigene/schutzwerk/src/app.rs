@@ -9,18 +9,32 @@ use crate::netparse::{self, Device};
 use crate::sprache::{t, tf};
 use crate::pwcheck::{self, PwResult};
 use crate::sys::{self, Check, PortInfo, RecItem, State};
+use crate::thema;
 
+// Schrift-, Linien- und Statusfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
 fn grn() -> egui::Color32 {
-    egui::Color32::from_rgb(0x1f, 0x9d, 0x55)
+    thema::pick(egui::Color32::from_rgb(0x15, 0x7a, 0x3a), egui::Color32::from_rgb(0x4a, 0xde, 0x80))
 }
+/// Füllung von Schaltflächen/Logo mit weisser Schrift darauf – in beiden Designs gleich.
+fn grn_fill() -> egui::Color32 {
+    egui::Color32::from_rgb(0x18, 0x86, 0x4a)
+}
+/// Hintergrund für Gewähltes und Hinweise.
 fn grn_soft() -> egui::Color32 {
-    egui::Color32::from_rgb(0xe7, 0xf6, 0xee)
+    thema::pick(egui::Color32::from_rgb(0xe7, 0xf6, 0xee), egui::Color32::from_rgb(0x1b, 0x3a, 0x2a))
+}
+/// Schrift auf `grn_soft()`.
+fn grn_note() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x2b, 0x6b, 0x47), egui::Color32::from_rgb(0x9e, 0xe6, 0xbd))
 }
 fn amber() -> egui::Color32 {
-    egui::Color32::from_rgb(0xd9, 0x8a, 0x00)
+    thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
+}
+fn orange() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0xc2, 0x41, 0x0c), egui::Color32::from_rgb(0xfb, 0x92, 0x3c))
 }
 fn red() -> egui::Color32 {
-    egui::Color32::from_rgb(0xe5, 0x34, 0x2e)
+    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }
 
 const COMMON: &[&str] = &[
@@ -87,6 +101,7 @@ impl App {
             f.size *= 1.04;
         }
         cc.egui_ctx.set_style(style);
+        thema::apply(&cc.egui_ctx);
         App {
             section: Section::Password,
             pw: String::new(),
@@ -133,7 +148,7 @@ impl App {
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, grn());
+                ui.painter().rect_filled(r, 7.0, grn_fill());
                 paint_shield(ui.painter(), r.center());
                 ui.add_space(4.0);
                 ui.heading("Schutzwerk");
@@ -173,7 +188,7 @@ impl App {
                     ui.add(egui::Label::new(
                         egui::RichText::new(t("Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge."))
                             .size(11.0)
-                            .color(egui::Color32::from_gray(150)),
+                            .color(thema::muted()),
                     ));
                 });
             });
@@ -243,7 +258,7 @@ impl App {
     fn page_network(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("Netzwerk"), t("Eigene offene Ports und Geräte im Netz – nur Lesen, keine Fremdscans."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Scannen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Scannen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
                 self.ports.start(sys::open_ports);
                 self.lan.start(sys::lan_devices);
             }
@@ -256,7 +271,7 @@ impl App {
         ui.add_space(12.0);
 
         card(ui, |ui| {
-            ui.label(egui::RichText::new(t("OFFENE PORTS (DIESER PC)")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+            ui.label(egui::RichText::new(t("OFFENE PORTS (DIESER PC)")).size(11.0).strong().color(thema::muted()));
             ui.add_space(8.0);
             let g = self.ports.data.lock().unwrap();
             match g.as_ref() {
@@ -287,7 +302,7 @@ impl App {
         });
 
         card(ui, |ui| {
-            ui.label(egui::RichText::new(t("GERÄTE IM NETZ")).size(11.0).strong().color(egui::Color32::from_gray(150)));
+            ui.label(egui::RichText::new(t("GERÄTE IM NETZ")).size(11.0).strong().color(thema::muted()));
             ui.add_space(8.0);
             let g = self.lan.data.lock().unwrap();
             match g.as_ref() {
@@ -309,7 +324,7 @@ impl App {
     fn page_system(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("System-Schutz"), t("Status von Firewall, Virenschutz, Updates und SmartScreen."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Prüfen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Prüfen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
                 self.checks.start(sys::protection_status);
             }
             if self.checks.running() {
@@ -345,7 +360,7 @@ impl App {
     fn page_recycle(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("Papierkorb"), t("Gelöschte Dateien auflisten und an ihren Ursprungsort zurückholen."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Papierkorb lesen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Papierkorb lesen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
                 self.restore_msg.clear();
                 self.recycle.start(sys::list_recycle);
             }
@@ -448,9 +463,9 @@ impl App {
 
 fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
     egui::Frame::none()
-        .fill(egui::Color32::WHITE)
+        .fill(thema::panel())
         .rounding(14.0)
-        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(228)))
+        .stroke(egui::Stroke::new(1.0, thema::border()))
         .inner_margin(egui::Margin::symmetric(18.0, 15.0))
         .show(ui, |ui| {
             body(ui);
@@ -461,7 +476,7 @@ fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
 fn h1(ui: &mut egui::Ui, title: &str, sub: &str) {
     ui.label(egui::RichText::new(title).size(19.0).strong());
     ui.add_space(2.0);
-    ui.label(egui::RichText::new(sub).size(13.0).color(egui::Color32::from_gray(110)));
+    ui.label(egui::RichText::new(sub).size(13.0).color(thema::muted()));
     ui.add_space(16.0);
 }
 
@@ -471,7 +486,7 @@ fn note(ui: &mut egui::Ui, text: &str) {
         .rounding(10.0)
         .inner_margin(egui::Margin::symmetric(14.0, 11.0))
         .show(ui, |ui| {
-            ui.label(egui::RichText::new(text).size(12.5).color(egui::Color32::from_rgb(0x2b, 0x6b, 0x47)));
+            ui.label(egui::RichText::new(text).size(12.5).color(grn_note()));
         });
 }
 
@@ -488,7 +503,7 @@ fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, label: &str, _do
                 ui.label(
                     egui::RichText::new(label)
                         .size(13.5)
-                        .color(if sel { grn() } else { egui::Color32::from_gray(60) })
+                        .color(if sel { grn() } else { thema::text() })
                         .strong(),
                 );
                 ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
@@ -511,7 +526,7 @@ fn strength_meter(ui: &mut egui::Ui, level: u8) {
     for i in 0..5usize {
         let x = rect.left() + i as f32 * (seg + gap);
         let r = egui::Rect::from_min_size(egui::pos2(x, rect.top()), egui::vec2(seg, 10.0));
-        let c = if i <= level as usize { col } else { egui::Color32::from_gray(228) };
+        let c = if i <= level as usize { col } else { thema::pick(egui::Color32::from_gray(228), egui::Color32::from_rgb(0x3a, 0x3d, 0x46)) };
         ui.painter().rect_filled(r, 5.0, c);
     }
     ui.add_space(8.0);
@@ -520,7 +535,7 @@ fn strength_meter(ui: &mut egui::Ui, level: u8) {
 fn level_color(level: u8) -> egui::Color32 {
     match level {
         0 => red(),
-        1 => egui::Color32::from_rgb(0xe8, 0x6a, 0x1e),
+        1 => orange(),
         2 => amber(),
         _ => grn(),
     }
@@ -536,27 +551,27 @@ fn crit(ui: &mut egui::Ui, ok: bool, label: &str) {
             ui.painter().line_segment([egui::pos2(p.x - 3.5, p.y), egui::pos2(p.x - 1.0, p.y + 2.8)], st);
             ui.painter().line_segment([egui::pos2(p.x - 1.0, p.y + 2.8), egui::pos2(p.x + 3.8, p.y - 2.8)], st);
         } else {
-            ui.painter().circle_filled(c.center(), 9.0, egui::Color32::from_gray(238));
+            ui.painter().circle_filled(c.center(), 9.0, thema::hover());
             ui.painter().line_segment(
                 [egui::pos2(c.center().x - 3.0, c.center().y), egui::pos2(c.center().x + 3.0, c.center().y)],
-                egui::Stroke::new(2.0, egui::Color32::from_gray(170)),
+                egui::Stroke::new(2.0, thema::muted()),
             );
         }
         ui.add_space(4.0);
-        ui.label(egui::RichText::new(label).size(13.0).color(egui::Color32::from_gray(50)));
+        ui.label(egui::RichText::new(label).size(13.0).color(thema::text()));
     });
 }
 
 fn stat(ui: &mut egui::Ui, value: &str, key: &str) {
     ui.vertical(|ui| {
         ui.label(egui::RichText::new(value).size(22.0).strong());
-        ui.label(egui::RichText::new(key).size(11.5).color(egui::Color32::from_gray(120)));
+        ui.label(egui::RichText::new(key).size(11.5).color(thema::muted()));
     });
 }
 fn stat_colored(ui: &mut egui::Ui, value: &str, key: &str, col: egui::Color32) {
     ui.vertical(|ui| {
         ui.label(egui::RichText::new(value).size(22.0).strong().color(col));
-        ui.label(egui::RichText::new(key).size(11.5).color(egui::Color32::from_gray(120)));
+        ui.label(egui::RichText::new(key).size(11.5).color(thema::muted()));
     });
 }
 
@@ -570,7 +585,7 @@ fn state_color(s: State) -> egui::Color32 {
         State::Ok => grn(),
         State::Warn => amber(),
         State::Bad => red(),
-        State::Unknown => egui::Color32::from_gray(160),
+        State::Unknown => thema::muted(),
     }
 }
 fn state_label(s: State) -> &'static str {

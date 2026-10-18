@@ -4,6 +4,7 @@ mod app;
 mod model;
 mod sprache;
 mod store;
+mod thema;
 mod tmdb;
 
 fn main() -> eframe::Result<()> {

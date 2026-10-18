@@ -1,6 +1,6 @@
 [package]
 name = "organiwerk"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Organiwerk – Organigramme und Diagramme zeichnen (Teil der Werkbank-Suite)"
 authors = ["Oli"]

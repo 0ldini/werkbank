@@ -1,6 +1,6 @@
 [package]
 name = "mailwerk"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Mailwerk – E-Mail-Programm (Teil der Werkbank-Suite)"
 authors = ["Oli"]

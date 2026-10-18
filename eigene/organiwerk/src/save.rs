@@ -41,7 +41,7 @@ pub fn open_file(tx: Sender<(String, Vec<u8>)>, ctx: egui::Context) {
     std::thread::spawn(move || {
         if let Some(p) = rfd::FileDialog::new().add_filter("Organiwerk", &["organi", "json"]).pick_file() {
             if let Ok(data) = std::fs::read(&p) {
-                let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Datei".into());
+                let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| crate::sprache::t("Datei").into());
                 let _ = tx.send((name, data));
                 ctx.request_repaint();
             }
