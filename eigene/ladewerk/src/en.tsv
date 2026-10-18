@@ -1,138 +1,143 @@
 # Ladewerk: deutsch → englisch
-(noch unbekannt)	(not known yet)
-+ Links hinzufügen	+ Add links
-0 = unbegrenzt, gilt für alle Downloads zusammen	0 = unlimited, applies to all downloads combined
-7-Zip	7-Zip
-7-Zip lässt sich nicht starten: {e}	Cannot start 7-Zip: {e}
-7-Zip meldet Fehler {code}: {line}	7-Zip reported error {code}: {line}
-7-Zip nicht gefunden – für 7z, RAR und geteilte ZIP bitte 7-Zip installieren	7-Zip not found – please install 7-Zip for 7z, RAR and split ZIP
-Abbrechen	Cancel
-Abgebrochen	Cancelled
-Alle	All
-Archiv ist verschlüsselt – Passwort fehlt	Archive is encrypted – password missing
-Archive nach dem Download entpacken	Extract archives after download
-Archive nach erfolgreichem Entpacken löschen	Delete archives after successful extraction
-Aus der Liste entfernen	Remove from list
-Beispiele: http://proxy:3128 oder socks5://127.0.0.1:1080	Examples: http://proxy:3128 or socks5://127.0.0.1:1080
-DETAILS	DETAILS
-DOWNLOADS	DOWNLOADS
-Datei	File
-Datei fehlt	File missing
-Datei lässt sich nicht schreiben: {e}	Cannot write file: {e}
-Datei nicht gefunden (HTTP {code})	File not found (HTTP {code})
+ · {n} Seite(n) nicht lesbar	 · {n} page(s) not readable
+, {n} schon vorhanden	, {n} already listed
+1 Datei	1 file
+Archivdateien nach erfolgreichem Entpacken löschen	Delete archive files after successful extraction
+Archive nach dem Download automatisch entpacken	Extract archives automatically after download
+Auswahl entfernen	Remove selected
+Auswahl fortsetzen	Resume selected
+Auswahl herunterladen	Download selected
+Auswahl pausieren	Pause selected
+Beenden	Quit
+Benutzername / E-Mail	Username / e-mail
+Bereit	Ready
+Bitte zuerst Links einfügen.	Please paste some links first.
+Click'n'Load annehmen (Links von Webseiten mit Click'n'Load-Knopf)	Accept Click'n'Load (links from websites with a Click'n'Load button)
+Das Fenster lässt sich nicht öffnen. Mit «ladewerk --browser» läuft Ladewerk im Browser.	The window cannot be opened. Run «ladewerk --browser» to use Ladewerk in the browser.
+Das Passwort wird verschlüsselt auf diesem Computer abgelegt und nur an den Hoster gesendet.	The password is stored encrypted on this computer and only sent to the hoster.
 Download-Ordner	Download folder
-Download-Ordner wählen	Choose download folder
-Download-Thread unerwartet beendet	Download thread ended unexpectedly
-Downloads ({n})	Downloads ({n})
-Downloads beim Programmstart fortsetzen	Resume downloads when the program starts
-ENTPACKEN	EXTRACTION
-Eigener Unterordner mit dem Paketnamen	Separate subfolder named after the package
+Downloads	Downloads
 Einstellungen	Settings
-Entfernen und Teildatei löschen …	Remove and delete partial file …
-Entfernen und Teildateien löschen …	Remove and delete partial files …
-Entfernt fertige Links aus der Liste. Die Dateien bleiben erhalten.	Removes finished links from the list. The files are kept.
-Entpacke {name} …	Extracting {name} …
-Entpacke …	Extracting …
+Entfernen	Remove
 Entpacken	Extract
 Entpacken fehlgeschlagen	Extraction failed
-Entpacken unerwartet beendet	Extraction ended unexpectedly
+Entpacker	Extractor
+Entpacke…	Extracting…
+Erneut prüfen	Check again
 Erneut versuchen	Try again
-Fehler: {e}	Error: {e}
+Es laufen noch Downloads. Sie werden angehalten und beim nächsten Start fortgesetzt.	Downloads are still running. They will be paused and resumed at the next start.
+Fehler	Error
 Fertig	Done
-Fertig ✔ SHA-256	Done ✔ SHA-256
-Fertige entfernen	Remove finished
+Fertig · entpacken folgt	Done · extraction pending
+Fertig · entpackt	Done · extracted
+Fertige ausblenden	Hide finished
 Fortsetzen	Resume
-GEFUNDENE LINKS ({n})	LINKS FOUND ({n})
-Geschwindigkeitsgrenze	Speed limit
-Gestoppt	Stopped
+Gespeichert.	Saved.
 Gleichzeitige Downloads	Simultaneous downloads
-Grenze {v}	Limit {v}
-Jedes Archiv in einen eigenen Ordner entpacken	Extract each archive into its own folder
-Jetzt prüfen	Check now
-Kein passendes Passwort in der Liste	No matching password in the list
-Keine	None
-Keine Archive im Paket	No archives in the package
-Kopieren	Copy
-Kopierte Links landen automatisch hier.	Copied links show up here automatically.
-LINKSAMMLER	LINK GRABBER
-Laufende Downloads anhalten; sie bleiben in der Warteschlange.	Stop running downloads; they stay in the queue.
-Leeren	Clear
-Link	Link
-Link kopieren	Copy link
-Links kopieren und hier mit Strg+V einfügen – oder im Linksammler einfügen.	Copy links and paste them here with Ctrl+V – or paste them into the link grabber.
+Herunterladen	Download
+Hoster	Hoster
+Kein Entpacker gefunden – bitte 7-Zip installieren (7-zip.org).	No extractor found – please install 7-Zip (7-zip.org).
+Keine Datei-Links auf den Seiten gefunden.	No file links found on the pages.
+Keine Downloads in der Liste.	No downloads in the list.
+Keine Links im Text gefunden.	No links found in the text.
+Konten	Accounts
+Konto entfernen	Remove account
+Konto gespeichert.	Account saved.
+Konto speichern und prüfen	Save and check account
+Ladewerk beenden?	Quit Ladewerk?
+Ladewerk läuft bereits. Das offene Fenster findest du in der Taskleiste.	Ladewerk is already running. You will find its window in the taskbar.
+Links hier einfügen – beliebiger Text, die Adressen werden automatisch herausgesucht.	Paste links here – any text, the addresses are picked out automatically.
+Links prüfen	Check links
 Linksammler	Link grabber
-Linksammler (+{n})	Link grabber (+{n})
-Lädt	Downloading
-Löschen	Delete
-Mal, erste Wartezeit	times, first wait
-Meldung	Message
-Name des Pakets	Package name
-Neu laden (von vorne)	Download again (from the start)
-Neue Pakete in einen eigenen Unterordner	Put new packages into their own subfolder
-Neue Pakete nach dem Download automatisch entpacken	Automatically extract new packages after download
-Neuer Versuch in {s} s	Retrying in {s} s
-Noch keine Downloads.	No downloads yet.
-Noch keine Links erkannt.	No links detected yet.
-Nur http- und https-Links werden unterstützt.	Only http and https links are supported.
-Ordner lässt sich nicht anlegen: {e}	Cannot create folder: {e}
+Lädt	Loading
+Lädt die angegebenen Seiten und sammelt alle darin verlinkten Dateien	Loads the given pages and collects all files linked on them
+Nicht erreichbar	Offline
+Nicht erreichbare entfernen	Remove offline links
+Nichts ausgewählt.	Nothing selected.
+Noch kein Konto eingetragen.	No account added yet.
+Noch keine Links im Linksammler. Oben einfügen und «Links prüfen» drücken – oder Links kopieren bzw. Click'n'Load auf einer Webseite nutzen.	No links in the grabber yet. Paste them above and press «Check links» – or copy links, or use Click'n'Load on a website.
+Noch nicht geprüft	Not checked yet
+Ohne Auswahl: alle bereiten Links	Without a selection: all ready links
+Ohne Paket	No package
 Ordner öffnen	Open folder
-PAKET	PACKAGE
-Paket	Package
-Paket entfernen (Dateien bleiben erhalten)	Remove package (files are kept)
-Paket fortsetzen	Resume package
-Paket pausieren	Pause package
-Paketname	Package name
-Passwortliste	Password list
-Passwörter	Passwords
+Paketname (optional, wird Unterordner)	Package name (optional, becomes a subfolder)
+Passwort	Password
+Passwörter für Archive (eines pro Zeile, werden der Reihe nach probiert)	Archive passwords (one per line, tried in order)
 Pausieren	Pause
 Pausiert	Paused
-Proxy	Proxy
-Proxy-Adresse ungültig: {e}	Invalid proxy address: {e}
-Prüfsumme nicht berechenbar: {e}	Cannot compute checksum: {e}
-Prüfsumme stimmt nicht (erhalten: {got})	Checksum mismatch (got: {got})
-Prüft SHA-256 …	Checking SHA-256 …
-SHA-256	SHA-256
-SHA-256 der fertigen Datei berechnen	Compute the SHA-256 of the finished file
+Prüfen	Check
+Prüfe…	Checking…
 Schliessen	Close
-Schreiben fehlgeschlagen (Speicher voll?): {e}	Write failed (disk full?): {e}
-Server lehnt das Fortsetzen ab – beginne neu	Server refuses to resume – starting over
-Server lieferte einen falschen Bereich – beginne neu	Server sent the wrong range – starting over
-Server meldet HTTP {code}	Server returned HTTP {code}
-Speichern fehlgeschlagen: {e}	Saving failed: {e}
-Speichern in: {dir}	Save to: {dir}
-Teildateien löschen?	Delete partial files?
-Text mit Links hier einfügen – Links werden automatisch erkannt. Steht hinter einem Link eine SHA-256-Prüfsumme, wird sie übernommen.	Paste text with links here – links are detected automatically. A SHA-256 checksum after a link is picked up too.
-Umbenennen fehlgeschlagen: {e}	Rename failed: {e}
-Unfertige Downloads werden entfernt und ihre .part-Dateien gelöscht. Fertige Dateien bleiben erhalten.	Unfinished downloads are removed and their .part files deleted. Finished files are kept.
-Ungültige Weiterleitung (HTTP {code})	Invalid redirect (HTTP {code})
-VERBINDUNG	CONNECTION
-Verbinde …	Connecting …
-Verbindung unterbrochen: {e}	Connection interrupted: {e}
-Verbindung vorzeitig beendet	Connection closed early
-Verbindungsfehler: {e}	Connection error: {e}
+Seiten nach Dateien durchsuchen	Search pages for files
+Speichern	Save
+Status	Status
+Tempolimit in KB/s (0 = aus)	Speed limit in KB/s (0 = off)
+Verbindungen pro Datei	Connections per file
 Wartet	Waiting
-Weitere Aktionen	More actions
-Wiederholen bei Fehlern	Retry on errors
+Weiterladen	Keep downloading
+Wiederholungen bei Fehler	Retries on error
+Wird entpackt, sobald alle Teile fertig sind.	Will be extracted as soon as all parts are done.
 Wählen …	Choose …
-Zielordner	Target folder
-Zielordner wählen	Choose target folder
-Zu viele Weiterleitungen	Too many redirects
-Zugriff verweigert (HTTP {code})	Access denied (HTTP {code})
-Zwischenablage beobachten	Watch clipboard
-ein Passwort pro Zeile	one password per line
-für Archive in diesem Paket, eines pro Zeile	for archives in this package, one per line
-gefunden: {p}	found: {p}
-https://… (mehrere Links, ganze Texte oder HTML gehen auch)	https://… (several links, whole texts or HTML work too)
-leer = aus der Umgebung (HTTPS_PROXY, ALL_PROXY)	empty = from the environment (HTTPS_PROXY, ALL_PROXY)
-nicht gefunden – ZIP geht trotzdem; für 7z und RAR 7-Zip installieren	not found – ZIP still works; install 7-Zip for 7z and RAR
-optional: erwartete Prüfsumme	optional: expected checksum
-ungültig (64 Hex-Zeichen)	invalid (64 hex characters)
-{a}/{b} fertig	{a}/{b} done
-{n} Archiv(e) entpackt	{n} archive(s) extracted
-{n} Link(s) zur Warteschlange hinzufügen	Add {n} link(s) to the queue
-{n} aktiv	{n} active
-⏹ Alle stoppen	⏹ Stop all
-▶ Starten	▶ Start
-✔ stimmt	✔ matches
-✖ stimmt nicht	✖ does not match
-schon in der Warteschlange	already in the queue
+Zwischenablage beobachten (kopierte Datei- und Hoster-Links landen im Linksammler)	Watch the clipboard (copied file and hoster links go to the link grabber)
+{a} laufen · {b} warten · Ziel: {d}	{a} running · {b} waiting · Target: {d}
+{a} von {b} bereit	{a} of {b} ready
+{a} von {b} fertig	{a} of {b} done
+{n} Dateien	{n} files
+{n} neu im Linksammler	{n} new in the link grabber
+Angehalten – starten	Stopped – start
+Läuft – anhalten	Running – stop
+# Meldungen aus dem Kern
+Abgebrochen	Cancelled
+Archiv ist passwortgeschützt – Passwort in den Einstellungen eintragen, dann «Entpacken» drücken	Archive is password protected – add the password in the settings, then press «Extract»
+Keines der gespeicherten Passwörter passt	None of the saved passwords fits
+Mehrteilige Archive brauchen 7-Zip – bitte installieren (7-zip.org), dann «Entpacken» drücken	Multi-part archives need 7-Zip – please install it (7-zip.org), then press «Extract»
+Kein Entpacker gefunden – bitte 7-Zip installieren (7-zip.org)	No extractor found – please install 7-Zip (7-zip.org)
+Archivdatei nicht mehr vorhanden	Archive file no longer exists
+Rapidgator-Konto fehlt – bitte unter Einstellungen → Konten eintragen	Rapidgator account missing – please add it under Settings → Accounts
+Rapidgator: Datei nicht gefunden	Rapidgator: file not found
+Rapidgator hat keine Download-Adresse geliefert (Premium aktiv?)	Rapidgator returned no download address (premium active?)
+Gespeichertes Passwort ist nicht lesbar – Konto bitte neu eintragen	Saved password is not readable – please add the account again
+Rapidgator-Anmeldung: keine Sitzung erhalten	Rapidgator sign-in: no session received
+Dieser Hoster wird noch nicht unterstützt	This hoster is not supported yet
+Bitte Benutzername und Passwort angeben	Please enter username and password
+Bitte einen vollständigen Ordnerpfad angeben	Please enter a full folder path
+Server liefert keine Teilbereiche	Server does not deliver partial ranges
+Verbindung vorzeitig beendet	Connection closed early
+Keine Antwort vom Server	No response from the server
+Keine Antwort vom Hoster	No response from the hoster
+Unerwartete Antwort vom Hoster	Unexpected response from the hoster
+Unerwartete Antwort vom Server	Unexpected response from the server
+Prüfung abgebrochen	Check cancelled
+7-Zip (eingebaut)	7-Zip (built in)
+Windows-Bordmittel (für mehrteilige oder verschlüsselte RAR bitte 7-Zip installieren)	Windows built-in tools (for multi-part or encrypted RAR please install 7-Zip)
+WinRAR (RAR) und Windows (ZIP, 7z)	WinRAR (RAR) and Windows (ZIP, 7z)
+Click'n'Load ist in Ladewerk ausgeschaltet	Click'n'Load is turned off in Ladewerk
+# Prüfsumme, Proxy, Paket-Passwörter, Details
+Passwörter für dieses Paket	Passwords for this package
+Prüfe Prüfsumme…	Checking checksum…
+Prüfsumme falsch	Checksum mismatch
+Die Datei stimmt nicht mit der erwarteten SHA-256-Prüfsumme überein. Details: Klick auf den Namen.	The file does not match the expected SHA-256 checksum. Details: click the name.
+Prüfsumme nicht berechnet	Checksum not computed
+Fertig · Prüfsumme ok	Done · checksum ok
+Klicken für Details	Click for details
+Proxy	Proxy
+Leer: Proxy aus der Umgebung (HTTPS_PROXY, ALL_PROXY), sonst direkt.	Empty: proxy from the environment (HTTPS_PROXY, ALL_PROXY), otherwise direct.
+Details	Details
+Name	Name
+Link	Link
+Datei	File
+Paket	Package
+Meldung	Message
+SHA-256 erwartet	Expected SHA-256
+optional, 64 Zeichen	optional, 64 characters
+Übernehmen	Apply
+Prüfsumme übernommen.	Checksum applied.
+SHA-256 der Datei	SHA-256 of the file
+Jetzt prüfen	Check now
+Berechnet die SHA-256-Prüfsumme der Datei	Computes the SHA-256 checksum of the file
+Passwörter: Ohne Paket	Passwords: no package
+Passwörter	Passwords
+Passwörter für die Archive dieses Pakets, eines pro Zeile. Sie werden vor der allgemeinen Liste probiert.	Passwords for the archives of this package, one per line. They are tried before the general list.
+Eine SHA-256-Prüfsumme hat 64 Zeichen (0–9, a–f)	A SHA-256 checksum has 64 characters (0–9, a–f)
+Eintrag nicht gefunden	Entry not found
+Proxy bitte als http://host:port oder socks5://host:port angeben	Please enter the proxy as http://host:port or socks5://host:port

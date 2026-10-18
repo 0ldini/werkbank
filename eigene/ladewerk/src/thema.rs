@@ -87,7 +87,7 @@ pub fn apply(ctx: &egui::Context) {
     v.window_fill = panel();
     v.extreme_bg_color = pick(egui::Color32::from_rgb(0xFF, 0xFF, 0xFF), egui::Color32::from_rgb(0x12, 0x13, 0x16));
     v.override_text_color = Some(text());
-    v.window_stroke = egui::Stroke::new(1.0, border());
+    v.window_stroke = egui::Stroke::new(1.0_f32, border());
     ctx.set_visuals(v);
 }
 
