@@ -32,6 +32,7 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "schutzwerk": ("Schutzwerk", "#3D6B8C", '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
     "mediathekwerk": ("Mediathekwerk", "#8C5A2B", '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9l2.5-5h3L6 9M9 9l2.5-5h3L12 9M15 9l2.5-5h3"/>'),
     "diawerk": ("Diawerk", "#2E9BD6", '<rect x="6" y="3" width="15" height="12" rx="1.5"/><path d="M3 7v12a1 1 0 0 0 1 1h13"/><path d="M12 6.5v5l4-2.5z" fill="#fff"/>'),
+    "ftpwerk": ("FTPwerk", "#1D4E89", '<path d="M8 20V6M4.5 9.5L8 6l3.5 3.5"/><path d="M16 4v14M12.5 14.5L16 18l3.5-3.5"/>'),
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"

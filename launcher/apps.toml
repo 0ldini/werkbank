@@ -215,6 +215,16 @@ tag = "diawerk-v"
 no_web = true
 
 [[app]]
+id = "ftpwerk"
+name = "FTPwerk"
+about = "FTP-, FTPS- und SFTP-Client"
+about_en = "FTP, FTPS and SFTP client"
+color = "#1D4E89"
+repo = "https://github.com/0ldini/werkbank"
+tag = "ftpwerk-v"
+no_web = true
+
+[[app]]
 id = "mailwerk"
 name = "Mailwerk"
 about = "E-Mail-Programm (IMAP/SMTP, JMAP)"

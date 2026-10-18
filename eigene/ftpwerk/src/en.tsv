@@ -1,0 +1,181 @@
+# FTPwerk: deutsch → englisch
+Nicht verbunden.	Not connected.
+Verbindung unterbrochen – verbinde neu …	Connection lost – reconnecting …
+Ordner angelegt.	Folder created.
+Ordner anlegen	Create folder
+Umbenannt.	Renamed.
+Umbenennen	Rename
+Lösche …	Deleting …
+Gelöscht.	Deleted.
+Nicht alles konnte gelöscht werden.	Not everything could be deleted.
+Rechte geändert.	Permissions changed.
+Lese Ordner …	Reading folder …
+Ordner zu tief verschachtelt.	Folder nested too deeply.
+Löschen von «{p}»	Deleting “{p}”
+Rechte von «{p}» ändern	Changing permissions of “{p}”
+Ordner «{p}» lesen	Reading folder “{p}”
+Ordner «{p}» hochladen	Uploading folder “{p}”
+Fehler bei «{n}»: {e}	Error with “{n}”: {e}
+Verbindung unterbrochen bei «{n}» – neuer Versuch {a}/3 …	Connection lost on “{n}” – retry {a}/3 …
+Server eintragen und «Verbinden» drücken – oder unter «Verbindungen» eine gespeicherte wählen.	Enter a server and press “Connect” – or pick a saved one under “Connections”.
+Bitte einen Server eintragen.	Please enter a server.
+Nichts zu übertragen.	Nothing to transfer.
+Getrennt.	Disconnected.
+Erst mit einem Server verbinden.	Connect to a server first.
+Erst mit einem Server verbinden, dann Dateien hierher ziehen.	Connect to a server first, then drop files here.
+📇 Verbindungen …	📇 Connections …
+Server	Server
+Port	Port
+Benutzer	User
+Passwort	Password
+Passphrase	Passphrase
+Schlüssel	Key
+(optional)	(optional)
+Schlüsseldatei wählen	Choose key file
+Private Schlüsseldatei wählen	Choose private key file
+Verbinden	Connect
+Verbinde …	Connecting …
+Abbrechen	Cancel
+Trennen	Disconnect
+Einstellungen	Settings
+Warteschlange	Queue
+Protokoll	Protocol
+▶ Fortsetzen	▶ Resume
+⏸ Pause	⏸ Pause
+Alle abbrechen	Cancel all
+Fehlgeschlagene wiederholen	Retry failed
+Erledigte entfernen	Remove finished
+Wenn die Datei schon existiert:	If the file already exists:
+Leeren	Clear
+Keine Verbindung.	No connection.
+Die Warteschlange ist leer. Dateien auf die andere Seite ziehen oder doppelklicken.	The queue is empty. Drag files to the other side or double-click them.
+wartet	waiting
+fertig	done
+übersprungen	skipped
+abgebrochen	cancelled
+Aus der Liste entfernen	Remove from list
+Erneut versuchen	Try again
+Fortsetzen / ersetzen	Resume / replace
+Immer überschreiben	Always overwrite
+Überspringen	Skip
+Lokal	Local
+Heimordner	Home folder
+Ordner nach oben	Up one folder
+Neu laden (F5)	Reload (F5)
+Neuer Ordner	New folder
+Name	Name
+Grösse	Size
+Geändert	Modified
+⬇ Herunterladen	⬇ Download
+⬆ Hochladen	⬆ Upload
+Öffnen	Open
+Umbenennen (F2)	Rename (F2)
+Rechte ändern …	Change permissions …
+Löschen (Entf)	Delete (Del)
+Neuer Ordner …	New folder …
+Dieser Ordner ist leer.	This folder is empty.
+{d} Ordner, {f} Dateien ({size})	{d} folders, {f} files ({size})
+{n} ausgewählt	{n} selected
+Ordner «{p}» lässt sich nicht lesen: {e}	Cannot read folder “{p}”: {e}
+Verbinde mit {h} …	Connecting to {h} …
+Verbunden mit {h}.	Connected to {h}.
+Verbindung fehlgeschlagen: {e}	Connection failed: {e}
+Ordner «{p}»: {e}	Folder “{p}”: {e}
+{n} Übertragungen eingereiht.	{n} transfers queued.
+Verbindung verloren: {e}	Connection lost: {e}
+Wartend {w} · Läuft {r} · Fertig {d}	Waiting {w} · Running {r} · Done {d}
+Fehler {f}	Errors {f}
+noch {t}	{t} left
+{n} Einträge	{n} items
+Abgebrochen	Cancelled
+Dem Zertifikat des Servers wird nicht vertraut.	The server’s certificate is not trusted.
+Der Schlüssel des Servers hat sich geändert!	The server’s key has changed!
+Der Server ist noch nicht bekannt.	The server is not known yet.
+{what}: {e}	{what}: {e}
+SFTP ist in dieser Ausführung nicht enthalten.	SFTP is not included in this build.
+SSH-Verbindung steht, melde an …	SSH connection established, signing in …
+Anmeldung fehlgeschlagen: Benutzer oder Passwort stimmen nicht.	Sign-in failed: wrong user or password.
+Angemeldet, öffne SFTP …	Signed in, opening SFTP …
+SFTP wird vom Server nicht angeboten	The server does not offer SFTP
+Löschen	Delete
+Ordner löschen	Delete folder
+Rechte ändern	Change permissions
+Herunterladen nicht möglich	Download not possible
+Hochladen nicht möglich	Upload not possible
+Verbinde mit {host}:{port} (SSH) …	Connecting to {host}:{port} (SSH) …
+Verbindung zu {host}:{port} dauert zu lange.	Connection to {host}:{port} is taking too long.
+Server-Schlüssel {algo}: {fp}	Server key {algo}: {fp}
+Verbindung zu {host}:{port} fehlgeschlagen: {e}	Connection to {host}:{port} failed: {e}
+Schlüsseldatei nicht lesbar: {e}	Cannot read key file: {e}
+Ordner «{p}» lässt sich nicht öffnen	Cannot open folder “{p}”
+Datei unvollständig: {got} von {tot} Bytes	File incomplete: {got} of {tot} bytes
+FTPS ist in dieser Ausführung nicht enthalten.	FTPS is not included in this build.
+Ungültiges Zeichen im Namen.	Invalid character in name.
+Der Server nimmt keine Verbindung an	The server does not accept connections
+Der Server unterstützt keine Verschlüsselung (AUTH TLS)	The server does not support encryption (AUTH TLS)
+Der Server verlangt keine geschützte Datenverbindung (PROT P)	The server does not offer a protected data connection (PROT P)
+Der Server hat die Verbindung geschlossen.	The server closed the connection.
+Server «{host}» nicht gefunden: {e}	Server “{host}” not found: {e}
+Keine Adresse für «{host}».	No address for “{host}”.
+Verbinde mit {host}:{port} …	Connecting to {host}:{port} …
+Unverständliche Antwort des Servers: {s}	Unintelligible reply from the server: {s}
+Anmeldung fehlgeschlagen: {r}	Sign-in failed: {r}
+Passiver Modus nicht möglich: {r}	Passive mode not possible: {r}
+Datenverbindung zu {addr} fehlgeschlagen: {e}	Data connection to {addr} failed: {e}
+Ordner «{p}» lässt sich nicht öffnen: {r}	Cannot open folder “{p}”: {r}
+Herunterladen nicht möglich: {r}	Download not possible: {r}
+Herunterladen fehlgeschlagen: {r}	Download failed: {r}
+Hochladen nicht möglich: {r}	Upload not possible: {r}
+Hochladen fehlgeschlagen: {r}	Upload failed: {r}
+⚠ Server hat sich geändert	⚠ Server has changed
+Dem Server vertrauen?	Trust this server?
+Der Fingerabdruck dieses Servers ist nicht mehr derselbe wie beim letzten Mal. Das kann ein Server-Umbau sein – oder jemand fängt die Verbindung ab.	This server’s fingerprint is not the same as last time. It may be a server rebuild – or someone is intercepting the connection.
+Schlüsselart	Key type
+Fingerabdruck (SHA-256):	Fingerprint (SHA-256):
+Trotzdem vertrauen und verbinden	Trust anyway and connect
+Vertrauen und verbinden	Trust and connect
+Verbindung nicht aufgebaut.	Connection not established.
+Anlegen	Create
+Ordner werden samt Inhalt gelöscht.	Folders are deleted with their contents.
+Auf dem Server gibt es keinen Papierkorb.	The server has no recycle bin.
+Lokal: wird endgültig gelöscht, nicht in den Papierkorb verschoben.	Local: deleted permanently, not moved to the recycle bin.
+Besitzer	Owner
+Gruppe	Group
+Andere	Others
+lesen	read
+schreiben	write
+ausführen	execute
+Oktal:	Octal:
+Auch für alles darin	Also for everything inside
+Übernehmen	Apply
+Verbindungen	Connections
+➕ Neue Verbindung	➕ New connection
+Noch keine gespeichert.	None saved yet.
+Schlüsseldatei	Key file
+Serverordner	Server folder
+Lokaler Ordner	Local folder
+Passwort speichern (verschlüsselt, nur unter Windows)	Save password (encrypted, Windows only)
+⚠ Einfaches FTP sendet Passwort und Dateien unverschlüsselt.	⚠ Plain FTP sends the password and files unencrypted.
+💾 Speichern	💾 Save
+🗑 Löschen	🗑 Delete
+Gleichzeitige Übertragungen:	Simultaneous transfers:
+Gilt ab der nächsten Verbindung.	Applies from the next connection.
+Versteckte Dateien anzeigen	Show hidden files
+Vertraute Server	Trusted servers
+Keine.	None.
+Vergessen	Forget
+Passwort für {u}@{h}:	Password for {u}@{h}:
+{h} ist noch nicht bekannt. Prüfe den Fingerabdruck, bevor du ihm vertraust.	{h} is not known yet. Check the fingerprint before you trust it.
+«{n}» wirklich löschen?	Really delete “{n}”?
+{n} Einträge wirklich löschen?	Really delete {n} items?
+Ordner anlegen: {e}	Create folder: {e}
+Umbenennen: {e}	Rename: {e}
+Löschen: {e}	Delete: {e}
+Speichern fehlgeschlagen: {e}	Saving failed: {e}
+TLS konnte nicht vorbereitet werden: {e}	Could not set up TLS: {e}
+Ungültiger Servername: {host}	Invalid server name: {host}
+Sichere Verbindung fehlgeschlagen: {e}	Secure connection failed: {e}
+FTP (unverschlüsselt)	FTP (unencrypted)
+FTPS (explizit, TLS)	FTPS (explicit, TLS)
+FTPS (implizit, Port 990)	FTPS (implicit, port 990)
+SFTP (SSH)	SFTP (SSH)
