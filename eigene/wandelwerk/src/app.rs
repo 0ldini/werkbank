@@ -3,11 +3,11 @@
 //! je Datei einen Hintergrund-Auftrag (convert.rs); Fortschritt wird gepollt.
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::convert::{self, Job, JobState};
 use crate::model::{
-    self, Aspect, AudioFmt, Fit, ImageFmt, MediaKind, Quality, Target, VideoFmt,
+    self, Aspect, AudioFmt, AudioTrack, Fit, ImageFmt, MediaKind, Quality, Target, VideoFmt,
 };
 
 fn vio() -> egui::Color32 {
@@ -34,6 +34,21 @@ struct Entry {
     fit: Fit,
     quality: Quality,
     job: Option<Arc<JobState>>,
+    /// Tonspuren eines Videos (None, solange ffmpeg noch nachschaut oder fehlt).
+    tracks: Arc<Mutex<Option<Vec<AudioTrack>>>>,
+    /// Gewählte Tonspur für «Nur Ton»; None = Standardspur der Datei.
+    audio_track: Option<u32>,
+}
+
+impl Entry {
+    /// Tonspur, die beim Umwandeln benutzt wird (nur bei mehreren Spuren nötig).
+    fn chosen_track(&self) -> Option<u32> {
+        let tracks = self.tracks.lock().ok()?.clone()?;
+        if tracks.len() < 2 {
+            return None;
+        }
+        self.audio_track.or_else(|| tracks.iter().find(|t| t.default).map(|t| t.index)).or(Some(0))
+    }
 }
 
 pub struct App {
@@ -41,6 +56,7 @@ pub struct App {
     sel: usize,
     out_dir: String,
     ffmpeg: Option<String>,
+    ctx: egui::Context,
 }
 
 impl App {
@@ -55,6 +71,7 @@ impl App {
             sel: 0,
             out_dir: default_out_dir(),
             ffmpeg: convert::find_ffmpeg(),
+            ctx: cc.egui_ctx.clone(),
         }
     }
 
@@ -76,6 +93,19 @@ impl App {
         } else {
             None
         };
+        let tracks: Arc<Mutex<Option<Vec<AudioTrack>>>> = Arc::default();
+        if kind == MediaKind::Video {
+            if let Some(ff) = self.ffmpeg.clone() {
+                let (t, path, ctx) = (tracks.clone(), p.clone(), self.ctx.clone());
+                std::thread::spawn(move || {
+                    let found = convert::probe_audio(&ff, &path);
+                    if let Ok(mut g) = t.lock() {
+                        *g = found;
+                    }
+                    ctx.request_repaint();
+                });
+            }
+        }
         self.entries.push(Entry {
             input: p,
             name,
@@ -86,6 +116,8 @@ impl App {
             fit: Fit::Crop,
             quality: Quality::Hoch,
             job: None,
+            tracks,
+            audio_track: None,
         });
     }
 
@@ -101,7 +133,9 @@ impl App {
             e.aspect = aspect;
             e.fit = fit;
             e.quality = quality;
-            if e.kind == tgt.kind() {
+            // «Nur Ton» gilt auch für Videos in der Liste.
+            let fits = e.kind == tgt.kind() || (tgt.kind() == MediaKind::Audio && e.kind == MediaKind::Video);
+            if fits {
                 e.target = tgt;
             }
         }
@@ -131,6 +165,7 @@ impl App {
                 fit: e.fit,
                 quality: e.quality,
                 out_dir: out_dir.clone(),
+                audio_track: if e.target.kind() == MediaKind::Audio { e.chosen_track() } else { None },
             };
             e.job = Some(convert::start_job(job, ffmpeg.clone()));
         }
@@ -284,7 +319,45 @@ impl App {
                 }
             });
 
+            // Video: nur die Tonspur speichern (z. B. MP3 aus einem MKV-Film).
+            if kind == MediaKind::Video {
+                ui.add_space(12.0);
+                sub(ui, "Nur Ton speichern");
+                let e = &mut self.entries[self.sel];
+                ui.horizontal_wrapped(|ui| {
+                    for f in AudioFmt::all() {
+                        let sel = e.target == Target::Audio(f);
+                        if chip(ui, sel, f.label()).clicked() { e.target = Target::Audio(f); }
+                    }
+                });
+                if e.target.kind() == MediaKind::Audio {
+                    let tracks = e.tracks.lock().ok().and_then(|g| g.clone());
+                    match tracks {
+                        Some(t) if t.is_empty() => {
+                            ui.add_space(6.0);
+                            ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), "Dieses Video hat keine Tonspur.");
+                        }
+                        Some(t) if t.len() > 1 => {
+                            ui.add_space(10.0);
+                            sub(ui, "Tonspur");
+                            let chosen = e.chosen_track();
+                            for tr in &t {
+                                if chip(ui, chosen == Some(tr.index), &tr.label()).clicked() {
+                                    e.audio_track = Some(tr.index);
+                                }
+                            }
+                        }
+                        Some(t) => {
+                            ui.add_space(4.0);
+                            ui.weak(format!("Tonspur: {}", t[0].label()));
+                        }
+                        None => {}
+                    }
+                }
+            }
+
             // Seitenverhältnis + Anpassung nur für Bild/Video
+            let kind = self.entries[self.sel].target.kind();
             if kind != MediaKind::Audio {
                 ui.add_space(12.0);
                 sub(ui, "Seitenverhältnis");
@@ -495,8 +568,12 @@ fn chip(ui: &mut egui::Ui, sel: bool, label: &str) -> egui::Response {
 fn status_badge(ui: &mut egui::Ui, e: &Entry) {
     let badge = format!(
         "{}{}",
-        e.target.label(),
-        if e.kind != MediaKind::Audio && e.aspect != Aspect::Original {
+        if e.kind == MediaKind::Video && e.target.kind() == MediaKind::Audio {
+            format!("{} (Ton)", e.target.label())
+        } else {
+            e.target.label().to_string()
+        },
+        if e.target.kind() != MediaKind::Audio && e.aspect != Aspect::Original {
             format!(" · {}", e.aspect.label())
         } else {
             String::new()

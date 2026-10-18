@@ -265,11 +265,16 @@ pub fn name_with_index(stem: &str, ext: &str, n: u32) -> String {
 
 /// Baut die vollständige ffmpeg-Argumentliste für Ton oder Video.
 /// (Bilder laufen über die image-Crate, nicht über ffmpeg.)
-pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fit: Fit, q: Quality) -> Vec<String> {
+/// `audio_track`: bei Ton als Ziel die gewünschte Tonspur (0 = erste Tonspur der Datei).
+pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fit: Fit, q: Quality, audio_track: Option<u32>) -> Vec<String> {
     let mut a: Vec<String> = vec!["-hide_banner".into(), "-y".into(), "-i".into(), input.into()];
     match target {
         Target::Audio(f) => {
-            a.push("-vn".into());
+            if let Some(n) = audio_track {
+                push(&mut a, &["-map", &format!("0:a:{n}")]);
+            }
+            // Nur Ton: Bild, Untertitel und Datenspuren weglassen (z. B. aus MKV-Filmen).
+            push(&mut a, &["-vn", "-sn", "-dn"]);
             match f {
                 AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
                 AudioFmt::M4a => push(&mut a, &["-c:a", "aac", "-b:a", &kbps(q)]),
@@ -313,5 +318,159 @@ fn kbps(q: Quality) -> String {
 fn push(a: &mut Vec<String>, items: &[&str]) {
     for s in items {
         a.push((*s).to_string());
+    }
+}
+
+// ---------------- Tonspuren eines Videos ----------------
+
+/// Eine Tonspur, wie ffmpeg sie beim Öffnen einer Datei auflistet.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct AudioTrack {
+    /// Nummer unter den Tonspuren (für `-map 0:a:N`).
+    pub index: u32,
+    pub lang: Option<String>,
+    pub codec: String,
+    pub channels: String,
+    pub title: Option<String>,
+    pub default: bool,
+}
+
+impl AudioTrack {
+    /// z. B. «Deutsch · AC3 · 5.1 · Kommentar».
+    pub fn label(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        parts.push(self.lang.as_deref().map(language_name).unwrap_or_else(|| format!("Spur {}", self.index + 1)));
+        if !self.codec.is_empty() {
+            parts.push(self.codec.clone());
+        }
+        if !self.channels.is_empty() {
+            parts.push(self.channels.clone());
+        }
+        if let Some(t) = &self.title {
+            parts.push(t.clone());
+        }
+        parts.join(" · ")
+    }
+}
+
+/// Sprachcode (ISO 639-2) → deutscher Name.
+pub fn language_name(code: &str) -> String {
+    match code.to_lowercase().as_str() {
+        "ger" | "deu" | "de" => "Deutsch".into(),
+        "gsw" => "Schweizerdeutsch".into(),
+        "eng" | "en" => "Englisch".into(),
+        "fre" | "fra" | "fr" => "Französisch".into(),
+        "ita" | "it" => "Italienisch".into(),
+        "spa" | "es" => "Spanisch".into(),
+        "por" | "pt" => "Portugiesisch".into(),
+        "dut" | "nld" | "nl" => "Niederländisch".into(),
+        "rus" | "ru" => "Russisch".into(),
+        "jpn" | "ja" => "Japanisch".into(),
+        "kor" | "ko" => "Koreanisch".into(),
+        "chi" | "zho" | "zh" => "Chinesisch".into(),
+        "tur" | "tr" => "Türkisch".into(),
+        "pol" | "pl" => "Polnisch".into(),
+        other => other.to_uppercase(),
+    }
+}
+
+/// Liest die Tonspuren aus der Ausgabe von `ffmpeg -i DATEI` (stderr).
+pub fn parse_audio_tracks(text: &str) -> Vec<AudioTrack> {
+    let mut out: Vec<AudioTrack> = Vec::new();
+    let mut in_audio = false;
+    for line in text.lines() {
+        let t = line.trim();
+        if t.starts_with("Stream #") {
+            in_audio = false;
+            let Some(pos) = t.find(": Audio: ") else { continue };
+            let head = &t[..pos];
+            // Sprache steht in Klammern: «Stream #0:1(ger)» oder «Stream #0:2[0x1100](eng)».
+            let lang = head
+                .rfind('(')
+                .and_then(|i| head[i + 1..].strip_suffix(')'))
+                .filter(|l| !l.is_empty() && *l != "und")
+                .map(str::to_string);
+            let rest = &t[pos + 9..];
+            let fields: Vec<&str> = rest.split(", ").collect();
+            let codec = fields
+                .first()
+                .map(|c| c.split([' ', '(']).next().unwrap_or("").to_uppercase())
+                .unwrap_or_default();
+            let channels = fields
+                .iter()
+                .skip(1)
+                .find(|f| !f.ends_with(" Hz"))
+                .map(|c| {
+                    let c = c.split('(').next().unwrap_or("").trim();
+                    match c {
+                        "mono" => "Mono".to_string(),
+                        "stereo" => "Stereo".to_string(),
+                        other => other.to_string(),
+                    }
+                })
+                .unwrap_or_default();
+            out.push(AudioTrack {
+                index: out.len() as u32,
+                lang,
+                codec,
+                channels,
+                title: None,
+                default: rest.contains("(default)"),
+            });
+            in_audio = true;
+        } else if in_audio && t.starts_with("title") {
+            if let (Some(tr), Some((_, v))) = (out.last_mut(), t.split_once(':')) {
+                let v = v.trim();
+                if !v.is_empty() {
+                    tr.title = Some(v.to_string());
+                }
+            }
+        } else if !line.starts_with("    ") && !t.is_empty() && !t.starts_with("Metadata") {
+            in_audio = false;
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MKV: &str = "Input #0, matroska,webm, from 'film.mkv':
+  Metadata:
+    title           : Ferien
+  Duration: 01:32:10.04, start: 0.000000, bitrate: 4500 kb/s
+  Stream #0:0(eng): Video: h264 (High), yuv420p(progressive), 1920x1080, 25 fps (default)
+  Stream #0:1(ger): Audio: ac3, 48000 Hz, 5.1(side), fltp, 448 kb/s (default)
+    Metadata:
+      title           : Deutsch DD 5.1
+  Stream #0:2[0x1100](eng): Audio: aac (LC), 48000 Hz, stereo, fltp
+  Stream #0:3(ger): Subtitle: subrip
+    Metadata:
+      title           : Forced
+At least one output file must be specified";
+
+    #[test]
+    fn tonspuren_lesen() {
+        let t = parse_audio_tracks(MKV);
+        assert_eq!(t.len(), 2);
+        assert_eq!(t[0].label(), "Deutsch · AC3 · 5.1 · Deutsch DD 5.1");
+        assert!(t[0].default);
+        assert_eq!(t[1].index, 1);
+        assert_eq!(t[1].label(), "Englisch · AAC · Stereo");
+        assert_eq!(t[1].title, None);
+        let plain = parse_audio_tracks("  Stream #0:1: Audio: mp3, 44100 Hz, mono, fltp, 128 kb/s");
+        assert_eq!(plain[0].label(), "Spur 1 · MP3 · Mono");
+        assert!(parse_audio_tracks("  Stream #0:0: Video: h264").is_empty());
+    }
+
+    #[test]
+    fn ton_aus_video() {
+        let a = ffmpeg_args("film.mkv", "film.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Hoch, Some(1));
+        let s = a.join(" ");
+        assert!(s.contains("-map 0:a:1 -vn -sn -dn -c:a libmp3lame -b:a 256k"), "{s}");
+        assert!(s.ends_with("film.mp3"));
+        let b = ffmpeg_args("lied.wav", "lied.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Mittel, None).join(" ");
+        assert!(!b.contains("-map"));
     }
 }

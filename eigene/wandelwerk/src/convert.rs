@@ -19,6 +19,8 @@ pub struct Job {
     pub fit: Fit,
     pub quality: Quality,
     pub out_dir: PathBuf,
+    /// Tonspur bei «Nur Ton» aus einem Video (None = ffmpeg wählt).
+    pub audio_track: Option<u32>,
 }
 
 /// Geteilter Fortschritt/Status eines Auftrags.
@@ -115,7 +117,7 @@ pub fn find_ffmpeg() -> Option<String> {
         return Some(p);
     }
     // Auf dem PATH?
-    let ok = Command::new("ffmpeg")
+    let ok = cmd("ffmpeg")
         .arg("-version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -127,6 +129,37 @@ pub fn find_ffmpeg() -> Option<String> {
     } else {
         None
     }
+}
+
+/// ffmpeg-Aufruf; unter Windows ohne aufblitzendes Konsolenfenster.
+fn cmd(program: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut c = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        c.creation_flags(CREATE_NO_WINDOW);
+    }
+    c
+}
+
+/// Fragt ffmpeg nach den Tonspuren einer Datei. None, wenn ffmpeg nicht lief.
+pub fn probe_audio(ffmpeg: &str, input: &Path) -> Option<Vec<model::AudioTrack>> {
+    let out = cmd(ffmpeg)
+        .args(["-hide_banner", "-i"])
+        .arg(input)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .ok()?;
+    // ffmpeg endet hier mit Fehler («At least one output file …»); die Liste steht trotzdem da.
+    let text = String::from_utf8_lossy(&out.stderr);
+    if !text.contains("Stream #") {
+        return None;
+    }
+    Some(model::parse_audio_tracks(&text))
 }
 
 /// Zielpfad ohne Kollision: hängt " (n)" an, falls nötig.
@@ -234,9 +267,9 @@ fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), Stri
     let out = out_target(job);
     let input = job.input.display().to_string();
     let output = out.display().to_string();
-    let args = model::ffmpeg_args(&input, &output, job.target, job.aspect, job.fit, job.quality);
+    let args = model::ffmpeg_args(&input, &output, job.target, job.aspect, job.fit, job.quality, job.audio_track);
 
-    let mut child = Command::new(ffmpeg)
+    let mut child = cmd(ffmpeg)
         .args(&args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

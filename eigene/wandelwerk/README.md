@@ -14,6 +14,9 @@ Rust + egui, passend zu Codewerk, Umbenennwerk, Speicherwerk und Aufnahmewerk.
   - Ton: MP3, M4A, WAV, FLAC, OGG, OPUS
   - Bild: JPG, PNG, WebP, BMP, GIF, TIFF
   - Video: MP4, MKV, WebM, MOV, GIF
+  - **Nur Ton aus einem Video**: bei Videos (z. B. MKV) die Tonspur als MP3,
+    M4A, WAV, FLAC, OGG oder OPUS speichern. Hat der Film mehrere Tonspuren
+    (z. B. Deutsch und Englisch), lässt sich die gewünschte wählen.
 - **Seitenverhältnis** (Bild/Video): Original, 1:1, 16:9, 9:16, 4:3, 3:2, 21:9 –
   mit Live-Vorschau. **Anpassung je Datei**: Zuschneiden (füllt, schneidet
   Ränder ab), Ränder (ganzes Bild mit Balken) oder Strecken.
