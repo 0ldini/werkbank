@@ -230,4 +230,3 @@ about = "Organigramme und Diagramme zeichnen"
 color = "#2F5FB3"
 repo = "https://github.com/0ldini/werkbank"
 tag = "organiwerk-v"
-types = [".organi"]
