@@ -253,6 +253,18 @@ if ($errLog -match 'Fenster-Fehler') {
     $bmp.Save("$root\fenster.png")
   } catch { $warn += "Bildschirmfoto nicht möglich: $_" }
   if ($p4.MainWindowTitle -notlike '*Ladewerk*') { $warn += "Fenster: Titel «Ladewerk» nicht gefunden ('$($p4.MainWindowTitle)')" }
+  # Strg+V im Fenster (Link ohne Dateiendung, damit nicht die Zwischenablage-Beobachtung greift)
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    Set-Clipboard 'Bitte laden: http://127.0.0.1:9911/strgv-windows'
+    $ws = New-Object -ComObject WScript.Shell
+    $ws.AppActivate($p4.Id) | Out-Null
+    Start-Sleep 1
+    [System.Windows.Forms.SendKeys]::SendWait('^v')
+    Start-Sleep 4
+    if (@(Items 8802 | Where-Object url -like '*strgv-windows*').Count -eq 1) { Write-Host 'Strg+V im Fenster: in Ordnung' }
+    else { $warn += 'Strg+V im Fenster: Link kam nicht im Linksammler an' }
+  } catch { $warn += "Strg+V nicht testbar: $_" }
   # zweiter Start: darf kein zweites Ladewerk werden
   $dup = Start-Process $exe -ArgumentList '--port=8802' -PassThru
   Start-Sleep 3

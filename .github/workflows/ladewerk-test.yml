@@ -166,8 +166,9 @@ jobs:
             ./target/release/ladewerk 2>>fenster.log & sleep 8
             w=$(xdotool search --name Ladewerk | head -1)
             printf "Neu: http://127.0.0.1:9911/strgv-test.zip\n" | xclip -selection clipboard
+            xdotool windowactivate --sync $w 2>/dev/null || true
             xdotool mousemove --window $w 640 600 click 1; sleep 1
-            xdotool key --window $w ctrl+v; sleep 3
+            xdotool key ctrl+v; sleep 3
             import -window root fenster-strgv.png
             curl -s http://127.0.0.1:8765/api/state | grep -o "strgv-test.zip" | head -1 > strgv.txt
             kill %1' || true
