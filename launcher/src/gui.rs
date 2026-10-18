@@ -303,7 +303,9 @@ fn glyph(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
     let c = r.center();
     let u = r.width() / 24.0;
     let at = |x: f32, y: f32| Pos2::new(r.left() + x * u, r.top() + y * u);
-    let line = |pts: &[(f32, f32)]| p.add(egui::Shape::line(pts.iter().map(|&(x, y)| at(x, y)).collect(), s));
+    let line = |pts: &[(f32, f32)]| {
+        p.add(egui::Shape::line(pts.iter().map(|&(x, y)| at(x, y)).collect(), s));
+    };
     match g {
         Glyph::Menu => {
             for y in [7.0, 12.0, 17.0] {
