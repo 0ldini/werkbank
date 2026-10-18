@@ -168,6 +168,14 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 cfg_at: Instant::now(),
                 places: Arc::default(),
             };
+            // Nur für Bildschirmfotos der Dokumentation: Ansicht direkt öffnen.
+            match std::env::var("WERKBANK_ANSICHT").as_deref() {
+                Ok("menue") => app.menu = true,
+                Ok("katalog") => app.view = View::Catalog,
+                Ok("updates") => (app.view, app.chip) = (View::Catalog, Chip::Updates),
+                Ok("einstellungen") => app.view = View::Prefs,
+                _ => {}
+            }
             if core::configured_data_dir().is_some() {
                 app.begin(&cc.egui_ctx, load(), bundle, online);
             } else {
@@ -1071,7 +1079,9 @@ impl Gui {
                             if button(ui, "Aktualisieren", Look::Outline).clicked() {
                                 self.update_all(ctx, snapshot);
                             }
-                            ui.label(egui::RichText::new(format!("● {} bereit", plural(updates, "Update", "Updates"))).color(ACCENT));
+                            ui.label(egui::RichText::new(format!("{} bereit", plural(updates, "Update", "Updates"))).color(ACCENT));
+                            let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
+                            ui.painter().circle_filled(r.center(), 4.0, ACCENT);
                         }
                     });
                 });
@@ -1266,7 +1276,7 @@ impl Gui {
                 } else {
                     ui.label(egui::RichText::new("Kein Wetter verfügbar").size(16.0));
                     if let Some(e) = &error {
-                        ui.label(egui::RichText::new(e).size(12.0).color(MUTED)).on_hover_text(e);
+                        ui.label(egui::RichText::new("Keine Verbindung zum Wetterdienst").size(12.5).color(MUTED)).on_hover_text(e);
                     }
                     if link(ui, "Erneut versuchen").clicked() {
                         retry = true;
