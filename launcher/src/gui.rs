@@ -3,6 +3,7 @@
 
 use crate::core::{self, fmt_version, App, Kind, Manifest, Place, Recent, Version};
 use crate::weather::{self, Weather};
+use crate::sprache::{self, t, tf, Lang};
 use crate::{assoc, icons};
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Vec2};
 use std::collections::HashMap;
@@ -77,7 +78,7 @@ enum Chip {
 
 impl Chip {
     fn label(self) -> &'static str {
-        match self {
+        t(match self {
             Chip::All => "Alle",
             Chip::Office => "Büro",
             Chip::Media => "Bild und Video",
@@ -85,7 +86,7 @@ impl Chip {
             Chip::Sound => "Ton",
             Chip::Installed => "Installiert",
             Chip::Updates => "Updates",
-        }
+        })
     }
 }
 
@@ -391,8 +392,25 @@ fn grid(width: f32, min: f32, gap: f32, max_cols: usize) -> (usize, f32) {
     (cols, (width - gap * (cols as f32 - 1.0)) / cols as f32)
 }
 
-fn plural(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
+
+/// Deutsch/English als zwei Knöpfe; liefert die neu gewählte Sprache.
+fn language_pick(ui: &mut egui::Ui) -> Option<Lang> {
+    let cur = sprache::lang();
+    let mut out = None;
+    ui.horizontal(|ui| {
+        for (l, label) in [(Lang::De, "Deutsch"), (Lang::En, "English")] {
+            let on = cur == l;
+            let b = egui::Button::new(egui::RichText::new(label).size(14.0).color(if on { BG } else { SOFT }))
+                .fill(if on { ACCENT } else { PANEL })
+                .stroke(Stroke::new(1.0, if on { ACCENT } else { BORDER }))
+                .corner_radius(16u8)
+                .min_size(egui::vec2(100.0, 34.0));
+            if ui.add(b).clicked() && !on {
+                out = Some(l);
+            }
+        }
+    });
+    out
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -400,36 +418,63 @@ fn plural(n: usize, one: &str, many: &str) -> String {
 
 const WEEKDAYS: [&str; 7] = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 const MONTHS: [&str; 12] = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const WEEKDAYS_EN: [&str; 7] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const MONTHS_EN: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+fn weekday(i: usize) -> &'static str {
+    let i = i.min(6);
+    if sprache::is_en() {
+        WEEKDAYS_EN[i]
+    } else {
+        WEEKDAYS[i]
+    }
+}
+
+/// Kurzer Wochentag aus der Wettervorhersage («Mo») in der gewählten Sprache.
+fn weekday_short(de: &str) -> String {
+    match ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].iter().position(|d| *d == de) {
+        Some(i) if sprache::is_en() => WEEKDAYS_EN[i][..3].to_string(),
+        _ => de.to_string(),
+    }
+}
 
 fn greeting(hour: u32) -> &'static str {
-    match hour {
+    t(match hour {
         5..=10 => "Guten Morgen",
         11..=17 => "Guten Tag",
         18..=22 => "Guten Abend",
         _ => "Gute Nacht",
-    }
+    })
 }
 
 fn long_date(d: chrono::NaiveDate) -> String {
     use chrono::Datelike;
-    format!("{}, {}. {}", WEEKDAYS[d.weekday().num_days_from_monday() as usize], d.day(), MONTHS[d.month0() as usize])
+    let wd = weekday(d.weekday().num_days_from_monday() as usize);
+    let m = (d.month0() as usize).min(11);
+    if sprache::is_en() {
+        format!("{wd}, {} {}", MONTHS_EN[m], d.day())
+    } else {
+        format!("{wd}, {}. {}", d.day(), MONTHS[m])
+    }
 }
 
 /// «gerade eben», «heute 09:12», «gestern», «Mittwoch», «03.10.2026».
 fn when(secs: u64, now: chrono::DateTime<chrono::Local>) -> String {
     use chrono::{Datelike, TimeZone};
-    let Some(t) = chrono::Local.timestamp_opt(secs as i64, 0).single() else { return String::new() };
-    let days = (now.date_naive() - t.date_naive()).num_days();
-    if (now - t).num_seconds() < 90 {
-        "gerade eben".into()
+    let Some(at) = chrono::Local.timestamp_opt(secs as i64, 0).single() else { return String::new() };
+    let days = (now.date_naive() - at.date_naive()).num_days();
+    if (now - at).num_seconds() < 90 {
+        t("gerade eben").into()
     } else if days == 0 {
-        format!("heute {}", t.format("%H:%M"))
+        tf("heute {zeit}", &[("zeit", &at.format("%H:%M"))])
     } else if days == 1 {
-        "gestern".into()
+        t("gestern").into()
     } else if days < 7 {
-        WEEKDAYS[t.weekday().num_days_from_monday() as usize].into()
+        weekday(at.weekday().num_days_from_monday() as usize).into()
+    } else if sprache::is_en() {
+        at.format("%Y-%m-%d").to_string()
     } else {
-        t.format("%d.%m.%Y").to_string()
+        at.format("%d.%m.%Y").to_string()
     }
 }
 
@@ -450,6 +495,21 @@ impl Gui {
         }
     }
 
+    /// Sprache wechseln: gilt sofort im Launcher und beim nächsten Start jedes Programms.
+    fn set_language(&mut self, l: Lang) {
+        sprache::set_lang(l);
+        let saved = sprache::werkbank_file().ok_or_else(|| anyhow::anyhow!("kein Einstellungsordner")).and_then(|p| {
+            if let Some(dir) = p.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            std::fs::write(&p, l.code())?;
+            Ok(())
+        });
+        if let Err(e) = saved {
+            self.notice = Some(tf("Einstellungen nicht gespeichert: {fehler}", &[("fehler", &format!("{e:#}"))]));
+        }
+    }
+
     fn place(&self) -> Place {
         self.cfg.place.clone().unwrap_or_else(Place::sarnen)
     }
@@ -460,7 +520,7 @@ impl Gui {
         cfg.place = self.cfg.place.clone();
         cfg.home = self.cfg.home.clone();
         if let Err(e) = core::save_config(&cfg) {
-            self.notice = Some(format!("Einstellungen nicht gespeichert: {e:#}"));
+            self.notice = Some(tf("Einstellungen nicht gespeichert: {fehler}", &[("fehler", &format!("{e:#}"))]));
         }
         self.cfg = cfg;
     }
@@ -533,7 +593,7 @@ impl Gui {
                         let text = format!("{e:#}");
                         // Kein Release für dieses Programm ist kein Fehler, nur ein Zustand.
                         let missing = ["kein Release", "status: 401", "status: 404"].iter().any(|m| text.contains(m));
-                        st.error = Some(if missing { "Noch nicht veröffentlicht".to_string() } else { "Keine Verbindung zum Server".to_string() });
+                        st.error = Some(if missing { t("Noch nicht veröffentlicht").to_string() } else { t("Keine Verbindung zum Server").to_string() });
                     }
                 }
                 ctx.request_repaint();
@@ -547,7 +607,7 @@ impl Gui {
         {
             let mut s = state.lock().unwrap();
             let st = s.entry(app.id.clone()).or_default();
-            st.busy = Some(("Starte …".into(), 0.0));
+            st.busy = Some((t("Starte …").into(), 0.0));
             st.error = None;
         }
         std::thread::spawn(move || {
@@ -638,7 +698,7 @@ impl Gui {
 
     /// «Datei öffnen …»: Programm nach der Dateiendung wählen.
     fn open_file(&mut self, snapshot: &HashMap<String, Status>) {
-        let Some(path) = rfd::FileDialog::new().set_title("Datei öffnen").pick_file() else { return };
+        let Some(path) = rfd::FileDialog::new().set_title(t("Datei öffnen")).pick_file() else { return };
         let ext = path.extension().map(|e| format!(".{}", e.to_string_lossy().to_lowercase())).unwrap_or_default();
         let candidates: Vec<&App> = self.manifest.app.iter().filter(|a| a.types.iter().any(|t| t.eq_ignore_ascii_case(&ext))).collect();
         let installed = candidates.iter().find(|a| snapshot.get(&a.id).is_some_and(|s| s.native.is_some()));
@@ -651,9 +711,9 @@ impl Gui {
                 self.cfg.recent = core::load_config().recent;
             }
             (None, Some(app)) => {
-                self.notice = Some(format!("Für {ext}-Dateien zuerst {} installieren (Menü → Programme entdecken).", app.name));
+                self.notice = Some(tf("Für {ext}-Dateien zuerst {name} installieren (Menü → Programme entdecken).", &[("ext", &ext), ("name", &app.name)]));
             }
-            (None, None) => self.notice = Some(format!("Kein Programm der Werkbank öffnet {ext}-Dateien.")),
+            (None, None) => self.notice = Some(tf("Kein Programm der Werkbank öffnet {ext}-Dateien.", &[("ext", &ext)])),
         }
     }
 
@@ -674,15 +734,15 @@ impl Gui {
         if entries.is_empty() {
             return;
         }
-        self.notice = Some(format!(
-            "Einrichtung: {} aus dem Setup{}",
-            plural(entries.len(), "Programm", "Programme"),
-            if online { ", neuere Versionen werden aus dem Netz geholt" } else { "" }
-        ));
+        self.notice = Some(if online {
+            tf("Einrichtung: {n} Programm(e) aus dem Setup, neuere Versionen werden aus dem Netz geholt", &[("n", &entries.len())])
+        } else {
+            tf("Einrichtung: {n} Programm(e) aus dem Setup", &[("n", &entries.len())])
+        });
         {
             let mut s = self.state.lock().unwrap();
             for e in &entries {
-                s.entry(e.app.id.clone()).or_default().busy = Some(("Wartet …".into(), 0.0));
+                s.entry(e.app.id.clone()).or_default().busy = Some((t("Wartet …").into(), 0.0));
             }
         }
         let (manifest, state, ctx) = (self.manifest.clone(), self.state.clone(), ctx.clone());
@@ -721,6 +781,7 @@ impl Gui {
     fn setup_screen(&mut self, ctx: &egui::Context) {
         let mut confirm = false;
         let mut browse = false;
+        let mut pick_lang = None;
         let Some(setup) = self.setup.as_mut() else { return };
         egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(48, 40))).show(ctx, |ui| {
             ui.vertical_centered_justified(|ui| {
@@ -729,18 +790,19 @@ impl Gui {
                     logo(ui, &mut self.textures, 56.0);
                     ui.vertical(|ui| {
                         ui.add_space(4.0);
-                        ui.label(egui::RichText::new("Willkommen in der Werkbank").size(24.0).strong());
-                        ui.label(egui::RichText::new("Einmalige Einrichtung").size(13.0).color(MUTED));
+                        ui.label(egui::RichText::new(t("Willkommen in der Werkbank")).size(24.0).strong());
+                        ui.label(egui::RichText::new(t("Einmalige Einrichtung")).size(13.0).color(MUTED));
                     });
                 });
-                ui.add_space(24.0);
-                ui.label(egui::RichText::new("Wo sollen die Programme abgelegt werden?").size(16.0).strong());
+                ui.add_space(20.0);
+                ui.label(egui::RichText::new("Sprache · Language").size(16.0).strong());
+                ui.add_space(4.0);
+                pick_lang = language_pick(ui);
+                ui.add_space(20.0);
+                ui.label(egui::RichText::new(t("Wo sollen die Programme abgelegt werden?")).size(16.0).strong());
                 ui.add_space(4.0);
                 ui.label(
-                    egui::RichText::new(
-                        "Der Ordner wird angelegt, falls er fehlt. Unter C:\\Program Files fragt Windows einmalig nach \
-                         Administratorrechten; danach braucht die Werkbank keine mehr.",
-                    )
+                    egui::RichText::new(t("Der Ordner wird angelegt, falls er fehlt. Unter C:\\Program Files fragt Windows einmalig nach Administratorrechten; danach braucht die Werkbank keine mehr."))
                     .size(13.0)
                     .color(MUTED),
                 );
@@ -748,7 +810,7 @@ impl Gui {
                 ui.horizontal(|ui| {
                     let w = ui.available_width() - 140.0;
                     ui.add_sized([w, 36.0], egui::TextEdit::singleline(&mut setup.path).font(egui::FontId::proportional(15.0)));
-                    if button(ui, "Durchsuchen …", Look::Outline).clicked() {
+                    if button(ui, t("Durchsuchen …"), Look::Outline).clicked() {
                         browse = true;
                     }
                 });
@@ -758,17 +820,22 @@ impl Gui {
                 }
                 ui.add_space(18.0);
                 ui.horizontal(|ui| {
-                    if button(ui, "Weiter", Look::Accent).clicked() {
+                    if button(ui, t("Weiter"), Look::Accent).clicked() {
                         confirm = true;
                     }
-                    if button(ui, "Vorschlag", Look::Outline).clicked() {
+                    if button(ui, t("Vorschlag"), Look::Outline).clicked() {
                         setup.path = core::default_data_dir().display().to_string();
                     }
                 });
             });
         });
+        if let Some(l) = pick_lang {
+            self.set_language(l);
+            return;
+        }
+        let Some(setup) = self.setup.as_mut() else { return };
         if browse {
-            if let Some(dir) = rfd::FileDialog::new().set_title("Datenordner wählen").pick_folder() {
+            if let Some(dir) = rfd::FileDialog::new().set_title(t("Datenordner wählen")).pick_folder() {
                 setup.path = dir.display().to_string();
             }
         }
@@ -776,7 +843,9 @@ impl Gui {
             let path = std::path::PathBuf::from(setup.path.trim());
             match core::set_data_dir(&path) {
                 Ok(()) => {
+                    let l = sprache::lang();
                     if let Some(setup) = self.setup.take() {
+                        self.set_language(l);
                         self.cfg = core::load_config();
                         let manifest = (setup.load)();
                         self.begin(ctx, manifest, setup.bundle, setup.online);
@@ -799,20 +868,20 @@ impl Gui {
         let apps: Vec<App> = self.manifest.app.iter().filter(|a| !a.types.is_empty()).cloned().collect();
         egui::TopBottomPanel::top("typen-kopf").frame(egui::Frame::new().fill(HEADER).inner_margin(egui::Margin::symmetric(24, 14))).show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if !types.first_run && glyph_button(ui, Glyph::Back, "Zurück").clicked() {
+                if !types.first_run && glyph_button(ui, Glyph::Back, t("Zurück")).clicked() {
                     close = true;
                 }
                 ui.vertical(|ui| {
-                    let title = if types.first_run { "Einrichtung: Dateitypen" } else { "Dateitypen" };
+                    let title = if types.first_run { t("Einrichtung: Dateitypen") } else { t("Dateitypen") };
                     ui.label(egui::RichText::new(title).size(22.0).strong());
-                    ui.label(egui::RichText::new("Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.").size(12.5).color(MUTED));
+                    ui.label(egui::RichText::new(t("Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.")).size(12.5).color(MUTED));
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let label = if types.first_run { "Weiter" } else { "Übernehmen" };
+                    let label = if types.first_run { t("Weiter") } else { t("Übernehmen") };
                     if button(ui, label, Look::Accent).clicked() {
                         apply = true;
                     }
-                    if types.first_run && button(ui, "Überspringen", Look::Outline).clicked() {
+                    if types.first_run && button(ui, t("Überspringen"), Look::Outline).clicked() {
                         types.choice.clear();
                         apply = true;
                     }
@@ -821,8 +890,8 @@ impl Gui {
         });
         egui::TopBottomPanel::bottom("typen-fuss").frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::symmetric(24, 10))).show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new("Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:").size(12.5).color(MUTED));
-                if link(ui, "Standard-Apps in Windows öffnen").clicked() {
+                ui.label(egui::RichText::new(t("Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:")).size(12.5).color(MUTED));
+                if link(ui, t("Standard-Apps in Windows öffnen")).clicked() {
                     assoc::open_system_settings();
                 }
             });
@@ -841,10 +910,10 @@ impl Gui {
                             icon(ui, &mut self.textures, app, 36.0);
                             ui.label(egui::RichText::new(&app.name).size(17.0).strong());
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.small_button("Keine").clicked() {
+                                if ui.small_button(t("Keine")).clicked() {
                                     chosen.clear();
                                 }
-                                if ui.small_button("Alle").clicked() {
+                                if ui.small_button(t("Alle")).clicked() {
                                     *chosen = exts.clone();
                                 }
                             });
@@ -893,24 +962,24 @@ impl Gui {
             ui.horizontal(|ui| {
                 match title {
                     None => {
-                        if glyph_button(ui, Glyph::Menu, "Menü").clicked() {
+                        if glyph_button(ui, Glyph::Menu, t("Menü")).clicked() {
                             self.menu = !self.menu;
                         }
                         logo(ui, &mut self.textures, 32.0);
                         ui.label(egui::RichText::new(&self.manifest.title).size(21.0).strong());
                     }
                     Some(t) => {
-                        if glyph_button(ui, Glyph::Back, "Zur Startseite").clicked() {
+                        if glyph_button(ui, Glyph::Back, t("Zur Startseite")).clicked() {
                             self.go(View::Home);
                         }
                         ui.label(egui::RichText::new(t).size(21.0).strong());
                     }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if self.view == View::Home && button(ui, "+  Programme hinzufügen", Look::Accent).clicked() {
+                    if self.view == View::Home && button(ui, t("+  Programme hinzufügen"), Look::Accent).clicked() {
                         self.open_catalog(Chip::All);
                     }
-                    if self.view != View::Home && glyph_button(ui, Glyph::Menu, "Menü").clicked() {
+                    if self.view != View::Home && glyph_button(ui, Glyph::Menu, t("Menü")).clicked() {
                         self.menu = !self.menu;
                     }
                 });
@@ -919,7 +988,7 @@ impl Gui {
             if let Some(n) = &self.notice {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(egui::RichText::new(n).color(WARN));
-                    if link(ui, "Ausblenden").clicked() {
+                    if link(ui, t("Ausblenden")).clicked() {
                         clear = true;
                     }
                 });
@@ -943,11 +1012,11 @@ impl Gui {
                 ui.horizontal(|ui| {
                     logo(ui, &mut self.textures, 40.0);
                     ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("Werkbank").size(20.0).strong());
-                        ui.label(egui::RichText::new(format!("{installed} von {total} Programmen installiert")).size(12.0).color(MUTED));
+                        ui.label(egui::RichText::new(t("Werkbank")).size(20.0).strong());
+                        ui.label(egui::RichText::new(tf("{installed} von {total} Programmen installiert", &[("installed", &installed), ("total", &total)])).size(12.0).color(MUTED));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if glyph_button(ui, Glyph::Close, "Menü schliessen").clicked() {
+                        if glyph_button(ui, Glyph::Close, t("Menü schliessen")).clicked() {
                             self.menu = false;
                         }
                     });
@@ -975,42 +1044,42 @@ impl Gui {
                     }
                     resp.clicked()
                 };
-                if item(ui, Glyph::Home, "Startseite", None, self.view == View::Home) {
+                if item(ui, Glyph::Home, t("Startseite"), None, self.view == View::Home) {
                     self.go(View::Home);
                 }
-                if item(ui, Glyph::Grid, "Programme entdecken", Some((total - installed, false)), self.view == View::Catalog && self.chip != Chip::Updates) {
+                if item(ui, Glyph::Grid, t("Programme entdecken"), Some((total - installed, false)), self.view == View::Catalog && self.chip != Chip::Updates) {
                     self.open_catalog(Chip::All);
                 }
-                if item(ui, Glyph::Update, "Updates", Some((updates, true)), self.view == View::Catalog && self.chip == Chip::Updates) {
+                if item(ui, Glyph::Update, t("Updates"), Some((updates, true)), self.view == View::Catalog && self.chip == Chip::Updates) {
                     self.open_catalog(Chip::Updates);
                 }
-                if assoc::supported() && item(ui, Glyph::File, "Dateitypen", None, false) {
+                if assoc::supported() && item(ui, Glyph::File, t("Dateitypen"), None, false) {
                     self.open_types();
                 }
-                if item(ui, Glyph::Folder, "Datenordner öffnen", None, false) {
+                if item(ui, Glyph::Folder, t("Datenordner öffnen"), None, false) {
                     let _ = open::that(core::data_dir());
                 }
-                if item(ui, Glyph::Globe, "Browser-Übersicht", None, false) {
+                if item(ui, Glyph::Globe, t("Browser-Übersicht"), None, false) {
                     if let Some(a) = self.web_addr() {
                         let _ = open::that(a);
                     }
                 }
-                if item(ui, Glyph::Gear, "Einstellungen", None, self.view == View::Prefs) {
+                if item(ui, Glyph::Gear, t("Einstellungen"), None, self.view == View::Prefs) {
                     self.go(View::Prefs);
                 }
                 ui.add_space(6.0);
                 ui.separator();
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new("STARTSEITE ZEIGT").size(11.5).color(MUTED));
+                ui.label(egui::RichText::new(t("STARTSEITE ZEIGT")).size(11.5).color(MUTED));
                 let place = self.place().name;
                 ui.add_space(2.0);
-                changed |= ui.checkbox(&mut self.cfg.home.clock, "Uhr und Datum").changed();
-                changed |= ui.checkbox(&mut self.cfg.home.weather, format!("Wetter für {place}")).changed();
-                changed |= ui.checkbox(&mut self.cfg.home.recent, "Zuletzt geöffnete Dateien").changed();
+                changed |= ui.checkbox(&mut self.cfg.home.clock, t("Uhr und Datum")).changed();
+                changed |= ui.checkbox(&mut self.cfg.home.weather, tf("Wetter für {ort}", &[("ort", &place)])).changed();
+                changed |= ui.checkbox(&mut self.cfg.home.recent, t("Zuletzt geöffnete Dateien")).changed();
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"), " ·")).size(12.0).color(MUTED));
-                        if link(ui, "Über Werkbank").clicked() {
+                        if link(ui, t("Über Werkbank")).clicked() {
                             self.about = true;
                         }
                     });
@@ -1039,7 +1108,7 @@ impl Gui {
 
     fn about_window(&mut self, ctx: &egui::Context) {
         let mut open = self.about;
-        egui::Window::new("Über Werkbank")
+        egui::Window::new(t("Über Werkbank"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -1050,13 +1119,13 @@ impl Gui {
                     logo(ui, &mut self.textures, 48.0);
                     ui.vertical(|ui| {
                         ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).size(18.0).strong());
-                        ui.label(egui::RichText::new("Programme installieren, starten und einzeln aktualisieren").color(MUTED));
+                        ui.label(egui::RichText::new(t("Programme installieren, starten und einzeln aktualisieren")).color(MUTED));
                     });
                 });
                 ui.add_space(8.0);
-                ui.label("Die Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0); dazu kommen eigene Werkzeuge.");
-                ui.label("Wetterdaten: Open-Meteo.com (CC BY 4.0).");
-                ui.hyperlink_to("Quelltext auf GitHub", "https://github.com/0ldini/werkbank");
+                ui.label(t("Die Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0); dazu kommen eigene Werkzeuge."));
+                ui.label(t("Wetterdaten: Open-Meteo.com (CC BY 4.0)."));
+                ui.hyperlink_to(t("Quelltext auf GitHub"), "https://github.com/0ldini/werkbank");
             });
         self.about = open;
     }
@@ -1072,14 +1141,14 @@ impl Gui {
                 ui.add_space(14.0);
                 let updates: usize = mine.iter().filter(|a| snapshot.get(&a.id).is_some_and(Status::update)).count();
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Meine Programme").size(18.0).strong());
+                    ui.label(egui::RichText::new(t("Meine Programme")).size(18.0).strong());
                     ui.label(egui::RichText::new(mine.len().to_string()).size(14.0).color(MUTED));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if updates > 0 {
-                            if button(ui, "Aktualisieren", Look::Outline).clicked() {
+                            if button(ui, t("Aktualisieren"), Look::Outline).clicked() {
                                 self.update_all(ctx, snapshot);
                             }
-                            ui.label(egui::RichText::new(format!("{} bereit", plural(updates, "Update", "Updates"))).color(ACCENT));
+                            ui.label(egui::RichText::new(if updates == 1 { t("1 Update bereit").to_string() } else { tf("{n} Updates bereit", &[("n", &updates)]) }).color(ACCENT));
                             let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
                             ui.painter().circle_filled(r.center(), 4.0, ACCENT);
                         }
@@ -1117,10 +1186,10 @@ impl Gui {
         egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, BORDER)).corner_radius(16u8).inner_margin(28.0).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("Noch keine Programme installiert").size(18.0).strong());
-                ui.label(egui::RichText::new("Wähle aus 20 Programmen für Büro, Bild, Video, Ton und mehr.").color(MUTED));
+                ui.label(egui::RichText::new(t("Noch keine Programme installiert")).size(18.0).strong());
+                ui.label(egui::RichText::new(t("Programme für Büro, Bild, Video, Ton und mehr – einfach auswählen und installieren.")).color(MUTED));
                 ui.add_space(8.0);
-                if button(ui, "Programme entdecken", Look::Accent).clicked() {
+                if button(ui, t("Programme entdecken"), Look::Accent).clicked() {
                     self.open_catalog(Chip::All);
                 }
             });
@@ -1140,7 +1209,7 @@ impl Gui {
         if update {
             let b = Rect::from_min_size(Pos2::new(rect.right() - 62.0, rect.top() + 8.0), egui::vec2(54.0, 20.0));
             p.rect_filled(b, 10.0, ACCENT);
-            p.text(b.center(), egui::Align2::CENTER_CENTER, "Update", egui::FontId::proportional(11.5), BG);
+            p.text(b.center(), egui::Align2::CENTER_CENTER, t("Update"), egui::FontId::proportional(11.5), BG);
         }
         if let Some((_, frac)) = &st.busy {
             let bar = Rect::from_min_size(Pos2::new(rect.left() + 14.0, rect.bottom() - 14.0), egui::vec2(w - 28.0, 5.0));
@@ -1148,12 +1217,12 @@ impl Gui {
             p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 5.0)), 3.0, ACCENT);
             ctx.request_repaint_after(Duration::from_millis(200));
         }
-        let mut hint = app.about.clone();
+        let mut hint = app.about_text().to_string();
         if let Some(v) = st.current() {
-            hint += &format!("\nVersion {}", fmt_version(v));
+            hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
         }
         if let (true, Some(l)) = (update, st.latest) {
-            hint += &format!(" · neu: {}", fmt_version(l));
+            hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
         }
         if let Some((m, _)) = &st.busy {
             hint += &format!("\n{m}");
@@ -1166,20 +1235,20 @@ impl Gui {
             self.launch(ctx, app, st);
         }
         resp.context_menu(|ui| {
-            if st.native.is_some() && !app.web_only && ui.button("Starten").clicked() {
+            if st.native.is_some() && !app.web_only && ui.button(t("Starten")).clicked() {
                 self.launch(ctx, app, st);
                 ui.close_menu();
             }
-            if !app.no_web && ui.button("Im Browser öffnen").clicked() {
+            if !app.no_web && ui.button(t("Im Browser öffnen")).clicked() {
                 self.open_web(ctx, app);
                 ui.close_menu();
             }
-            if update && ui.button(format!("Aktualisieren auf {}", st.latest.map(fmt_version).unwrap_or_default())).clicked() {
+            if update && ui.button(tf("Aktualisieren auf {v}", &[("v", &st.latest.map(fmt_version).unwrap_or_default())])).clicked() {
                 self.install(ctx, app, st.update_kind(), None);
                 ui.close_menu();
             }
             ui.separator();
-            if ui.button("Entfernen").clicked() {
+            if ui.button(t("Entfernen")).clicked() {
                 self.remove(app);
                 ui.close_menu();
             }
@@ -1197,8 +1266,8 @@ impl Gui {
         p.circle_stroke(c, 22.0, Stroke::new(1.5, color));
         p.line_segment([c - egui::vec2(9.0, 0.0), c + egui::vec2(9.0, 0.0)], Stroke::new(2.0, color));
         p.line_segment([c - egui::vec2(0.0, 9.0), c + egui::vec2(0.0, 9.0)], Stroke::new(2.0, color));
-        p.text(Pos2::new(rect.center().x, rect.top() + 102.0), egui::Align2::CENTER_CENTER, "Hinzufügen", egui::FontId::proportional(14.0), MUTED);
-        if resp.on_hover_text("Weitere Programme installieren").clicked() {
+        p.text(Pos2::new(rect.center().x, rect.top() + 102.0), egui::Align2::CENTER_CENTER, t("Hinzufügen"), egui::FontId::proportional(14.0), MUTED);
+        if resp.on_hover_text(t("Weitere Programme installieren")).clicked() {
             self.open_catalog(Chip::All);
         }
     }
@@ -1261,7 +1330,7 @@ impl Gui {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(&place.name).size(14.0).color(MUTED));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if link(ui, "Ort ändern").clicked() {
+                    if link(ui, t("Ort ändern")).clicked() {
                         prefs = true;
                     }
                 });
@@ -1271,14 +1340,14 @@ impl Gui {
                 if busy {
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.label(egui::RichText::new("Wetter wird geladen …").color(MUTED));
+                        ui.label(egui::RichText::new(t("Wetter wird geladen …")).color(MUTED));
                     });
                 } else {
-                    ui.label(egui::RichText::new("Kein Wetter verfügbar").size(16.0));
+                    ui.label(egui::RichText::new(t("Kein Wetter verfügbar")).size(16.0));
                     if let Some(e) = &error {
-                        ui.label(egui::RichText::new("Keine Verbindung zum Wetterdienst").size(12.5).color(MUTED)).on_hover_text(e);
+                        ui.label(egui::RichText::new(t("Keine Verbindung zum Wetterdienst")).size(12.5).color(MUTED)).on_hover_text(e);
                     }
-                    if link(ui, "Erneut versuchen").clicked() {
+                    if link(ui, t("Erneut versuchen")).clicked() {
                         retry = true;
                     }
                 }
@@ -1287,10 +1356,10 @@ impl Gui {
             let top = ui.cursor().min;
             let width = ui.available_width();
             ui.label(egui::RichText::new(weather::deg(w.temp)).size(46.0).strong());
-            ui.label(egui::RichText::new(&w.text).size(15.0));
+            ui.label(egui::RichText::new(w.code.map(|c| t(weather::describe(c, w.sky != weather::Sky::Moon).0).to_string()).unwrap_or_else(|| w.text.clone())).size(15.0));
             let mut info = format!("H {} · T {}", weather::deg(w.today_max), weather::deg(w.today_min));
             if w.rain_prob > 0.0 {
-                info += &format!(" · Regen {:.0} %", w.rain_prob);
+                info += &format!(" · {}", tf("Regen {p} %", &[("p", &format!("{:.0}", w.rain_prob))]));
             }
             ui.label(egui::RichText::new(info).size(12.5).color(MUTED));
             weather::draw(ui.painter(), Pos2::new(top.x + width - 34.0, top.y + 34.0), 68.0, w.sky, ACCENT, PANEL);
@@ -1305,7 +1374,7 @@ impl Gui {
             let p = ui.painter();
             for (i, d) in days.iter().enumerate() {
                 let x = rect.left() + cw * (i as f32 + 0.5);
-                p.text(Pos2::new(x, rect.top() + 6.0), egui::Align2::CENTER_CENTER, &d.weekday, egui::FontId::proportional(12.0), MUTED);
+                p.text(Pos2::new(x, rect.top() + 6.0), egui::Align2::CENTER_CENTER, weekday_short(&d.weekday), egui::FontId::proportional(12.0), MUTED);
                 weather::draw(p, Pos2::new(x, rect.top() + 24.0), 22.0, d.sky, ACCENT, PANEL);
                 p.text(Pos2::new(x, rect.top() + 44.0), egui::Align2::CENTER_CENTER, weather::deg(d.max), egui::FontId::proportional(13.0), TEXT);
             }
@@ -1325,17 +1394,17 @@ impl Gui {
         let mut pick = false;
         card(ui, size, BORDER, |ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Zuletzt geöffnet").size(14.0).color(MUTED));
+                ui.label(egui::RichText::new(t("Zuletzt geöffnet")).size(14.0).color(MUTED));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if link(ui, "Datei öffnen …").clicked() {
+                    if link(ui, t("Datei öffnen …")).clicked() {
                         pick = true;
                     }
                 });
             });
             if recent.is_empty() {
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new("Noch keine Dateien").size(15.0));
-                ui.label(egui::RichText::new("Dateien, die du über die Werkbank öffnest, erscheinen hier.").size(12.5).color(MUTED));
+                ui.label(egui::RichText::new(t("Noch keine Dateien")).size(15.0));
+                ui.label(egui::RichText::new(t("Dateien, die du über die Werkbank öffnest, erscheinen hier.")).size(12.5).color(MUTED));
                 return;
             }
             ui.add_space(2.0);
@@ -1358,7 +1427,7 @@ impl Gui {
                     if installed {
                         open = Some(r.clone());
                     } else {
-                        self.notice = Some(format!("{} ist nicht mehr installiert.", app.name));
+                        self.notice = Some(tf("{name} ist nicht mehr installiert.", &[("name", &app.name)]));
                     }
                 }
             }
@@ -1400,12 +1469,12 @@ impl Gui {
         egui::CentralPanel::default().frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 let w = (ui.available_width() * 0.4).clamp(200.0, 360.0);
-                ui.add_sized([w, 38.0], egui::TextEdit::singleline(&mut self.search).hint_text("Suchen: Name, Zweck oder Dateityp").font(egui::FontId::proportional(15.0)).margin(egui::vec2(12.0, 9.0)));
+                ui.add_sized([w, 38.0], egui::TextEdit::singleline(&mut self.search).hint_text(t("Suchen: Name, Zweck oder Dateityp")).font(egui::FontId::proportional(15.0)).margin(egui::vec2(12.0, 9.0)));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if updates > 0 && button(ui, &format!("Alle aktualisieren ({updates})"), Look::Accent).clicked() {
+                    if updates > 0 && button(ui, &tf("Alle aktualisieren ({n})", &[("n", &updates)]), Look::Accent).clicked() {
                         self.update_all(ctx, snapshot);
                     }
-                    if button(ui, "Nach Updates suchen", Look::Outline).clicked() {
+                    if button(ui, t("Nach Updates suchen"), Look::Outline).clicked() {
                         self.refresh(ctx);
                     }
                 });
@@ -1431,9 +1500,9 @@ impl Gui {
                     ui.add_space(30.0);
                     ui.vertical_centered(|ui| {
                         let msg = match self.chip {
-                            Chip::Updates => "Alles aktuell, keine Updates nötig.",
-                            Chip::Installed => "Noch nichts installiert.",
-                            _ => "Nichts gefunden.",
+                            Chip::Updates => t("Alles aktuell, keine Updates nötig."),
+                            Chip::Installed => t("Noch nichts installiert."),
+                            _ => t("Nichts gefunden."),
                         };
                         ui.label(egui::RichText::new(msg).size(16.0).color(MUTED));
                     });
@@ -1464,16 +1533,16 @@ impl Gui {
                     ui.add_space(2.0);
                     ui.label(egui::RichText::new(&app.name).size(17.0).strong());
                     let line = match (st.current(), st.latest) {
-                        (Some(n), Some(l)) if update => format!("Update auf {} · installiert {}", fmt_version(l), fmt_version(n)),
-                        (Some(n), _) => format!("Installiert · {}", fmt_version(n)),
-                        (None, Some(l)) => format!("Version {}", fmt_version(l)),
-                        (None, None) => st.error.clone().unwrap_or_else(|| "Version wird gesucht …".into()),
+                        (Some(n), Some(l)) if update => tf("Update auf {neu} · installiert {alt}", &[("neu", &fmt_version(l)), ("alt", &fmt_version(n))]),
+                        (Some(n), _) => tf("Installiert · {v}", &[("v", &fmt_version(n))]),
+                        (None, Some(l)) => tf("Version {v}", &[("v", &fmt_version(l))]),
+                        (None, None) => st.error.clone().unwrap_or_else(|| t("Version wird gesucht …").into()),
                     };
                     ui.label(egui::RichText::new(line).size(12.5).color(if update { ACCENT } else { MUTED }));
                 });
             });
             ui.add_space(4.0);
-            let mut job = egui::text::LayoutJob::simple(app.about.clone(), egui::FontId::proportional(13.0), SOFT, ui.available_width());
+            let mut job = egui::text::LayoutJob::simple(app.about_text().to_string(), egui::FontId::proportional(13.0), SOFT, ui.available_width());
             job.wrap.max_rows = 2;
             ui.label(job);
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
@@ -1485,21 +1554,21 @@ impl Gui {
                 }
                 ui.horizontal(|ui| {
                     if st.installed() {
-                        if update && button(ui, "Aktualisieren", Look::Accent).clicked() {
+                        if update && button(ui, t("Aktualisieren"), Look::Accent).clicked() {
                             self.install(ctx, app, st.update_kind(), None);
                         }
-                        if button(ui, "Öffnen", if update { Look::Outline } else { Look::Primary }).clicked() {
+                        if button(ui, t("Öffnen"), if update { Look::Outline } else { Look::Primary }).clicked() {
                             self.launch(ctx, app, st);
                         }
-                        if link(ui, "Entfernen").clicked() {
+                        if link(ui, t("Entfernen")).clicked() {
                             self.remove(app);
                         }
                     } else {
                         let ready = st.latest.is_some();
-                        if ui.add_enabled_ui(ready, |ui| button(ui, "Installieren", Look::Primary)).inner.clicked() {
+                        if ui.add_enabled_ui(ready, |ui| button(ui, t("Installieren"), Look::Primary)).inner.clicked() {
                             self.install_default(ctx, app);
                         }
-                        if !app.no_web && !app.web_only && ready && button(ui, "Im Browser testen", Look::Outline).clicked() {
+                        if !app.no_web && !app.web_only && ready && button(ui, t("Im Browser testen"), Look::Outline).clicked() {
                             self.open_web(ctx, app);
                         }
                     }
@@ -1527,15 +1596,23 @@ impl Gui {
                     });
                     ui.add_space(12.0);
                 };
+                let mut lang = None;
+                section(ui, "Sprache · Language", &mut |ui| {
+                    lang = language_pick(ui);
+                    ui.label(egui::RichText::new(t("Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start. Klangwerk und Schauwerk gibt es nur auf Englisch, einige Programme sind nur teilweise übersetzt.")).size(12.5).color(MUTED));
+                });
+                if let Some(l) = lang {
+                    self.set_language(l);
+                }
                 let place = self.place();
-                section(ui, "Ort für das Wetter", &mut |ui| {
+                section(ui, t("Ort für das Wetter"), &mut |ui| {
                     ui.label(egui::RichText::new(format!("{}{}", place.name, place.region.as_deref().map(|r| format!(" · {r}")).unwrap_or_default())).color(SOFT));
                     ui.add_space(4.0);
                     let mut ps = self.places.lock().unwrap();
                     ui.horizontal(|ui| {
-                        let r = ui.add_sized([280.0, 34.0], egui::TextEdit::singleline(&mut ps.query).hint_text("Anderen Ort suchen, z. B. Luzern").margin(egui::vec2(10.0, 8.0)));
+                        let r = ui.add_sized([280.0, 34.0], egui::TextEdit::singleline(&mut ps.query).hint_text(t("Anderen Ort suchen, z. B. Luzern")).margin(egui::vec2(10.0, 8.0)));
                         let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                        if (button(ui, "Suchen", Look::Outline).clicked() || enter) && !ps.busy {
+                        if (button(ui, t("Suchen"), Look::Outline).clicked() || enter) && !ps.busy {
                             search = true;
                         }
                         if ps.busy {
@@ -1544,7 +1621,7 @@ impl Gui {
                     });
                     match &ps.result {
                         Some(Ok(list)) if list.is_empty() => {
-                            ui.label(egui::RichText::new("Kein Ort gefunden.").color(MUTED));
+                            ui.label(egui::RichText::new(t("Kein Ort gefunden.")).color(MUTED));
                         }
                         Some(Ok(list)) => {
                             for p in list {
@@ -1555,19 +1632,19 @@ impl Gui {
                             }
                         }
                         Some(Err(e)) => {
-                            ui.label(egui::RichText::new(format!("Suche fehlgeschlagen: {e}")).color(WARN));
+                            ui.label(egui::RichText::new(tf("Suche fehlgeschlagen: {fehler}", &[("fehler", e)])).color(WARN));
                         }
                         None => {}
                     }
-                    if place != Place::sarnen() && link(ui, "Zurück auf Sarnen").clicked() {
+                    if place != Place::sarnen() && link(ui, t("Zurück auf Sarnen")).clicked() {
                         chosen = Some(Place::sarnen());
                     }
                 });
-                section(ui, "Startseite zeigt", &mut |ui| {
-                    changed |= ui.checkbox(&mut self.cfg.home.clock, "Uhr und Datum").changed();
-                    changed |= ui.checkbox(&mut self.cfg.home.weather, format!("Wetter für {}", place.name)).changed();
-                    changed |= ui.checkbox(&mut self.cfg.home.recent, "Zuletzt geöffnete Dateien").changed();
-                    if !self.cfg.recent.is_empty() && link(ui, "Liste «Zuletzt geöffnet» leeren").clicked() {
+                section(ui, t("Startseite zeigt"), &mut |ui| {
+                    changed |= ui.checkbox(&mut self.cfg.home.clock, t("Uhr und Datum")).changed();
+                    changed |= ui.checkbox(&mut self.cfg.home.weather, tf("Wetter für {ort}", &[("ort", &place.name)])).changed();
+                    changed |= ui.checkbox(&mut self.cfg.home.recent, t("Zuletzt geöffnete Dateien")).changed();
+                    if !self.cfg.recent.is_empty() && link(ui, t("Liste «Zuletzt geöffnet» leeren")).clicked() {
                         let mut cfg = core::load_config();
                         cfg.recent.clear();
                         let _ = core::save_config(&cfg);
@@ -1575,13 +1652,13 @@ impl Gui {
                     }
                 });
                 let mut types = false;
-                section(ui, "Programme und Dateien", &mut |ui| {
-                    ui.label(egui::RichText::new(format!("Datenordner: {}", core::data_dir().display())).color(SOFT));
+                section(ui, t("Programme und Dateien"), &mut |ui| {
+                    ui.label(egui::RichText::new(tf("Datenordner: {pfad}", &[("pfad", &core::data_dir().display())])).color(SOFT));
                     ui.horizontal(|ui| {
-                        if button(ui, "Datenordner öffnen", Look::Outline).clicked() {
+                        if button(ui, t("Datenordner öffnen"), Look::Outline).clicked() {
                             let _ = open::that(core::data_dir());
                         }
-                        if assoc::supported() && button(ui, "Dateitypen …", Look::Outline).clicked() {
+                        if assoc::supported() && button(ui, t("Dateitypen …"), Look::Outline).clicked() {
                             types = true;
                         }
                     });
@@ -1590,10 +1667,10 @@ impl Gui {
                     self.open_types();
                 }
                 let mut about = false;
-                section(ui, "Über", &mut |ui| {
+                section(ui, t("Über"), &mut |ui| {
                     ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).color(SOFT));
-                    ui.label(egui::RichText::new("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).").size(12.5).color(MUTED));
-                    if link(ui, "Mehr …").clicked() {
+                    ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(MUTED));
+                    if link(ui, t("Mehr …")).clicked() {
                         about = true;
                     }
                 });
@@ -1662,12 +1739,12 @@ impl eframe::App for Gui {
                 self.home(ctx, &snapshot);
             }
             View::Catalog => {
-                let title = if self.chip == Chip::Updates { "Updates" } else { "Programme entdecken" };
+                let title = if self.chip == Chip::Updates { t("Updates") } else { t("Programme entdecken") };
                 self.header(ctx, Some(title));
                 self.catalog(ctx, &snapshot);
             }
             View::Prefs => {
-                self.header(ctx, Some("Einstellungen"));
+                self.header(ctx, Some(t("Einstellungen")));
                 self.prefs(ctx);
             }
         }

@@ -1,0 +1,48 @@
+# Umbenennwerk: deutsch → englisch
+Dateien oder einen Ordner hinzufügen.	Add files or a folder.
+{n} Dateien	{n} files
+Nichts umzubenennen.	Nothing to rename.
+{n} umbenannt, {f} fehlgeschlagen	{n} renamed, {f} failed
+{n} umbenannt	{n} renamed
+{n} rückgängig gemacht	{n} undone
+  ＋ Dateien  	  ＋ Files  
+Dateien hinzufügen	Add files
+  📁 Ordner  	  📁 Folder  
+Ordner hinzufügen	Add folder
+  ↩ Rückgängig  	  ↩ Undo  
+Liste leeren	Clear list
+Liste geleert.	List cleared.
+  ✓  Umbenennen  	  ✓  Rename  
+{n} Konflikt(e)	{n} conflict(s)
+Alt	Old
+Neu	New
+Noch keine Dateien. Oben «Dateien» oder «Ordner» wählen.	No files yet. Choose “Files” or “Folder” above.
+Basisname	Base name
+Namen komplett ersetzen	Replace entire name
+Neuer Name:	New name:
+Suchen:	Find:
+Ersetzen:	Replace:
+Nummerierung	Numbering
+Fortlaufend nummerieren	Number sequentially
+Start / Schritt:	Start / step:
+Stellen:	Digits:
+Trennzeichen:	Separator:
+Position:	Position:
+Präfix / Suffix	Prefix / suffix
+Präfix:	Prefix:
+Suffix:	Suffix:
+Gross-/Kleinschreibung	Letter case
+Original	Original
+GROSS	UPPER
+klein	lower
+Titel	Title
+Datum einfügen	Insert date
+Änderungsdatum der Datei	File modification date
+Format:	Format:
+Tokens: JJJJ MM TT hh mm ss (UTC)	Tokens: JJJJ (year) MM TT (day) hh mm ss (UTC)
+Bereinigen	Clean up
+Leerzeichen → Unterstrich	Spaces → underscores
+Sonderzeichen entfernen	Remove special characters
+Erweiterung klein schreiben	Lowercase extension
+Vorn	Front
+Hinten	End

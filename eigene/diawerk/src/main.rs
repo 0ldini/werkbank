@@ -4,6 +4,7 @@ mod app;
 mod frames;
 mod model;
 mod render;
+mod sprache;
 mod tool;
 
 fn main() -> eframe::Result<()> {

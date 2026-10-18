@@ -5,19 +5,20 @@
 use serde_json::Value;
 
 use crate::model::{self, Entry, Kind, Status};
+use crate::sprache::{t, tf};
 
 /// Sucht Filme und Serien gemeinsam (search/multi).
 pub fn search(api_key: &str, query: &str, lang: &str) -> Result<Vec<Entry>, String> {
     if api_key.trim().is_empty() {
-        return Err("Kein TMDB-Schlüssel hinterlegt (Einstellungen).".into());
+        return Err(t("Kein TMDB-Schlüssel hinterlegt (Einstellungen).").into());
     }
     let url = model::search_url(api_key, query, lang);
     let body = get_text(&url)?;
-    let v: Value = serde_json::from_str(&body).map_err(|e| format!("Antwort unlesbar: {e}"))?;
+    let v: Value = serde_json::from_str(&body).map_err(|e| tf("Antwort unlesbar: {e}", &[("e", &e)]))?;
     if let Some(msg) = v.get("status_message").and_then(|m| m.as_str()) {
         return Err(format!("TMDB: {msg}"));
     }
-    let results = v.get("results").and_then(|r| r.as_array()).ok_or("Keine Ergebnisse.")?;
+    let results = v.get("results").and_then(|r| r.as_array()).ok_or(t("Keine Ergebnisse."))?;
     let mut out = Vec::new();
     for r in results {
         let mt = r.get("media_type").and_then(|m| m.as_str()).unwrap_or("");
@@ -35,7 +36,7 @@ pub fn search(api_key: &str, query: &str, lang: &str) -> Result<Vec<Entry>, Stri
 pub fn enrich(api_key: &str, lang: &str, e: &mut Entry) -> Result<(), String> {
     let url = model::details_url(api_key, e.kind, e.id, lang);
     let body = get_text(&url)?;
-    let v: Value = serde_json::from_str(&body).map_err(|e| format!("Antwort unlesbar: {e}"))?;
+    let v: Value = serde_json::from_str(&body).map_err(|e| tf("Antwort unlesbar: {e}", &[("e", &e)]))?;
     match e.kind {
         Kind::Movie => {
             e.runtime = v.get("runtime").and_then(|r| r.as_u64()).map(|n| n as u32);
@@ -79,12 +80,12 @@ fn entry_from_json(r: &Value, kind: Kind) -> Entry {
 
 fn get_text(url: &str) -> Result<String, String> {
     match ureq::get(url).call() {
-        Ok(resp) => resp.into_string().map_err(|e| format!("Lesefehler: {e}")),
+        Ok(resp) => resp.into_string().map_err(|e| tf("Lesefehler: {e}", &[("e", &e)])),
         Err(ureq::Error::Status(code, resp)) => {
             let msg = resp.into_string().unwrap_or_default();
             Err(format!("HTTP {code}: {}", first_line(&msg)))
         }
-        Err(e) => Err(format!("Netzwerkfehler: {e}")),
+        Err(e) => Err(tf("Netzwerkfehler: {e}", &[("e", &e)])),
     }
 }
 

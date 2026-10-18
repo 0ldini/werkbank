@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::model::{self, Aspect, Fit, MediaKind, Plan, Quality, Target};
+use crate::sprache::{t, tf};
 
 /// Ein Umwandel-Auftrag.
 #[derive(Clone)]
@@ -209,7 +210,7 @@ fn out_target(job: &Job) -> PathBuf {
 fn convert_image(job: &Job, st: &JobState) -> Result<(), String> {
     use image::{DynamicImage, Rgba, RgbaImage};
 
-    let img = image::open(&job.input).map_err(|e| format!("Bild lesen: {e}"))?;
+    let img = image::open(&job.input).map_err(|e| tf("Bild lesen: {e}", &[("e", &e)]))?;
     st.progress.store(300, Ordering::Relaxed);
     let (sw, sh) = (img.width(), img.height());
     let plan = model::plan_box(sw, sh, job.aspect, job.fit, false);
@@ -228,7 +229,7 @@ fn convert_image(job: &Job, st: &JobState) -> Result<(), String> {
     st.progress.store(700, Ordering::Relaxed);
 
     let out = out_target(job);
-    save_image(&out_img, &out, job.target, job.quality).map_err(|e| format!("Bild schreiben: {e}"))?;
+    save_image(&out_img, &out, job.target, job.quality).map_err(|e| tf("Bild schreiben: {e}", &[("e", &e)]))?;
     st.finish(&out);
     Ok(())
 }
@@ -263,7 +264,7 @@ fn save_image(
 // ---------------- Ton & Video (ffmpeg) ----------------
 
 fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), String> {
-    let ffmpeg = ffmpeg.ok_or("ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren.")?;
+    let ffmpeg = ffmpeg.ok_or(t("ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren."))?;
     let out = out_target(job);
     let input = job.input.display().to_string();
     let output = out.display().to_string();
@@ -275,9 +276,9 @@ fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), Stri
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("ffmpeg konnte nicht gestartet werden: {e}"))?;
+        .map_err(|e| tf("ffmpeg konnte nicht gestartet werden: {e}", &[("e", &e)]))?;
 
-    let stderr = child.stderr.take().ok_or("kein ffmpeg-Ausgabekanal")?;
+    let stderr = child.stderr.take().ok_or(t("kein ffmpeg-Ausgabekanal"))?;
     let mut reader = BufReader::new(stderr);
     let mut line: Vec<u8> = Vec::with_capacity(256);
     let mut byte = [0u8; 1];
@@ -317,7 +318,7 @@ fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), Stri
         st.finish(&out);
         Ok(())
     } else {
-        Err(format!("ffmpeg-Fehler. {}", last_meaningful(&tail)))
+        Err(tf("ffmpeg-Fehler. {detail}", &[("detail", &last_meaningful(&tail))]))
     }
 }
 

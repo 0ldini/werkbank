@@ -4,6 +4,7 @@ mod app;
 mod frame;
 mod model;
 mod record;
+mod sprache;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

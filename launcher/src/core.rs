@@ -28,6 +28,9 @@ pub struct App {
     pub name: String,
     #[serde(default)]
     pub about: String,
+    /// Beschreibung auf Englisch (optional).
+    #[serde(default)]
+    pub about_en: Option<String>,
     pub repo: String,
     pub asset: Option<String>,
     pub exe: Option<String>,
@@ -49,6 +52,14 @@ pub struct App {
 }
 
 impl App {
+    /// Beschreibung in der gewählten Sprache.
+    pub fn about_text(&self) -> &str {
+        match &self.about_en {
+            Some(en) if crate::sprache::is_en() => en,
+            _ => &self.about,
+        }
+    }
+
     fn asset(&self) -> &str {
         self.asset.as_deref().unwrap_or(&self.id)
     }
@@ -683,6 +694,8 @@ pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
     }
     std::process::Command::new(&exe)
         .args(&file)
+        // Sprache der Oberfläche, wie im Launcher gewählt.
+        .env("WERKBANK_LANG", crate::sprache::lang().code())
         .current_dir(exe.parent().unwrap_or(Path::new(".")))
         .spawn()
         .with_context(|| format!("Start von {}", exe.display()))?;

@@ -16,6 +16,7 @@ mod presets;
 mod role;
 mod save;
 mod smtp;
+mod sprache;
 mod store;
 mod textutil;
 mod timeutil;

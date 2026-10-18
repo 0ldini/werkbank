@@ -9,6 +9,7 @@ use std::process::Command;
 
 use crate::netparse::{self, Device, Listen};
 use crate::recycle::{self, Recycled};
+use crate::sprache::{t, tf};
 
 fn cmd(program: &str) -> Command {
     #[cfg(windows)]
@@ -111,11 +112,11 @@ pub fn protection_status() -> Vec<Check> {
             State::Unknown
         },
         detail: if off > 0 {
-            "Mindestens ein Profil ist aus.".into()
+            t("Mindestens ein Profil ist aus.").into()
         } else if on > 0 {
-            "Für alle Profile aktiv.".into()
+            t("Für alle Profile aktiv.").into()
         } else {
-            "Status nicht lesbar.".into()
+            t("Status nicht lesbar.").into()
         },
     });
 
@@ -125,7 +126,7 @@ pub fn protection_status() -> Vec<Check> {
         &["-NoProfile", "-Command", "(Get-MpComputerStatus).RealTimeProtectionEnabled"],
     )
     .unwrap_or_default();
-    v.push(bool_check("Virenschutz (Echtzeit)", &def, "Aktiv.", "Ausgeschaltet."));
+    v.push(bool_check(t("Virenschutz (Echtzeit)"), &def, t("Aktiv."), t("Ausgeschaltet.")));
 
     // Windows-Update-Dienst
     let wu = run(
@@ -135,9 +136,9 @@ pub fn protection_status() -> Vec<Check> {
     .unwrap_or_default();
     let running = wu.to_lowercase().contains("running");
     v.push(Check {
-        name: "Windows-Update".into(),
+        name: t("Windows-Update").into(),
         state: if running { State::Ok } else { State::Warn },
-        detail: if running { "Dienst läuft.".into() } else { "Dienst nicht aktiv.".into() },
+        detail: if running { t("Dienst läuft.").into() } else { t("Dienst nicht aktiv.").into() },
     });
 
     // SmartScreen
@@ -160,20 +161,20 @@ pub fn protection_status() -> Vec<Check> {
         } else {
             State::Ok
         },
-        detail: if ss.is_empty() { "Status nicht lesbar.".into() } else { format!("Einstellung: {ss}") },
+        detail: if ss.is_empty() { t("Status nicht lesbar.").into() } else { tf("Einstellung: {ss}", &[("ss", &ss)]) },
     });
 
     v
 }
 
 fn bool_check(name: &str, out: &str, yes: &str, no: &str) -> Check {
-    let t = out.trim().to_lowercase();
-    let (state, detail) = if t.contains("true") {
+    let v = out.trim().to_lowercase();
+    let (state, detail) = if v.contains("true") {
         (State::Ok, yes)
-    } else if t.contains("false") {
+    } else if v.contains("false") {
         (State::Bad, no)
     } else {
-        (State::Unknown, "Status nicht lesbar.")
+        (State::Unknown, t("Status nicht lesbar."))
     };
     Check { name: name.into(), state, detail: detail.into() }
 }
@@ -252,7 +253,7 @@ pub fn restore(item: &RecItem) -> Result<(), String> {
         let _ = std::fs::create_dir_all(parent);
     }
     if dest.exists() {
-        return Err("Am Zielort existiert bereits eine Datei gleichen Namens.".into());
+        return Err(t("Am Zielort existiert bereits eine Datei gleichen Namens.").into());
     }
     // $R zurückschieben, dann $I entfernen.
     match std::fs::rename(&item.r_path, &dest) {
@@ -260,7 +261,7 @@ pub fn restore(item: &RecItem) -> Result<(), String> {
             let _ = std::fs::remove_file(&item.i_path);
             Ok(())
         }
-        Err(e) => Err(format!("Wiederherstellen fehlgeschlagen: {e}")),
+        Err(e) => Err(tf("Wiederherstellen fehlgeschlagen: {e}", &[("e", &e)])),
     }
 }
 

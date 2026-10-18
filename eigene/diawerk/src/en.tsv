@@ -1,0 +1,170 @@
+# Diawerk: deutsch → englisch
++ Bilder / Videos …	+ Images / videos …
++ Ordner …	+ Folder …
+0 = ganze Länge. Der Ton der Videos wird weggelassen.	0 = full length. Video sound is dropped.
+Abbrechen	Cancel
+Abspann mit Dank	Outro with thanks
+Alle wählen	Select all
+Art	Type
+Auflösung	Resolution
+Aus: nichts wird abgeschnitten. Hoch- und 4:3-Bilder stehen immer ganz im Bild, vor unscharfem Hintergrund.	Off: nothing is cropped. Portrait and 4:3 images are always shown in full, on a blurred background.
+Ausgabe:	Output:
+BILD	IMAGE
+Beides einstreuen	Spread both
+Bilder	Images
+Bilder nahe 16:9 füllen den Schirm	Images close to 16:9 fill the screen
+Bilder pro Sekunde	Frames per second
+Bilder und Videos	Images and videos
+Bilder und Videos hineinziehen oder oben hinzufügen.	Drag in images and videos or add them above.
+Bilder und Videos wählen	Choose images and videos
+Bilder werden vorbereitet …	Preparing images …
+Bitte eine Ausgabedatei wählen.	Please choose an output file.
+Dauer	Duration
+Der Ausgabeordner existiert nicht.	The output folder does not exist.
+Diashow erstellen	Create slideshow
+Diashow speichern unter	Save slideshow as
+Diashow wird gerechnet …	Rendering slideshow …
+Die Titel laufen der Reihe nach, werden bei Bedarf wiederholt, blenden ein und am Ende aus.	Tracks play in order, repeat if needed, fade in and fade out at the end.
+Eine Stelle nach oben	Move up one place
+Eine Stelle nach unten	Move down one place
+Entfernen	Remove
+Es wird noch eingelesen – bitte einen Moment warten.	Still loading files – please wait a moment.
+Fertig nach {zeit} – {datei}	Done after {zeit} – {datei}
+Film	Movie
+Format	Format
+Für Instagram eingestellt: Hochformat 1080×1920, 3 s pro Bild, MP4.	Set up for Instagram: portrait 1080×1920, 3 s per image, MP4.
+Für Instagram einstellen	Set up for Instagram
+Gewählte Einträge an diese Nummer setzen	Move selected entries to this number
+Hinweise ({n})	Notes ({n})
+Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge.	Portrait 1080×1920, 3 s per image, quick transitions, MP4. With a selection: only the selected entries.
+KARTE	CARD
+Keine Einträge gewählt.	No entries selected.
+Keine Systemschrift gefunden – bitte eine Schrift wählen.	No system font found – please choose a font.
+Keine neuen Bilder oder Videos gefunden.	No new images or videos found.
+Layout wie die Webseite des Fotografen: links Titel, Name und Text, rechts das Porträt.	Layout like the photographer's website: title, name and text on the left, portrait on the right.
+Lese ein … {n} / {m}	Loading … {n} / {m}
+Lese {n} Dateien ein …	Loading {n} files …
+Liste leeren	Clear list
+Länger als 3 Minuten: zu lang für ein Instagram-Reel.	Longer than 3 minutes: too long for an Instagram Reel.
+MP3 hinzufügen …	Add MP3 …
+Musik	Music
+Musik wählen (mehrere möglich)	Choose music (multiple allowed)
+Nach Datum	By date
+Nach Namen	By name
+Name	Name
+Neu starten	Restart
+Nicht lesbar: {b}	Unreadable: {b}
+Nicht lesbar	Unreadable
+Noch keine Bilder	No images yet
+Nr.	No.
+Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm).	Only the selected images and videos go into the movie (e.g. for a short promo video).
+Ordner oder Dateien hierher ziehen – oder oben hinzufügen.	Drag folders or files here – or add them above.
+Ordner wählen	Choose folder
+PANORAMA	PANORAMA
+Panoramen	Panoramas
+Panoramen einstreuen	Spread panoramas
+Panoramen fahren von links nach rechts und bleiben länger stehen. Tempo gilt bei 1080 Zeilen Höhe.	Panoramas pan from left to right and stay on screen longer. Speed applies at a height of 1080 lines.
+Porträt des Fotografen	Photographer's portrait
+Porträt entfernen	Remove portrait
+Porträt wählen …	Choose portrait …
+Porträt: keines	Portrait: none
+Porträt: {name}	Portrait: {name}
+Qualität	Quality
+Ruhe am Rand	Pause at edges
+Schrift	Font
+Schrift wählen … (optional)	Choose font … (optional)
+Schriftdatei	Font file
+Sekunden pro Bild	Seconds per image
+Stopp	Stop
+Tempo	Speed
+Tempo:	Speed:
+Text (Abspann)	Text (outro)
+Text (Vorspann)	Text (intro)
+Titelzeile (Abspann)	Title line (outro)
+Titelzeile (Vorspann)	Title line (intro)
+VIDEO	VIDEO
+Verkleinerte Vorschau (640 Pixel breit) – Übergänge, Schwenks und Dauer wie im fertigen Film, ohne Musik.	Reduced preview (640 pixels wide) – transitions, pans and timing as in the final movie, without music.
+Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge	Spreads the panoramas evenly among the other entries
+Verteilt die Videos gleichmässig zwischen die Bilder	Spreads the videos evenly among the images
+Video	Video
+Video {name} nicht lesbar: {e}	Video {name} unreadable: {e}
+Videos	Videos
+Videos (MP4, MOV …) kommen in die Liste wie Bilder.	Videos (MP4, MOV …) go into the list just like images.
+Videos einstreuen	Spread videos
+Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen	Spread videos and panoramas evenly among the regular images
+Vor und nach Panoramen wird immer weich überblendet. Am Anfang und Ende blendet der Film aus Schwarz ein und aus.	Panoramas always get a soft crossfade before and after. The movie fades in from black at the start and out at the end.
+Vor- und Abspann	Intro and outro
+Vorschau – {name}	Preview – {name}
+Vorspann mit dem Fotografen	Intro with the photographer
+Wählen …	Choose …
+ab Anfang	from start
+ab Nr. {n}	from no. {n}
+ab Seitenverhältnis	from aspect ratio
+dorthin	move there
+ffmpeg fehlt – ohne ffmpeg kann Diawerk nichts einlesen.	ffmpeg is missing – Diawerk cannot load anything without ffmpeg.
+ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren.	ffmpeg was not found. Put ffmpeg.exe next to the program or install it.
+höchstens	at most
+inkl. Unterordner	incl. subfolders
+keine	none
+längstens	max. length
+mindestens	at least
+noch ca. {zeit}	about {zeit} left
+nur Auswahl ({n})	selection only ({n})
+sanfter Zoom	gentle zoom
+{name} lässt sich nicht vollständig lesen (beschädigt?)	{name} cannot be read completely (damaged?)
+{n} Panoramen erkannt	{n} panoramas detected
+{n} gewählt	{n} selected
+{n} gewählte	{n} selected
+{n} nicht lesbar (siehe Hinweise).	{n} unreadable (see notes).
+{ok} Dateien hinzugefügt.	{ok} files added.
+{bilder} Bilder · {panos} Panoramen · {videos} Videos · Länge ca. {laenge}	{bilder} images · {panos} panoramas · {videos} videos · length approx. {laenge}
+Übergänge	Transitions
+⏫ Anfang	⏫ Start
+⏬ Ende	⏬ End
+▶ Vorschau ab Anfang	▶ Preview from start
+▶ ab Auswahl	▶ From selection
+▶ nur Auswahl	▶ Selection only
+# Auflösungen (Tabelle RES in app.rs)
+Full HD 1920×1080	Full HD 1920×1080
+4K 3840×2160	4K 3840×2160
+HD 1280×720	HD 1280×720
+Vorschau 640×360	Preview 640×360
+Instagram Reel/Story 1080×1920 (hoch)	Instagram Reel/Story 1080×1920 (portrait)
+Instagram Beitrag 1080×1350 (4:5)	Instagram post 1080×1350 (4:5)
+Quadrat 1080×1080	Square 1080×1080
+# Beschriftungen aus model.rs (label())
+Gemischt (ruhig)	Mixed (calm)
+Überblenden	Crossfade
+Schieben	Push
+Wischen	Wipe
+Zoom-Überblendung	Zoom crossfade
+Entwurf (schnell)	Draft (fast)
+Gut	Good
+Sehr gut (langsam)	Very good (slow)
+MP4 (H.264) – läuft überall	MP4 (H.264) – plays everywhere
+MKV (H.264)	MKV (H.264)
+MOV (H.264)	MOV (H.264)
+WebM (VP9) – Browser	WebM (VP9) – browser
+# Meldungen aus model.rs/render.rs (übersetzt in app.rs, engine_msg)
+Die Liste ist leer.	The list is empty.
+Abgebrochen.	Cancelled.
+Bildlader ist unerwartet beendet.	The image loader stopped unexpectedly.
+Nichts zum Anzeigen.	Nothing to show.
+Keine Schrift gefunden – unter «Vor- und Abspann» eine Schriftdatei (.ttf) wählen	No font found – choose a font file (.ttf) under "Intro and outro"
+kein Medium	not a media file
+Dateityp nicht unterstützt	file type not supported
+Videolänge unbekannt	video length unknown
+keine Bild-/Videodaten gefunden	no image/video data found
+kein ffmpeg-Ausgang	no ffmpeg output
+kein ffmpeg-Eingang	no ffmpeg input
+Schreibthread abgestürzt	writer thread crashed
+unbekannter Fehler	unknown error
+ffmpeg startet nicht	ffmpeg does not start
+ffmpeg konnte nicht gestartet werden	ffmpeg could not be started
+ffmpeg (Kodierer) startet nicht	ffmpeg (encoder) does not start
+ffmpeg hat beim Kodieren abgebrochen	ffmpeg stopped while encoding
+Als schwarzes Bild eingesetzt	Inserted as a black image
+Musik nicht lesbar, ausgelassen	Music unreadable, skipped
+Textdatei	Text file
+Vorspann	Intro
+Abspann	Outro

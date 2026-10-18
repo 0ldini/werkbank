@@ -1,0 +1,16 @@
+# Speicherwerk: deutsch → englisch
+(ohne)	(none)
+Abbrechen	Cancel
+Abgebrochen.	Cancelled.
+CSV speichern …	Save CSV …
+DATEITYPEN	FILE TYPES
+GRÖSSTE DATEIEN	LARGEST FILES
+Neu scannen	Rescan
+Oben einen Ordner wählen.	Choose a folder above.
+Ordner wählen	Choose folder
+Ordner wählen, um den Speicherplatz zu analysieren.	Choose a folder to analyze disk usage.
+Wird gescannt …	Scanning …
+Fertig in {secs} s	Done in {secs} s
+Gesamt: {size}	Total: {size}
+Scanne … {files} Dateien · {dirs} Ordner	Scanning … {files} files · {dirs} folders
+{files} Dateien · {dirs} Ordner · {status}	{files} files · {dirs} folders · {status}

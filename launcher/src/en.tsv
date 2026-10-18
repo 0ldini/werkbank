@@ -1,0 +1,138 @@
+# Werkbank-Launcher: deutsch → englisch
+gerade eben	just now
+heute {zeit}	today {zeit}
+gestern	yesterday
+Einstellungen nicht gespeichert: {fehler}	Settings not saved: {fehler}
+Noch nicht veröffentlicht	Not released yet
+Keine Verbindung zum Server	No connection to the server
+Starte …	Starting …
+Datei öffnen	Open file
+Für {ext}-Dateien zuerst {name} installieren (Menü → Programme entdecken).	To open {ext} files, install {name} first (Menu → Discover programs).
+Kein Programm der Werkbank öffnet {ext}-Dateien.	No Werkbank program opens {ext} files.
+Einrichtung: {n} Programm(e) aus dem Setup, neuere Versionen werden aus dem Netz geholt	Setting up {n} program(s) from the installer; newer versions are downloaded
+Einrichtung: {n} Programm(e) aus dem Setup	Setting up {n} program(s) from the installer
+Wartet …	Waiting …
+Willkommen in der Werkbank	Welcome to Werkbank
+Einmalige Einrichtung	One-time setup
+Wo sollen die Programme abgelegt werden?	Where should the programs be stored?
+Der Ordner wird angelegt, falls er fehlt. Unter C:\Program Files fragt Windows einmalig nach Administratorrechten; danach braucht die Werkbank keine mehr.	The folder is created if it doesn't exist. Under C:\Program Files, Windows asks once for administrator rights; after that Werkbank no longer needs them.
+Durchsuchen …	Browse …
+Weiter	Continue
+Vorschlag	Suggestion
+Datenordner wählen	Choose data folder
+Zurück	Back
+Einrichtung: Dateitypen	Setup: file types
+Dateitypen	File types
+Angehakte Dateitypen lassen sich per Rechtsklick → «Öffnen mit» in der Werkbank öffnen.	Checked file types can be opened in Werkbank via right-click → “Open with”.
+Übernehmen	Apply
+Überspringen	Skip
+Welches Programm Standard ist, legt Windows fest: Rechtsklick → «Öffnen mit» → «Immer», oder hier:	Windows decides which program is the default: right-click → “Open with” → “Always”, or here:
+Standard-Apps in Windows öffnen	Open default apps in Windows
+Keine	None
+Alle	All
+Menü	Menu
+Zur Startseite	To the home page
++  Programme hinzufügen	+  Add programs
+Ausblenden	Dismiss
+Werkbank	Werkbank
+{installed} von {total} Programmen installiert	{installed} of {total} programs installed
+Menü schliessen	Close menu
+Startseite	Home
+Programme entdecken	Discover programs
+Updates	Updates
+Datenordner öffnen	Open data folder
+Browser-Übersicht	Browser overview
+Einstellungen	Settings
+STARTSEITE ZEIGT	HOME PAGE SHOWS
+Uhr und Datum	Clock and date
+Wetter für {ort}	Weather for {ort}
+Zuletzt geöffnete Dateien	Recently opened files
+Über Werkbank	About Werkbank
+Programme installieren, starten und einzeln aktualisieren	Install, start and update programs one by one
+Die Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0); dazu kommen eigene Werkzeuge.	The programs are based on the open-source apps by the ArtCraft team (MIT / Apache 2.0), plus our own tools.
+Wetterdaten: Open-Meteo.com (CC BY 4.0).	Weather data: Open-Meteo.com (CC BY 4.0).
+Quelltext auf GitHub	Source code on GitHub
+Meine Programme	My programs
+Aktualisieren	Update
+1 Update bereit	1 update ready
+{n} Updates bereit	{n} updates ready
+Noch keine Programme installiert	No programs installed yet
+Programme für Büro, Bild, Video, Ton und mehr – einfach auswählen und installieren.	Programs for office, images, video, audio and more – just pick and install.
+Update	Update
+Version {v}	Version {v}
+neu: {v}	new: {v}
+Starten	Start
+Im Browser öffnen	Open in browser
+Aktualisieren auf {v}	Update to {v}
+Entfernen	Remove
+Hinzufügen	Add
+Weitere Programme installieren	Install more programs
+Ort ändern	Change location
+Wetter wird geladen …	Loading weather …
+Kein Wetter verfügbar	No weather available
+Keine Verbindung zum Wetterdienst	No connection to the weather service
+Erneut versuchen	Try again
+Regen {p} %	Rain {p} %
+Zuletzt geöffnet	Recently opened
+Datei öffnen …	Open file …
+Noch keine Dateien	No files yet
+Dateien, die du über die Werkbank öffnest, erscheinen hier.	Files you open through Werkbank appear here.
+{name} ist nicht mehr installiert.	{name} is no longer installed.
+Suchen: Name, Zweck oder Dateityp	Search: name, purpose or file type
+Alle aktualisieren ({n})	Update all ({n})
+Nach Updates suchen	Check for updates
+Alles aktuell, keine Updates nötig.	Everything is up to date.
+Noch nichts installiert.	Nothing installed yet.
+Nichts gefunden.	Nothing found.
+Update auf {neu} · installiert {alt}	Update to {neu} · installed {alt}
+Installiert · {v}	Installed · {v}
+Version wird gesucht …	Looking for version …
+Öffnen	Open
+Installieren	Install
+Im Browser testen	Try in browser
+Gilt für die Werkbank und alle Programme; offene Programme beim nächsten Start. Klangwerk und Schauwerk gibt es nur auf Englisch, einige Programme sind nur teilweise übersetzt.	Applies to Werkbank and all programs; programs that are already open switch on their next start. Klangwerk and Schauwerk are English only, and some programs are only partly translated.
+Ort für das Wetter	Location for the weather
+Anderen Ort suchen, z. B. Luzern	Search another place, e.g. Lucerne
+Suchen	Search
+Kein Ort gefunden.	No place found.
+Suche fehlgeschlagen: {fehler}	Search failed: {fehler}
+Zurück auf Sarnen	Back to Sarnen
+Startseite zeigt	Home page shows
+Liste «Zuletzt geöffnet» leeren	Clear “Recently opened”
+Programme und Dateien	Programs and files
+Datenordner: {pfad}	Data folder: {pfad}
+Dateitypen …	File types …
+Über	About
+Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).	Programs are based on the open-source apps by the ArtCraft team (MIT / Apache 2.0). Weather data: Open-Meteo.com (CC BY 4.0).
+Mehr …	More …
+{name} ist nicht installiert. Zum Öffnen von {datei} zuerst installieren.	{name} is not installed. Install it first to open {datei}.
+Büro	Office
+Bild und Video	Images and video
+Werkzeuge	Tools
+Ton	Audio
+Installiert	Installed
+Guten Morgen	Good morning
+Guten Tag	Good afternoon
+Guten Abend	Good evening
+Gute Nacht	Good night
+Klar	Clear
+Überwiegend klar	Mostly clear
+Teilweise bewölkt	Partly cloudy
+Bedeckt	Overcast
+Nebel	Fog
+Nieselregen	Drizzle
+Gefrierender Niesel	Freezing drizzle
+Leichter Regen	Light rain
+Regen	Rain
+Starker Regen	Heavy rain
+Gefrierender Regen	Freezing rain
+Leichter Schneefall	Light snow
+Schneefall	Snow
+Starker Schneefall	Heavy snow
+Schneegriesel	Snow grains
+Regenschauer	Rain showers
+Heftige Regenschauer	Heavy rain showers
+Schneeschauer	Snow showers
+Gewitter	Thunderstorm
+Gewitter mit Hagel	Thunderstorm with hail
+Wetter unbekannt	Weather unknown

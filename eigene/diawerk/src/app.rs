@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::model::{self, Item, Kind, OutFmt, Quality, Settings, Transition};
 use crate::render::{self, Control, Preview};
+use crate::sprache::{t, tf};
 use crate::tool;
 
 fn vio() -> egui::Color32 {
@@ -24,6 +25,55 @@ fn orange() -> egui::Color32 {
 }
 fn red() -> egui::Color32 {
     egui::Color32::from_rgb(0xdc, 0x26, 0x26)
+}
+
+/// Meldungen aus model.rs/render.rs übersetzen. Diese Dateien bleiben ohne Sprachmodul
+/// (sie werden für Tests einzeln mit rustc gebaut), darum geschieht es hier bei der Anzeige.
+fn engine_msg(s: &str) -> String {
+    let whole: [&'static str; 13] = [
+        "Die Liste ist leer.",
+        "Abgebrochen.",
+        "Bildlader ist unerwartet beendet.",
+        "Nichts zum Anzeigen.",
+        "Keine Schrift gefunden – unter «Vor- und Abspann» eine Schriftdatei (.ttf) wählen",
+        "kein Medium",
+        "Dateityp nicht unterstützt",
+        "Videolänge unbekannt",
+        "keine Bild-/Videodaten gefunden",
+        "kein ffmpeg-Ausgang",
+        "kein ffmpeg-Eingang",
+        "Schreibthread abgestürzt",
+        "unbekannter Fehler",
+    ];
+    if let Some(de) = whole.iter().copied().find(|de| *de == s) {
+        return t(de).to_string();
+    }
+    // «Anfang: Rest» – der Rest kann selbst wieder eine Meldung sein.
+    let prefixes: [&'static str; 10] = [
+        "ffmpeg startet nicht",
+        "ffmpeg konnte nicht gestartet werden",
+        "ffmpeg (Kodierer) startet nicht",
+        "ffmpeg hat beim Kodieren abgebrochen",
+        "Als schwarzes Bild eingesetzt",
+        "Musik nicht lesbar, ausgelassen",
+        "Textdatei",
+        "Vorspann",
+        "Abspann",
+        "Nicht lesbar",
+    ];
+    for de in prefixes {
+        if let Some(rest) = s.strip_prefix(de).and_then(|r| r.strip_prefix(": ")) {
+            return format!("{}: {}", t(de), engine_msg(rest));
+        }
+    }
+    if let Some(name) = s.strip_suffix(" lässt sich nicht vollständig lesen (beschädigt?)") {
+        return tf("{name} lässt sich nicht vollständig lesen (beschädigt?)", &[("name", &name)]);
+    }
+    if let Some((name, e)) = s.strip_prefix("Video ").and_then(|r| r.split_once(" nicht lesbar: ")) {
+        let e = engine_msg(e);
+        return tf("Video {name} nicht lesbar: {e}", &[("name", &name), ("e", &e)]);
+    }
+    s.to_string()
 }
 
 const RES: [(&str, u32, u32); 7] = [
@@ -98,9 +148,9 @@ impl App {
         cc.egui_ctx.set_style(style);
         let ffmpeg = tool::find_ffmpeg();
         let status = if ffmpeg.is_some() {
-            "Bilder und Videos hineinziehen oder oben hinzufügen.".to_string()
+            t("Bilder und Videos hineinziehen oder oben hinzufügen.").to_string()
         } else {
-            "ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren.".to_string()
+            t("ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren.").to_string()
         };
         App {
             items: Vec::new(),
@@ -134,12 +184,12 @@ impl App {
     /// Nimmt Dateien und Ordner entgegen; gemessen wird im Hintergrund.
     fn add_paths(&mut self, ctx: &egui::Context, paths: Vec<PathBuf>) {
         let Some(ff) = self.ffmpeg.clone() else {
-            self.status = "ffmpeg fehlt – ohne ffmpeg kann Diawerk nichts einlesen.".into();
+            self.status = t("ffmpeg fehlt – ohne ffmpeg kann Diawerk nichts einlesen.").into();
             self.status_ok = false;
             return;
         };
         if self.probing.is_some() {
-            self.status = "Es wird noch eingelesen – bitte einen Moment warten.".into();
+            self.status = t("Es wird noch eingelesen – bitte einen Moment warten.").into();
             return;
         }
         let mut files: Vec<PathBuf> = Vec::new();
@@ -154,7 +204,7 @@ impl App {
         let mut seen: HashSet<PathBuf> = HashSet::new();
         files.retain(|p| !known.contains(p) && seen.insert(p.clone()));
         if files.is_empty() {
-            self.status = "Keine neuen Bilder oder Videos gefunden.".into();
+            self.status = t("Keine neuen Bilder oder Videos gefunden.").into();
             return;
         }
         let n = files.len();
@@ -173,8 +223,9 @@ impl App {
                         }
                         let r = model::probe(ff, &files[i]).map_err(|e| {
                             format!(
-                                "{}: {e}",
-                                files[i].file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
+                                "{}: {}",
+                                files[i].file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default(),
+                                engine_msg(&e)
                             )
                         });
                         let _ = tx.send(ProbeMsg::One(i, r));
@@ -185,7 +236,7 @@ impl App {
             let _ = tx.send(ProbeMsg::Done);
             ctx2.request_repaint();
         });
-        self.status = format!("Lese {n} Dateien ein …");
+        self.status = tf("Lese {n} Dateien ein …", &[("n", &n)]);
         self.status_ok = true;
         self.probing = Some(Probing { rx, pending: (0..n).map(|_| None).collect(), got: 0 });
     }
@@ -203,7 +254,7 @@ impl App {
                 }
             }
             if !finished {
-                self.status = format!("Lese ein … {} / {}", p.got, p.pending.len());
+                self.status = tf("Lese ein … {n} / {m}", &[("n", &p.got), ("m", &p.pending.len())]);
             }
         }
         if finished {
@@ -219,11 +270,12 @@ impl App {
                         Err(e) => bad.push(e),
                     }
                 }
-                self.status = format!("{ok} Dateien hinzugefügt.");
+                self.status = tf("{ok} Dateien hinzugefügt.", &[("ok", &ok)]);
                 self.status_ok = true;
                 if !bad.is_empty() {
-                    self.status.push_str(&format!(" {} nicht lesbar (siehe Hinweise).", bad.len()));
-                    self.notes.extend(bad.into_iter().map(|b| format!("Nicht lesbar: {b}")));
+                    self.status.push(' ');
+                    self.status.push_str(&tf("{n} nicht lesbar (siehe Hinweise).", &[("n", &bad.len())]));
+                    self.notes.extend(bad.into_iter().map(|b| tf("Nicht lesbar: {b}", &[("b", &b)])));
                 }
             }
         }
@@ -235,7 +287,7 @@ impl App {
         let Some(ff) = self.ffmpeg.clone() else { return };
         let mut out = PathBuf::from(self.out_path.trim());
         if out.as_os_str().is_empty() {
-            self.status = "Bitte eine Ausgabedatei wählen.".into();
+            self.status = t("Bitte eine Ausgabedatei wählen.").into();
             self.status_ok = false;
             return;
         }
@@ -246,7 +298,7 @@ impl App {
         }
         if let Some(parent) = out.parent() {
             if !parent.as_os_str().is_empty() && !parent.is_dir() {
-                self.status = "Der Ausgabeordner existiert nicht.".into();
+                self.status = t("Der Ausgabeordner existiert nicht.").into();
                 self.status_ok = false;
                 return;
             }
@@ -254,11 +306,11 @@ impl App {
         self.stop_preview();
         self.notes.clear();
         self.started = Instant::now();
-        self.status = "Diashow wird gerechnet …".into();
+        self.status = t("Diashow wird gerechnet …").into();
         self.status_ok = true;
         let list = self.render_list();
         if list.is_empty() {
-            self.status = "Keine Einträge gewählt.".into();
+            self.status = t("Keine Einträge gewählt.").into();
             self.status_ok = false;
             return;
         }
@@ -300,7 +352,7 @@ impl App {
                 self.out_path = dir.join(format!("{stem}-Instagram.mp4")).display().to_string();
             }
         }
-        self.status = "Für Instagram eingestellt: Hochformat 1080×1920, 3 s pro Bild, MP4.".into();
+        self.status = t("Für Instagram eingestellt: Hochformat 1080×1920, 3 s pro Bild, MP4.").into();
         self.status_ok = true;
     }
 
@@ -310,17 +362,19 @@ impl App {
             return;
         }
         if let Ok(mut l) = job.log.lock() {
-            self.notes.append(&mut l);
+            let msgs: Vec<String> = l.drain(..).map(|m| engine_msg(&m)).collect();
+            self.notes.extend(msgs);
         }
         let res = job.result.lock().ok().and_then(|mut r| r.take());
         let took = self.started.elapsed().as_secs_f32();
         match res {
             Some(Ok(())) => {
-                self.status = format!("Fertig nach {} – {}", model::fmt_hms(took), self.out_path);
+                let zeit = model::fmt_hms(took);
+                self.status = tf("Fertig nach {zeit} – {datei}", &[("zeit", &zeit), ("datei", &self.out_path)]);
                 self.status_ok = true;
             }
             Some(Err(e)) => {
-                self.status = e;
+                self.status = engine_msg(&e);
                 self.status_ok = false;
             }
             None => {}
@@ -383,13 +437,13 @@ impl App {
         let first = self.sel.iter().next().copied().unwrap_or(0).min(self.items.len() - 1);
         let c = &self.s.credits;
         let (list, intro, outro, label): (Vec<Item>, bool, bool, String) = match mode {
-            PvMode::Start => (self.items.clone(), c.intro, c.outro, "ab Anfang".into()),
-            PvMode::FromSel => (self.items[first..].to_vec(), false, c.outro, format!("ab Nr. {}", first + 1)),
+            PvMode::Start => (self.items.clone(), c.intro, c.outro, t("ab Anfang").into()),
+            PvMode::FromSel => (self.items[first..].to_vec(), false, c.outro, tf("ab Nr. {n}", &[("n", &(first + 1))])),
             PvMode::OnlySel => (
                 self.sel.iter().filter_map(|&i| self.items.get(i).cloned()).collect(),
                 false,
                 false,
-                format!("{} gewählte", self.sel.len()),
+                tf("{n} gewählte", &[("n", &self.sel.len())]),
             ),
         };
         self.stop_preview();
@@ -420,7 +474,7 @@ impl App {
         let mut open = self.pv_open;
         let mut restart = false;
         let mut stop = false;
-        egui::Window::new(format!("Vorschau – {}", self.pv_label))
+        egui::Window::new(tf("Vorschau – {name}", &[("name", &self.pv_label)]))
             .open(&mut open)
             .default_width(680.0)
             .resizable(true)
@@ -440,7 +494,7 @@ impl App {
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                "Bilder werden vorbereitet …",
+                                t("Bilder werden vorbereitet …"),
                                 egui::FontId::proportional(16.0),
                                 egui::Color32::GRAY,
                             );
@@ -454,14 +508,14 @@ impl App {
                     model::fmt_hms(len)
                 )));
                 ui.horizontal(|ui| {
-                    if ui.button("Neu starten").clicked() {
+                    if ui.button(t("Neu starten")).clicked() {
                         restart = true;
                     }
-                    if ui.add_enabled(running, egui::Button::new("Stopp")).clicked() {
+                    if ui.add_enabled(running, egui::Button::new(t("Stopp"))).clicked() {
                         stop = true;
                     }
                     ui.separator();
-                    ui.label("Tempo:");
+                    ui.label(t("Tempo:"));
                     for (lab, v) in [("1×", 100u32), ("2×", 200), ("4×", 400)] {
                         if ui.selectable_label(self.pv_speed == v, lab).clicked() {
                             self.pv_speed = v;
@@ -471,10 +525,10 @@ impl App {
                 });
                 if let Ok(l) = pv.ctl.log.lock() {
                     if let Some(last) = l.last() {
-                        ui.colored_label(orange(), last.as_str());
+                        ui.colored_label(orange(), engine_msg(last));
                     }
                 }
-                ui.small("Verkleinerte Vorschau (640 Pixel breit) – Übergänge, Schwenks und Dauer wie im fertigen Film, ohne Musik.");
+                ui.small(t("Verkleinerte Vorschau (640 Pixel breit) – Übergänge, Schwenks und Dauer wie im fertigen Film, ohne Musik."));
             });
         self.pv_open = open;
         if stop {
@@ -526,50 +580,50 @@ impl eframe::App for App {
                 ui.heading("Diawerk");
                 ui.separator();
                 let can_edit = !running && self.probing.is_none();
-                if ui.add_enabled(can_edit, egui::Button::new("+ Bilder / Videos …")).clicked() {
+                if ui.add_enabled(can_edit, egui::Button::new(t("+ Bilder / Videos …"))).clicked() {
                     let mut exts: Vec<&str> = model::IMAGE_EXT.to_vec();
                     exts.extend_from_slice(model::VIDEO_EXT);
                     if let Some(files) = rfd::FileDialog::new()
-                        .set_title("Bilder und Videos wählen")
-                        .add_filter("Bilder und Videos", &exts)
+                        .set_title(t("Bilder und Videos wählen"))
+                        .add_filter(t("Bilder und Videos"), &exts)
                         .pick_files()
                     {
                         self.add_paths(ctx, files);
                     }
                 }
-                if ui.add_enabled(can_edit, egui::Button::new("+ Ordner …")).clicked() {
-                    if let Some(dir) = rfd::FileDialog::new().set_title("Ordner wählen").pick_folder() {
+                if ui.add_enabled(can_edit, egui::Button::new(t("+ Ordner …"))).clicked() {
+                    if let Some(dir) = rfd::FileDialog::new().set_title(t("Ordner wählen")).pick_folder() {
                         self.add_paths(ctx, vec![dir]);
                     }
                 }
-                ui.checkbox(&mut self.recursive, "inkl. Unterordner");
+                ui.checkbox(&mut self.recursive, t("inkl. Unterordner"));
                 ui.separator();
-                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new("Nach Namen")).clicked() {
+                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new(t("Nach Namen"))).clicked() {
                     self.items.sort_by(|a, b| model::natural_cmp(&a.path.to_string_lossy(), &b.path.to_string_lossy()));
                     self.sel.clear();
                 }
-                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new("Nach Datum")).clicked() {
+                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new(t("Nach Datum"))).clicked() {
                     self.items.sort_by_key(|i| i.modified);
                     self.sel.clear();
                 }
                 let n_base = self.items.len() - n_vid - n_pano;
                 if ui
-                    .add_enabled(can_edit && n_vid > 0 && self.items.len() > n_vid, egui::Button::new("Videos einstreuen"))
-                    .on_hover_text("Verteilt die Videos gleichmässig zwischen die Bilder")
+                    .add_enabled(can_edit && n_vid > 0 && self.items.len() > n_vid, egui::Button::new(t("Videos einstreuen")))
+                    .on_hover_text(t("Verteilt die Videos gleichmässig zwischen die Bilder"))
                     .clicked()
                 {
                     self.spread(true, false);
                 }
                 if ui
-                    .add_enabled(can_edit && n_pano > 0 && n_base + n_vid > 0, egui::Button::new("Panoramen einstreuen"))
-                    .on_hover_text("Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge")
+                    .add_enabled(can_edit && n_pano > 0 && n_base + n_vid > 0, egui::Button::new(t("Panoramen einstreuen")))
+                    .on_hover_text(t("Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge"))
                     .clicked()
                 {
                     self.spread(false, true);
                 }
                 if ui
-                    .add_enabled(can_edit && n_pano > 0 && n_vid > 0 && n_base > 0, egui::Button::new("Beides einstreuen"))
-                    .on_hover_text("Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen")
+                    .add_enabled(can_edit && n_pano > 0 && n_vid > 0 && n_base > 0, egui::Button::new(t("Beides einstreuen")))
+                    .on_hover_text(t("Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen"))
                     .clicked()
                 {
                     self.spread(true, true);
@@ -578,43 +632,43 @@ impl eframe::App for App {
             ui.horizontal_wrapped(|ui| {
                 let can_edit = !running && self.probing.is_none();
                 let has_sel = can_edit && !self.sel.is_empty();
-                ui.label(format!("{} gewählt", self.sel.len()));
-                if ui.add_enabled(has_sel, egui::Button::new("⬆")).on_hover_text("Eine Stelle nach oben").clicked() {
+                ui.label(tf("{n} gewählt", &[("n", &self.sel.len())]));
+                if ui.add_enabled(has_sel, egui::Button::new("⬆")).on_hover_text(t("Eine Stelle nach oben")).clicked() {
                     self.move_sel(true);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⬇")).on_hover_text("Eine Stelle nach unten").clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new("⬇")).on_hover_text(t("Eine Stelle nach unten")).clicked() {
                     self.move_sel(false);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⏫ Anfang")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new(t("⏫ Anfang"))).clicked() {
                     self.to_start();
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⏬ Ende")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new(t("⏬ Ende"))).clicked() {
                     self.to_end();
                 }
-                ui.add(egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)).prefix("Nr. "));
-                if ui.add_enabled(has_sel, egui::Button::new("dorthin")).on_hover_text("Gewählte Einträge an diese Nummer setzen").clicked() {
+                ui.add(egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)).prefix(format!("{} ", t("Nr."))));
+                if ui.add_enabled(has_sel, egui::Button::new(t("dorthin"))).on_hover_text(t("Gewählte Einträge an diese Nummer setzen")).clicked() {
                     let nr = self.goto;
                     self.to_number(nr);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("Entfernen")).clicked() {
+                if ui.add_enabled(has_sel, egui::Button::new(t("Entfernen"))).clicked() {
                     self.remove_sel();
                 }
-                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new("Alle wählen")).clicked() {
+                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new(t("Alle wählen"))).clicked() {
                     self.sel = (0..self.items.len()).collect();
                 }
-                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new("Liste leeren")).clicked() {
+                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new(t("Liste leeren"))).clicked() {
                     self.items.clear();
                     self.sel.clear();
                 }
                 ui.separator();
                 let can_prev = ffmpeg_ok && !running && !self.items.is_empty() && self.probing.is_none();
-                if ui.add_enabled(can_prev, egui::Button::new("▶ Vorschau ab Anfang")).clicked() {
+                if ui.add_enabled(can_prev, egui::Button::new(t("▶ Vorschau ab Anfang"))).clicked() {
                     pv_req = Some(PvMode::Start);
                 }
-                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new("▶ ab Auswahl")).clicked() {
+                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new(t("▶ ab Auswahl"))).clicked() {
                     pv_req = Some(PvMode::FromSel);
                 }
-                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new("▶ nur Auswahl")).clicked() {
+                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new(t("▶ nur Auswahl"))).clicked() {
                     pv_req = Some(PvMode::OnlySel);
                 }
             });
@@ -625,16 +679,16 @@ impl eframe::App for App {
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label("Ausgabe:");
+                ui.label(t("Ausgabe:"));
                 ui.add_enabled(
                     !running,
                     egui::TextEdit::singleline(&mut self.out_path).desired_width((ui.available_width() - 110.0).max(120.0)),
                 );
-                if ui.add_enabled(!running, egui::Button::new("Wählen …")).clicked() {
+                if ui.add_enabled(!running, egui::Button::new(t("Wählen …"))).clicked() {
                     if let Some(p) = rfd::FileDialog::new()
-                        .set_title("Diashow speichern unter")
+                        .set_title(t("Diashow speichern unter"))
                         .set_file_name(format!("Diashow.{}", self.s.format.ext()))
-                        .add_filter("Video", &[self.s.format.ext()])
+                        .add_filter(t("Video"), &[self.s.format.ext()])
                         .save_file()
                     {
                         self.out_path = p.display().to_string();
@@ -644,7 +698,7 @@ impl eframe::App for App {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 if let Some(job) = self.job.clone() {
-                    if ui.button("Abbrechen").clicked() {
+                    if ui.button(t("Abbrechen")).clicked() {
                         job.cancel.store(true, Ordering::SeqCst);
                     }
                     let done = job.done.load(Ordering::Relaxed) as f32;
@@ -654,28 +708,27 @@ impl eframe::App for App {
                     let eta = if frac > 0.02 { el / frac - el } else { 0.0 };
                     ui.add(egui::ProgressBar::new(frac).show_percentage().desired_width((ui.available_width() - 190.0).max(60.0)));
                     if frac > 0.02 {
-                        ui.label(format!("noch ca. {}", model::fmt_hms(eta)));
+                        let zeit = model::fmt_hms(eta);
+                        ui.label(tf("noch ca. {zeit}", &[("zeit", &zeit)]));
                     }
                 } else {
                     let can_start = self.ffmpeg.is_some() && !self.items.is_empty() && self.probing.is_none();
-                    let btn = egui::Button::new(egui::RichText::new("Diashow erstellen").strong().color(egui::Color32::WHITE))
+                    let btn = egui::Button::new(egui::RichText::new(t("Diashow erstellen")).strong().color(egui::Color32::WHITE))
                         .fill(vio());
                     let can_start = can_start && (!self.only_sel || !self.sel.is_empty());
                     if ui.add_enabled(can_start, btn).clicked() {
                         self.start_render();
                     }
-                    ui.checkbox(&mut self.only_sel, format!("nur Auswahl ({})", self.sel.len()))
-                        .on_hover_text("Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm).");
+                    ui.checkbox(&mut self.only_sel, tf("nur Auswahl ({n})", &[("n", &self.sel.len())]))
+                        .on_hover_text(t("Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm)."));
                     if !self.items.is_empty() {
-                        ui.label(format!(
-                            "{} Bilder · {} Panoramen · {} Videos · Länge ca. {}",
-                            n_img,
-                            n_pano,
-                            n_vid,
-                            model::fmt_hms(total_len)
+                        let laenge = model::fmt_hms(total_len);
+                        ui.label(tf(
+                            "{bilder} Bilder · {panos} Panoramen · {videos} Videos · Länge ca. {laenge}",
+                            &[("bilder", &n_img), ("panos", &n_pano), ("videos", &n_vid), ("laenge", &laenge)],
                         ));
                         if self.s.height > self.s.width && total_len > REEL_MAX_SECS {
-                            ui.colored_label(red(), "Länger als 3 Minuten: zu lang für ein Instagram-Reel.");
+                            ui.colored_label(red(), t("Länger als 3 Minuten: zu lang für ein Instagram-Reel."));
                         }
                     }
                 }
@@ -684,7 +737,7 @@ impl eframe::App for App {
             let col = if self.status_ok { ui.visuals().text_color() } else { red() };
             ui.label(egui::RichText::new(&self.status).color(col));
             if !self.notes.is_empty() {
-                ui.collapsing(format!("Hinweise ({})", self.notes.len()), |ui| {
+                ui.collapsing(tf("Hinweise ({n})", &[("n", &self.notes.len())]), |ui| {
                     egui::ScrollArea::vertical().max_height(110.0).show(ui, |ui| {
                         for n in &self.notes {
                             ui.label(n);
@@ -700,44 +753,44 @@ impl eframe::App for App {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add_enabled_ui(!running, |ui| {
                     ui.add_space(4.0);
-                    ui.heading("Film");
+                    ui.heading(t("Film"));
                     if ui
-                        .button("Für Instagram einstellen")
-                        .on_hover_text("Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge.")
+                        .button(t("Für Instagram einstellen"))
+                        .on_hover_text(t("Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge."))
                         .clicked()
                     {
                         self.instagram_preset();
                     }
-                    egui::ComboBox::from_label("Auflösung")
-                        .selected_text(RES[self.res].0)
+                    egui::ComboBox::from_label(t("Auflösung"))
+                        .selected_text(t(RES[self.res].0))
                         .show_ui(ui, |ui| {
                             for (i, r) in RES.iter().enumerate() {
-                                ui.selectable_value(&mut self.res, i, r.0);
+                                ui.selectable_value(&mut self.res, i, t(r.0));
                             }
                         });
                     self.s.width = RES[self.res].1;
                     self.s.height = RES[self.res].2;
-                    egui::ComboBox::from_label("Bilder pro Sekunde")
+                    egui::ComboBox::from_label(t("Bilder pro Sekunde"))
                         .selected_text(format!("{}", self.s.fps))
                         .show_ui(ui, |ui| {
                             for f in [24u32, 25, 30, 50, 60] {
                                 ui.selectable_value(&mut self.s.fps, f, format!("{f}"));
                             }
                         });
-                    egui::ComboBox::from_label("Qualität")
-                        .selected_text(self.s.quality.label())
+                    egui::ComboBox::from_label(t("Qualität"))
+                        .selected_text(t(self.s.quality.label()))
                         .show_ui(ui, |ui| {
                             for q in Quality::ALL {
-                                ui.selectable_value(&mut self.s.quality, q, q.label());
+                                ui.selectable_value(&mut self.s.quality, q, t(q.label()));
                             }
                         });
                     {
                         let before = self.s.format;
-                        egui::ComboBox::from_label("Format")
-                            .selected_text(self.s.format.label())
+                        egui::ComboBox::from_label(t("Format"))
+                            .selected_text(t(self.s.format.label()))
                             .show_ui(ui, |ui| {
                                 for f in OutFmt::ALL {
-                                    ui.selectable_value(&mut self.s.format, f, f.label());
+                                    ui.selectable_value(&mut self.s.format, f, t(f.label()));
                                 }
                             });
                         if self.s.format != before {
@@ -750,50 +803,50 @@ impl eframe::App for App {
                     }
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Bilder");
-                    ui.add(egui::Slider::new(&mut self.s.still_secs, 2.0..=15.0).text("Sekunden pro Bild").suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.zoom_pct, 0.0..=10.0).text("sanfter Zoom").suffix(" %"));
-                    ui.checkbox(&mut self.s.crop_to_fill, "Bilder nahe 16:9 füllen den Schirm");
-                    ui.small("Aus: nichts wird abgeschnitten. Hoch- und 4:3-Bilder stehen immer ganz im Bild, vor unscharfem Hintergrund.");
+                    ui.heading(t("Bilder"));
+                    ui.add(egui::Slider::new(&mut self.s.still_secs, 2.0..=15.0).text(t("Sekunden pro Bild")).suffix(" s"));
+                    ui.add(egui::Slider::new(&mut self.s.zoom_pct, 0.0..=10.0).text(t("sanfter Zoom")).suffix(" %"));
+                    ui.checkbox(&mut self.s.crop_to_fill, t("Bilder nahe 16:9 füllen den Schirm"));
+                    ui.small(t("Aus: nichts wird abgeschnitten. Hoch- und 4:3-Bilder stehen immer ganz im Bild, vor unscharfem Hintergrund."));
 
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Panoramen");
-                    ui.add(egui::Slider::new(&mut self.s.pano_ratio, 1.8..=4.0).text("ab Seitenverhältnis"));
+                    ui.heading(t("Panoramen"));
+                    ui.add(egui::Slider::new(&mut self.s.pano_ratio, 1.8..=4.0).text(t("ab Seitenverhältnis")));
                     ui.label(
-                        egui::RichText::new(format!("{n_pano} Panoramen erkannt"))
+                        egui::RichText::new(tf("{n} Panoramen erkannt", &[("n", &n_pano)]))
                             .color(if n_pano > 0 { orange() } else { ui.visuals().weak_text_color() }),
                     );
-                    ui.add(egui::Slider::new(&mut self.s.pano_speed, 60.0..=500.0).text("Tempo").suffix(" px/s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_min_secs, 3.0..=20.0).text("mindestens").suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_max_secs, 8.0..=60.0).text("höchstens").suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_pause, 0.0..=2.0).text("Ruhe am Rand").suffix(" s"));
-                    ui.small("Panoramen fahren von links nach rechts und bleiben länger stehen. Tempo gilt bei 1080 Zeilen Höhe.");
+                    ui.add(egui::Slider::new(&mut self.s.pano_speed, 60.0..=500.0).text(t("Tempo")).suffix(" px/s"));
+                    ui.add(egui::Slider::new(&mut self.s.pano_min_secs, 3.0..=20.0).text(t("mindestens")).suffix(" s"));
+                    ui.add(egui::Slider::new(&mut self.s.pano_max_secs, 8.0..=60.0).text(t("höchstens")).suffix(" s"));
+                    ui.add(egui::Slider::new(&mut self.s.pano_pause, 0.0..=2.0).text(t("Ruhe am Rand")).suffix(" s"));
+                    ui.small(t("Panoramen fahren von links nach rechts und bleiben länger stehen. Tempo gilt bei 1080 Zeilen Höhe."));
 
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Übergänge");
-                    egui::ComboBox::from_label("Art")
-                        .selected_text(self.s.transition.label())
+                    ui.heading(t("Übergänge"));
+                    egui::ComboBox::from_label(t("Art"))
+                        .selected_text(t(self.s.transition.label()))
                         .show_ui(ui, |ui| {
-                            for t in Transition::ALL {
-                                ui.selectable_value(&mut self.s.transition, t, t.label());
+                            for tr in Transition::ALL {
+                                ui.selectable_value(&mut self.s.transition, tr, t(tr.label()));
                             }
                         });
-                    ui.add(egui::Slider::new(&mut self.s.trans_secs, 0.0..=3.0).text("Dauer").suffix(" s"));
-                    ui.small("Vor und nach Panoramen wird immer weich überblendet. Am Anfang und Ende blendet der Film aus Schwarz ein und aus.");
+                    ui.add(egui::Slider::new(&mut self.s.trans_secs, 0.0..=3.0).text(t("Dauer")).suffix(" s"));
+                    ui.small(t("Vor und nach Panoramen wird immer weich überblendet. Am Anfang und Ende blendet der Film aus Schwarz ein und aus."));
 
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Videos");
-                    ui.add(egui::Slider::new(&mut self.s.video_max_secs, 0.0..=300.0).text("längstens").suffix(" s"));
-                    ui.small("0 = ganze Länge. Der Ton der Videos wird weggelassen.");
+                    ui.heading(t("Videos"));
+                    ui.add(egui::Slider::new(&mut self.s.video_max_secs, 0.0..=300.0).text(t("längstens")).suffix(" s"));
+                    ui.small(t("0 = ganze Länge. Der Ton der Videos wird weggelassen."));
 
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Musik");
+                    ui.heading(t("Musik"));
                     if self.s.music.is_empty() {
-                        ui.label("keine");
+                        ui.label(t("keine"));
                     }
                     let mut remove: Option<usize> = None;
                     let mut up: Option<usize> = None;
@@ -818,69 +871,67 @@ impl eframe::App for App {
                     if let Some(i) = remove {
                         self.s.music.remove(i);
                     }
-                    if ui.button("MP3 hinzufügen …").clicked() {
+                    if ui.button(t("MP3 hinzufügen …")).clicked() {
                         if let Some(files) = rfd::FileDialog::new()
-                            .set_title("Musik wählen (mehrere möglich)")
-                            .add_filter("Musik", &["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus"])
+                            .set_title(t("Musik wählen (mehrere möglich)"))
+                            .add_filter(t("Musik"), &["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus"])
                             .pick_files()
                         {
                             self.s.music.extend(files);
                         }
                     }
-                    ui.small("Die Titel laufen der Reihe nach, werden bei Bedarf wiederholt, blenden ein und am Ende aus.");
+                    ui.small(t("Die Titel laufen der Reihe nach, werden bei Bedarf wiederholt, blenden ein und am Ende aus."));
 
                     ui.add_space(8.0);
                     ui.separator();
-                    ui.heading("Vor- und Abspann");
-                    ui.checkbox(&mut self.s.credits.intro, "Vorspann mit dem Fotografen");
-                    ui.checkbox(&mut self.s.credits.outro, "Abspann mit Dank");
-                    ui.add(egui::Slider::new(&mut self.s.credits.card_secs, 3.0..=20.0).text("Dauer").suffix(" s"));
-                    ui.label("Name");
+                    ui.heading(t("Vor- und Abspann"));
+                    ui.checkbox(&mut self.s.credits.intro, t("Vorspann mit dem Fotografen"));
+                    ui.checkbox(&mut self.s.credits.outro, t("Abspann mit Dank"));
+                    ui.add(egui::Slider::new(&mut self.s.credits.card_secs, 3.0..=20.0).text(t("Dauer")).suffix(" s"));
+                    ui.label(t("Name"));
                     ui.text_edit_singleline(&mut self.s.credits.name);
-                    ui.label("Titelzeile (Vorspann)");
+                    ui.label(t("Titelzeile (Vorspann)"));
                     ui.text_edit_singleline(&mut self.s.credits.intro_kicker);
-                    ui.label("Text (Vorspann)");
+                    ui.label(t("Text (Vorspann)"));
                     ui.text_edit_multiline(&mut self.s.credits.intro_text);
-                    ui.label("Titelzeile (Abspann)");
+                    ui.label(t("Titelzeile (Abspann)"));
                     ui.text_edit_singleline(&mut self.s.credits.outro_kicker);
-                    ui.label("Text (Abspann)");
+                    ui.label(t("Text (Abspann)"));
                     ui.text_edit_multiline(&mut self.s.credits.outro_text);
                     match self.s.credits.portrait.clone() {
                         Some(p) => {
-                            ui.label(format!(
-                                "Porträt: {}",
-                                p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
-                            ));
-                            if ui.button("Porträt entfernen").clicked() {
+                            let name = p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                            ui.label(tf("Porträt: {name}", &[("name", &name)]));
+                            if ui.button(t("Porträt entfernen")).clicked() {
                                 self.s.credits.portrait = None;
                             }
                         }
                         None => {
-                            ui.label("Porträt: keines");
+                            ui.label(t("Porträt: keines"));
                         }
                     }
-                    if ui.button("Porträt wählen …").clicked() {
+                    if ui.button(t("Porträt wählen …")).clicked() {
                         if let Some(p) = rfd::FileDialog::new()
-                            .set_title("Porträt des Fotografen")
-                            .add_filter("Bilder", &["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"])
+                            .set_title(t("Porträt des Fotografen"))
+                            .add_filter(t("Bilder"), &["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"])
                             .pick_file()
                         {
                             self.s.credits.portrait = Some(p);
                         }
                     }
                     if model::find_font(self.s.credits.font.as_deref()).is_none() {
-                        ui.colored_label(red(), "Keine Systemschrift gefunden – bitte eine Schrift wählen.");
+                        ui.colored_label(red(), t("Keine Systemschrift gefunden – bitte eine Schrift wählen."));
                     }
-                    if ui.button("Schrift wählen … (optional)").clicked() {
+                    if ui.button(t("Schrift wählen … (optional)")).clicked() {
                         if let Some(p) = rfd::FileDialog::new()
-                            .set_title("Schriftdatei")
-                            .add_filter("Schrift", &["ttf", "otf"])
+                            .set_title(t("Schriftdatei"))
+                            .add_filter(t("Schrift"), &["ttf", "otf"])
                             .pick_file()
                         {
                             self.s.credits.font = Some(p);
                         }
                     }
-                    ui.small("Layout wie die Webseite des Fotografen: links Titel, Name und Text, rechts das Porträt.");
+                    ui.small(t("Layout wie die Webseite des Fotografen: links Titel, Name und Text, rechts das Porträt."));
                 });
             });
         });
@@ -890,9 +941,9 @@ impl eframe::App for App {
             if self.items.is_empty() {
                 ui.add_space(40.0);
                 ui.vertical_centered(|ui| {
-                    ui.heading("Noch keine Bilder");
-                    ui.label("Ordner oder Dateien hierher ziehen – oder oben hinzufügen.");
-                    ui.label("Videos (MP4, MOV …) kommen in die Liste wie Bilder.");
+                    ui.heading(t("Noch keine Bilder"));
+                    ui.label(t("Ordner oder Dateien hierher ziehen – oder oben hinzufügen."));
+                    ui.label(t("Videos (MP4, MOV …) kommen in die Liste wie Bilder."));
                 });
                 return;
             }
@@ -925,14 +976,14 @@ impl eframe::App for App {
                         let it = &items[i];
                         let sl = &slots[i];
                         let (tag, col) = match (it.kind, sl.pano) {
-                            (Kind::Video, _) => ("VIDEO   ", vio()),
-                            (Kind::Intro | Kind::Outro, _) => ("KARTE   ", vio()),
-                            (_, true) => ("PANORAMA", orange()),
-                            _ => ("BILD    ", blue()),
+                            (Kind::Video, _) => (t("VIDEO"), vio()),
+                            (Kind::Intro | Kind::Outro, _) => (t("KARTE"), vio()),
+                            (_, true) => (t("PANORAMA"), orange()),
+                            _ => (t("BILD"), blue()),
                         };
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(format!("{:>4}", i + 1)).monospace().weak());
-                            ui.label(egui::RichText::new(tag).monospace().strong().color(col));
+                            ui.label(egui::RichText::new(format!("{tag:<8}")).monospace().strong().color(col));
                             let text = format!("{}    {}×{}    {:.1} s", it.name, it.w, it.h, sl.frames as f32 / fps);
                             let r = ui.selectable_label(sel.contains(&i), text);
                             let r = r.interact(egui::Sense::click_and_drag());

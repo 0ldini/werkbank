@@ -8,6 +8,7 @@ use crate::textutil;
 use crate::timeutil;
 use crate::types::{AttMeta, FolderInfo, HeaderRow, MailBody};
 use crate::b64;
+use crate::sprache::{t, tf};
 
 pub const CAP_CORE: &str = "urn:ietf:params:jmap:core";
 pub const CAP_MAIL: &str = "urn:ietf:params:jmap:mail";
@@ -21,7 +22,7 @@ pub struct Session {
 }
 
 pub fn parse_session(j: &Json) -> Result<Session, String> {
-    let api_url = j.get("apiUrl").as_str().ok_or("Die JMAP-Sitzung enthält keine apiUrl.")?.to_string();
+    let api_url = j.get("apiUrl").as_str().ok_or(t("Die JMAP-Sitzung enthält keine apiUrl."))?.to_string();
     let account_id = match j.get("primaryAccounts").get(CAP_MAIL).as_str() {
         Some(a) => a.to_string(),
         None => j
@@ -29,7 +30,7 @@ pub fn parse_session(j: &Json) -> Result<Session, String> {
             .entries()
             .first()
             .map(|(k, _)| k.clone())
-            .ok_or("Die JMAP-Sitzung enthält kein Mail-Konto.")?,
+            .ok_or(t("Die JMAP-Sitzung enthält kein Mail-Konto."))?,
     };
     Ok(Session { api_url, account_id, download_url: j.get("downloadUrl").str_or_empty() })
 }
@@ -208,18 +209,20 @@ pub fn download_url(sess: &Session, blob: &str, name: &str, content_type: &str) 
 pub fn method_args<'a>(resp: &'a Json, call_id: &str) -> Result<&'a Json, String> {
     if let Some(t) = resp.get("type").as_str() {
         // Fehler auf Anfrage-Ebene (kein methodResponses)
-        return Err(format!("Server meldet Fehler: {} {}", t, resp.get("detail").str_or_empty()));
+        let detail = format!("{} {}", t, resp.get("detail").str_or_empty());
+        return Err(tf("Server meldet Fehler: {detail}", &[("detail", &detail)]));
     }
     for r in resp.get("methodResponses").as_arr() {
         if r.at(2).as_str() == Some(call_id) {
             if r.at(0).as_str() == Some("error") {
                 let e = r.at(1);
-                return Err(format!("Server meldet Fehler: {} {}", e.get("type").str_or_empty(), e.get("description").str_or_empty()).trim().to_string());
+                let detail = format!("{} {}", e.get("type").str_or_empty(), e.get("description").str_or_empty());
+                return Err(tf("Server meldet Fehler: {detail}", &[("detail", &detail)]).trim().to_string());
             }
             return Ok(r.at(1));
         }
     }
-    Err(format!("Antwort «{call_id}» fehlt in der Server-Antwort."))
+    Err(tf("Antwort «{call_id}» fehlt in der Server-Antwort.", &[("call_id", &call_id)]))
 }
 
 pub fn parse_folders(resp: &Json) -> Result<Vec<FolderInfo>, String> {
@@ -295,7 +298,7 @@ fn ids_to_header(j: &Json) -> String {
 pub fn parse_body(resp: &Json) -> Result<MailBody, String> {
     let g = method_args(resp, "g")?;
     let e = g.get("list").at(0);
-    let id = e.get("id").as_str().ok_or("Nachricht nicht gefunden (vielleicht gelöscht).")?.to_string();
+    let id = e.get("id").as_str().ok_or(t("Nachricht nicht gefunden (vielleicht gelöscht)."))?.to_string();
     let values = e.get("bodyValues");
     let collect_parts = |parts: &Json| -> Vec<String> {
         parts
@@ -355,7 +358,7 @@ pub fn parse_identity(resp: &Json, my_email: &str) -> Result<String, String> {
         .iter()
         .find(|i| i.get("email").as_str().map_or(false, |e| e.eq_ignore_ascii_case(my_email)))
         .or_else(|| list.first());
-    pick.and_then(|i| i.get("id").as_str()).map(|x| x.to_string()).ok_or_else(|| "Keine Absender-Identität beim Anbieter gefunden.".to_string())
+    pick.and_then(|i| i.get("id").as_str()).map(|x| x.to_string()).ok_or_else(|| t("Keine Absender-Identität beim Anbieter gefunden.").to_string())
 }
 
 /// Prüft eine Schreib-Antwort (`Email/set`, `EmailSubmission/set`) auf Fehler.

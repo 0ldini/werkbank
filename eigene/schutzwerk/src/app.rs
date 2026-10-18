@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::netparse::{self, Device};
+use crate::sprache::{t, tf};
 use crate::pwcheck::{self, PwResult};
 use crate::sys::{self, Check, PortInfo, RecItem, State};
 
@@ -136,15 +137,15 @@ impl App {
                 paint_shield(ui.painter(), r.center());
                 ui.add_space(4.0);
                 ui.heading("Schutzwerk");
-                ui.add(egui::Label::new(egui::RichText::new("Sicherheit · Werkbank").weak()));
+                ui.add(egui::Label::new(egui::RichText::new(t("Sicherheit · Werkbank")).weak()));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     match self.score() {
                         Some(s) => {
                             let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
-                            ui.label(egui::RichText::new(format!("Schutz: {s}/100")).color(col).strong());
+                            ui.label(egui::RichText::new(tf("Schutz: {s}/100", &[("s", &s)])).color(col).strong());
                         }
                         None => {
-                            ui.weak("Schutz: noch nicht geprüft");
+                            ui.weak(t("Schutz: noch nicht geprüft"));
                         }
                     }
                 });
@@ -159,18 +160,18 @@ impl App {
             .exact_width(236.0)
             .show(ctx, |ui| {
                 ui.add_space(12.0);
-                nav_item(ui, &mut self.section, Section::Password, "Passwort-Check", None);
-                nav_item(ui, &mut self.section, Section::Network, "Netzwerk", None);
-                nav_item(ui, &mut self.section, Section::System, "System-Schutz", None);
-                nav_item(ui, &mut self.section, Section::Recycle, "Papierkorb", None);
+                nav_item(ui, &mut self.section, Section::Password, t("Passwort-Check"), None);
+                nav_item(ui, &mut self.section, Section::Network, t("Netzwerk"), None);
+                nav_item(ui, &mut self.section, Section::System, t("System-Schutz"), None);
+                nav_item(ui, &mut self.section, Section::Recycle, t("Papierkorb"), None);
                 ui.add_space(8.0);
                 ui.separator();
                 ui.add_space(8.0);
-                nav_item(ui, &mut self.section, Section::Overview, "Übersicht", None);
+                nav_item(ui, &mut self.section, Section::Overview, t("Übersicht"), None);
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                     ui.add_space(12.0);
                     ui.add(egui::Label::new(
-                        egui::RichText::new("Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge.")
+                        egui::RichText::new(t("Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge."))
                             .size(11.0)
                             .color(egui::Color32::from_gray(150)),
                     ));
@@ -180,18 +181,18 @@ impl App {
 
     // ---------- Passwort ----------
     fn page_password(&mut self, ui: &mut egui::Ui) {
-        h1(ui, "Passwort-Check", "Prüft die Stärke – vollständig offline, nichts wird gesendet oder gespeichert.");
+        h1(ui, t("Passwort-Check"), t("Prüft die Stärke – vollständig offline, nichts wird gesendet oder gespeichert."));
         let res = pwcheck::analyze(&self.pw, COMMON);
 
         card(ui, |ui| {
             ui.horizontal(|ui| {
                 let te = egui::TextEdit::singleline(&mut self.pw)
                     .password(!self.show_pw)
-                    .hint_text("Passwort eingeben …")
+                    .hint_text(t("Passwort eingeben …"))
                     .desired_width(ui.available_width() - 90.0)
                     .font(egui::TextStyle::Monospace);
                 ui.add(te);
-                let lbl = if self.show_pw { "verbergen" } else { "zeigen" };
+                let lbl = if self.show_pw { t("verbergen") } else { t("zeigen") };
                 if ui.button(lbl).clicked() {
                     self.show_pw = !self.show_pw;
                 }
@@ -201,66 +202,66 @@ impl App {
             strength_meter(ui, res.level);
             ui.horizontal(|ui| {
                 let col = level_color(res.level);
-                ui.label(egui::RichText::new(pwcheck::level_label(res.level)).color(col).strong().size(15.0));
+                ui.label(egui::RichText::new(t(pwcheck::level_label(res.level))).color(col).strong().size(15.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(&res.crack).strong());
-                    ui.weak("Geschätzte Knackzeit: ");
+                    ui.label(egui::RichText::new(crack_text(&res.crack)).strong());
+                    ui.weak(t("Geschätzte Knackzeit: "));
                 });
             });
         });
 
         card(ui, |ui| {
             egui::Grid::new("crit").num_columns(2).spacing([28.0, 10.0]).show(ui, |ui| {
-                crit(ui, res.len >= 12, &format!("Mindestens 12 Zeichen ({})", res.len));
-                crit(ui, res.has_lower && res.has_upper, "Gross- und Kleinbuchstaben");
+                crit(ui, res.len >= 12, &tf("Mindestens 12 Zeichen ({n})", &[("n", &res.len)]));
+                crit(ui, res.has_lower && res.has_upper, t("Gross- und Kleinbuchstaben"));
                 ui.end_row();
-                crit(ui, res.has_digit, "Zahlen enthalten");
-                crit(ui, res.has_symbol, "Sonderzeichen enthalten");
+                crit(ui, res.has_digit, t("Zahlen enthalten"));
+                crit(ui, res.has_symbol, t("Sonderzeichen enthalten"));
                 ui.end_row();
-                crit(ui, !res.common && !self.pw.is_empty(), "Kein bekanntes Passwort");
-                crit(ui, !(res.repeat || res.sequence || res.keyboard) && !self.pw.is_empty(), "Keine Reihen/Wiederholungen");
+                crit(ui, !res.common && !self.pw.is_empty(), t("Kein bekanntes Passwort"));
+                crit(ui, !(res.repeat || res.sequence || res.keyboard) && !self.pw.is_empty(), t("Keine Reihen/Wiederholungen"));
                 ui.end_row();
             });
         });
 
         card(ui, |ui| {
             ui.horizontal(|ui| {
-                stat(ui, &format!("{} Bit", res.entropy_bits.round() as u32), "Entropie");
+                stat(ui, &format!("{} Bit", res.entropy_bits.round() as u32), t("Entropie"));
                 ui.add_space(26.0);
-                stat(ui, &format!("{}", res.len), "Zeichen");
+                stat(ui, &format!("{}", res.len), t("Zeichen"));
                 ui.add_space(26.0);
-                stat(ui, &format!("{} / 4", res.classes), "Zeichenklassen");
+                stat(ui, &format!("{} / 4", res.classes), t("Zeichenklassen"));
                 ui.add_space(26.0);
-                stat_colored(ui, pwcheck::level_label(res.level), "Bewertung", level_color(res.level));
+                stat_colored(ui, t(pwcheck::level_label(res.level)), t("Bewertung"), level_color(res.level));
             });
         });
 
-        note(ui, "Tipp: Eine Passphrase aus vier zufälligen Wörtern ist leichter zu merken und oft stärker als ein kurzes kompliziertes Passwort.");
+        note(ui, t("Tipp: Eine Passphrase aus vier zufälligen Wörtern ist leichter zu merken und oft stärker als ein kurzes kompliziertes Passwort."));
     }
 
     // ---------- Netzwerk ----------
     fn page_network(&mut self, ui: &mut egui::Ui) {
-        h1(ui, "Netzwerk", "Eigene offene Ports und Geräte im Netz – nur Lesen, keine Fremdscans.");
+        h1(ui, t("Netzwerk"), t("Eigene offene Ports und Geräte im Netz – nur Lesen, keine Fremdscans."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new("   Scannen   ").color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Scannen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
                 self.ports.start(sys::open_ports);
                 self.lan.start(sys::lan_devices);
             }
             if self.ports.running() || self.lan.running() {
                 ui.add_space(8.0);
                 ui.spinner();
-                ui.weak("wird geprüft …");
+                ui.weak(t("wird geprüft …"));
             }
         });
         ui.add_space(12.0);
 
         card(ui, |ui| {
-            ui.label(egui::RichText::new("OFFENE PORTS (DIESER PC)").size(11.0).strong().color(egui::Color32::from_gray(150)));
+            ui.label(egui::RichText::new(t("OFFENE PORTS (DIESER PC)")).size(11.0).strong().color(egui::Color32::from_gray(150)));
             ui.add_space(8.0);
             let g = self.ports.data.lock().unwrap();
             match g.as_ref() {
-                None => { ui.weak("Noch nicht geprüft."); }
-                Some(list) if list.is_empty() => { ui.weak("Keine offenen Ports gefunden."); }
+                None => { ui.weak(t("Noch nicht geprüft.")); }
+                Some(list) if list.is_empty() => { ui.weak(t("Keine offenen Ports gefunden.")); }
                 Some(list) => {
                     for p in list {
                         ui.horizontal(|ui| {
@@ -270,7 +271,7 @@ impl App {
                                 Some((name, hint, critical)) => {
                                     let c = if critical { red() } else { amber() };
                                     ui.label(egui::RichText::new(name).color(c).strong());
-                                    ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate());
+                                    ui.add(egui::Label::new(egui::RichText::new(t(hint)).weak()).truncate());
                                 }
                                 None => {
                                     ui.weak(p.process.as_str());
@@ -286,12 +287,12 @@ impl App {
         });
 
         card(ui, |ui| {
-            ui.label(egui::RichText::new("GERÄTE IM NETZ").size(11.0).strong().color(egui::Color32::from_gray(150)));
+            ui.label(egui::RichText::new(t("GERÄTE IM NETZ")).size(11.0).strong().color(egui::Color32::from_gray(150)));
             ui.add_space(8.0);
             let g = self.lan.data.lock().unwrap();
             match g.as_ref() {
-                None => { ui.weak("Noch nicht geprüft."); }
-                Some(list) if list.is_empty() => { ui.weak("Keine Geräte gefunden."); }
+                None => { ui.weak(t("Noch nicht geprüft.")); }
+                Some(list) if list.is_empty() => { ui.weak(t("Keine Geräte gefunden.")); }
                 Some(list) => {
                     for d in list {
                         ui.horizontal(|ui| {
@@ -306,21 +307,21 @@ impl App {
 
     // ---------- System-Schutz ----------
     fn page_system(&mut self, ui: &mut egui::Ui) {
-        h1(ui, "System-Schutz", "Status von Firewall, Virenschutz, Updates und SmartScreen.");
+        h1(ui, t("System-Schutz"), t("Status von Firewall, Virenschutz, Updates und SmartScreen."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new("   Prüfen   ").color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Prüfen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
                 self.checks.start(sys::protection_status);
             }
             if self.checks.running() {
                 ui.add_space(8.0);
                 ui.spinner();
-                ui.weak("wird geprüft …");
+                ui.weak(t("wird geprüft …"));
             }
         });
         ui.add_space(12.0);
         let g = self.checks.data.lock().unwrap();
         match g.as_ref() {
-            None => { ui.weak("Noch nicht geprüft – auf 'Prüfen' klicken."); }
+            None => { ui.weak(t("Noch nicht geprüft – auf 'Prüfen' klicken.")); }
             Some(checks) => {
                 for c in checks {
                     card(ui, |ui| {
@@ -342,16 +343,16 @@ impl App {
 
     // ---------- Papierkorb ----------
     fn page_recycle(&mut self, ui: &mut egui::Ui) {
-        h1(ui, "Papierkorb", "Gelöschte Dateien auflisten und an ihren Ursprungsort zurückholen.");
+        h1(ui, t("Papierkorb"), t("Gelöschte Dateien auflisten und an ihren Ursprungsort zurückholen."));
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new("   Papierkorb lesen   ").color(egui::Color32::WHITE)).fill(grn())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Papierkorb lesen"))).color(egui::Color32::WHITE)).fill(grn())).clicked() {
                 self.restore_msg.clear();
                 self.recycle.start(sys::list_recycle);
             }
             if self.recycle.running() {
                 ui.add_space(8.0);
                 ui.spinner();
-                ui.weak("wird gelesen …");
+                ui.weak(t("wird gelesen …"));
             }
             if !self.restore_msg.is_empty() {
                 ui.add_space(8.0);
@@ -364,18 +365,25 @@ impl App {
         {
             let g = self.recycle.data.lock().unwrap();
             match g.as_ref() {
-                None => { ui.weak("Noch nicht gelesen."); }
-                Some(list) if list.is_empty() => { ui.weak("Der Papierkorb ist leer."); }
+                None => { ui.weak(t("Noch nicht gelesen.")); }
+                Some(list) if list.is_empty() => { ui.weak(t("Der Papierkorb ist leer.")); }
                 Some(list) => {
                     for (i, item) in list.iter().enumerate() {
                         card(ui, |ui| {
                             ui.horizontal(|ui| {
                                 ui.vertical(|ui| {
                                     ui.add(egui::Label::new(egui::RichText::new(file_name(&item.rec.orig_path)).strong().size(13.5)).truncate());
-                                    ui.weak(format!("{} · {} · gelöscht {}", short_path(&item.rec.orig_path), human_size(item.rec.size), crate::recycle::fmt_date(item.rec.filetime)));
+                                    ui.weak(tf(
+                                        "{pfad} · {groesse} · gelöscht {datum}",
+                                        &[
+                                            ("pfad", &short_path(&item.rec.orig_path)),
+                                            ("groesse", &human_size(item.rec.size)),
+                                            ("datum", &crate::recycle::fmt_date(item.rec.filetime)),
+                                        ],
+                                    ));
                                 });
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button("Wiederherstellen").clicked() {
+                                    if ui.button(t("Wiederherstellen")).clicked() {
                                         do_restore = Some(i);
                                     }
                                 });
@@ -393,7 +401,7 @@ impl App {
             if let Some(item) = item {
                 match sys::restore(&item) {
                     Ok(_) => {
-                        self.restore_msg = "Wiederhergestellt.".into();
+                        self.restore_msg = t("Wiederhergestellt.").into();
                         self.recycle.start(sys::list_recycle);
                     }
                     Err(e) => self.restore_msg = e,
@@ -404,17 +412,17 @@ impl App {
 
     // ---------- Übersicht ----------
     fn page_overview(&mut self, ui: &mut egui::Ui) {
-        h1(ui, "Übersicht", "Kurzer Gesamtstatus. Für Details die Bereiche links öffnen.");
+        h1(ui, t("Übersicht"), t("Kurzer Gesamtstatus. Für Details die Bereiche links öffnen."));
         card(ui, |ui| {
             match self.score() {
                 Some(s) => {
                     let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new(format!("{s}")).size(40.0).strong().color(col));
-                        ui.label(egui::RichText::new("/ 100 Schutzpunkte").size(15.0).weak());
+                        ui.label(egui::RichText::new(t("/ 100 Schutzpunkte")).size(15.0).weak());
                     });
                 }
-                None => { ui.weak("Noch keine Prüfung. Öffne 'System-Schutz' und klicke auf 'Prüfen'."); }
+                None => { ui.weak(t("Noch keine Prüfung. Öffne 'System-Schutz' und klicke auf 'Prüfen'.")); }
             }
         });
         card(ui, |ui| {
@@ -430,7 +438,7 @@ impl App {
                     });
                 }
             } else {
-                ui.weak("System-Schutz noch nicht geprüft.");
+                ui.weak(t("System-Schutz noch nicht geprüft."));
             }
         });
     }
@@ -567,11 +575,38 @@ fn state_color(s: State) -> egui::Color32 {
 }
 fn state_label(s: State) -> &'static str {
     match s {
-        State::Ok => "In Ordnung",
-        State::Warn => "Achtung",
-        State::Bad => "Aus",
-        State::Unknown => "Unbekannt",
+        State::Ok => t("In Ordnung"),
+        State::Warn => t("Achtung"),
+        State::Bad => t("Aus"),
+        State::Unknown => t("Unbekannt"),
     }
+}
+
+/// Knackzeit aus `pwcheck` (deutscher Text, z. B. «ca. 3 Tage») in die gewählte Sprache.
+fn crack_text(s: &str) -> String {
+    match s {
+        "sofort" => return t("sofort").to_string(),
+        "ein paar Sekunden" => return t("ein paar Sekunden").to_string(),
+        "praktisch unknackbar" => return t("praktisch unknackbar").to_string(),
+        _ => {}
+    }
+    if let Some(rest) = s.strip_prefix("ca. ") {
+        if let Some((n, unit)) = rest.split_once(' ') {
+            let tpl = match unit {
+                "Minuten" => Some("ca. {n} Minuten"),
+                "Stunden" => Some("ca. {n} Stunden"),
+                "Tage" => Some("ca. {n} Tage"),
+                "Monate" => Some("ca. {n} Monate"),
+                "Jahre" => Some("ca. {n} Jahre"),
+                "Jahrhunderte" => Some("ca. {n} Jahrhunderte"),
+                _ => None,
+            };
+            if let Some(tpl) = tpl {
+                return tf(tpl, &[("n", &n)]);
+            }
+        }
+    }
+    s.to_string()
 }
 
 fn paint_shield(p: &egui::Painter, c: egui::Pos2) {

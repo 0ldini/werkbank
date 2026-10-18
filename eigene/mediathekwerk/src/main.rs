@@ -2,6 +2,7 @@
 
 mod app;
 mod model;
+mod sprache;
 mod store;
 mod tmdb;
 

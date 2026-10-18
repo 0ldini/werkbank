@@ -3,6 +3,7 @@
 mod app;
 mod convert;
 mod model;
+mod sprache;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

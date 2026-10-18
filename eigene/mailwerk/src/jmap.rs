@@ -4,15 +4,16 @@
 use crate::backend::Out;
 use crate::jmap_proto::{self as jp, Session};
 use crate::json::Json;
+use crate::sprache::{t, tf};
 use crate::types::{Account, Cmd, Ev};
 
 /// Antwort auf eine HTTP-Anfrage prüfen und die Bytes liefern.
 fn check(res: Result<ehttp::Response, String>) -> Result<Vec<u8>, String> {
-    let r = res.map_err(|e| format!("Verbindung fehlgeschlagen: {e}"))?;
+    let r = res.map_err(|e| tf("Verbindung fehlgeschlagen: {e}", &[("e", &e)]))?;
     match r.status {
         200..=299 => Ok(r.bytes),
-        401 | 403 => Err("Anmeldung abgelehnt. Bitte Benutzername und Passwort (oder Zugangsschlüssel) prüfen.".into()),
-        s => Err(format!("Der Server antwortet mit Fehler {s} {}.", r.status_text)),
+        401 | 403 => Err(t("Anmeldung abgelehnt. Bitte Benutzername und Passwort (oder Zugangsschlüssel) prüfen.").into()),
+        s => Err(tf("Der Server antwortet mit Fehler {s} {text}.", &[("s", &s), ("text", &r.status_text)])),
     }
 }
 
@@ -76,7 +77,7 @@ pub fn run(acc: &Account, cmd: Cmd, out: Out) {
     let (out2, what2, id) = (out.clone(), what.clone(), acc.id);
     let fail = move |e: String| out2.emit(Ev::Failed { acc: id, what: what2.clone(), err: e });
     if !acc.jmap_url.starts_with("https://") {
-        return fail("Die JMAP-Adresse muss mit https:// beginnen.".into());
+        return fail(t("Die JMAP-Adresse muss mit https:// beginnen.").into());
     }
     let auth2 = auth.clone();
     let url = acc.jmap_url.clone();
@@ -111,16 +112,16 @@ fn dispatch(job: Job, acc: Account, cmd: Cmd) {
             Ok(body) => job.out.emit(Ev::Body { acc: job.acc, folder, body }),
             Err(e) => job.fail(e),
         }),
-        Cmd::SetSeen { id, seen, .. } => job.api_set(jp::call_set_keyword(&aid, &id, "$seen", seen), "Markierung ändern"),
-        Cmd::SetFlagged { id, flagged, .. } => job.api_set(jp::call_set_keyword(&aid, &id, "$flagged", flagged), "Markierung ändern"),
-        Cmd::MoveTo { folder, id, target } => job.api_set(jp::call_move(&aid, &id, &folder, &target), "Verschieben"),
+        Cmd::SetSeen { id, seen, .. } => job.api_set(jp::call_set_keyword(&aid, &id, "$seen", seen), t("Markierung ändern")),
+        Cmd::SetFlagged { id, flagged, .. } => job.api_set(jp::call_set_keyword(&aid, &id, "$flagged", flagged), t("Markierung ändern")),
+        Cmd::MoveTo { folder, id, target } => job.api_set(jp::call_move(&aid, &id, &folder, &target), t("Verschieben")),
         Cmd::Delete { folder, id, trash } => match trash {
-            Some(t) if t != folder => job.api_set(jp::call_move(&aid, &id, &folder, &t), "Löschen"),
-            _ => job.api_set(jp::call_destroy(&aid, &id), "Löschen"),
+            Some(target) if target != folder => job.api_set(jp::call_move(&aid, &id, &folder, &target), t("Löschen")),
+            _ => job.api_set(jp::call_destroy(&aid, &id), t("Löschen")),
         },
         Cmd::Send { msg, sent_folder, drafts_folder } => {
             let Some(draft_box) = drafts_folder.or_else(|| sent_folder.clone()) else {
-                return job.fail("Beim Anbieter wurde kein Ordner für Entwürfe oder Gesendet gefunden.".into());
+                return job.fail(t("Beim Anbieter wurde kein Ordner für Entwürfe oder Gesendet gefunden.").into());
             };
             let my_email = acc.email.clone();
             job.api(true, vec![jp::call_identity(&aid)], move |job, resp| {
@@ -131,7 +132,7 @@ fn dispatch(job: Job, acc: Account, cmd: Cmd) {
                 let aid = job.sess.account_id.clone();
                 let calls = jp::calls_send(&aid, &identity, &msg, &draft_box, sent_folder.as_deref());
                 job.api(true, calls, |job, resp| {
-                    match jp::check_set(&resp, "e", "Nachricht anlegen").and_then(|_| jp::check_set(&resp, "x", "Senden")) {
+                    match jp::check_set(&resp, "e", t("Nachricht anlegen")).and_then(|_| jp::check_set(&resp, "x", t("Senden"))) {
                         Ok(()) => job.done(""),
                         Err(e) => job.fail(e),
                     }

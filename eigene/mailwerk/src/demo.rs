@@ -2,6 +2,7 @@
 
 use crate::mime::{self, Address};
 use crate::role::Role;
+use crate::sprache::t;
 use crate::types::{AttMeta, Cmd, Ev, FolderInfo, HeaderRow, MailBody};
 
 struct Msg {
@@ -112,7 +113,7 @@ impl DemoStore {
             }
             Cmd::Body { folder, id } => match self.msgs.iter().find(|m| m.folder == folder && m.row.id == id) {
                 Some(m) => vec![Ev::Body { acc, folder, body: m.body.clone() }],
-                None => vec![fail("Nachricht nicht gefunden.")],
+                None => vec![fail(t("Nachricht nicht gefunden."))],
             },
             Cmd::SetSeen { folder, id, seen } => {
                 if let Some(m) = self.msgs.iter_mut().find(|m| m.folder == folder && m.row.id == id) {
@@ -145,11 +146,11 @@ impl DemoStore {
             }
             Cmd::Send { msg, .. } => {
                 if msg.envelope_recipients().is_empty() {
-                    return vec![fail("Kein Empfänger angegeben.")];
+                    return vec![fail(t("Kein Empfänger angegeben."))];
                 }
                 let first = msg.to.first().cloned().unwrap_or_default();
                 self.add("sent", &first.name, &first.email, &msg.subject, self.now, false, &msg.body, None);
-                vec![done("Im Beispielkonto wird nichts wirklich versendet."), Ev::Folders { acc, folders: self.folders() }]
+                vec![done(t("Im Beispielkonto wird nichts wirklich versendet.")), Ev::Folders { acc, folders: self.folders() }]
             }
             Cmd::Attachment { name, .. } => {
                 let data = self.msgs.iter().flat_map(|m| m.body.atts.iter()).find(|a| a.name == name).map(|a| a.data.clone()).unwrap_or_default();

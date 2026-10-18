@@ -31,6 +31,7 @@ use windows_capture::window::Window;
 
 use crate::frame;
 use crate::model::{Corner, Mode, Settings as Cfg};
+use crate::sprache::{t, tf};
 
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 
@@ -424,11 +425,11 @@ pub fn list_monitors() -> Vec<String> {
         for (i, m) in all.iter().enumerate() {
             let w = m.width().unwrap_or(0);
             let h = m.height().unwrap_or(0);
-            out.push(format!("Monitor {} · {} × {}", i + 1, w, h));
+            out.push(tf("Monitor {n} · {w} × {h}", &[("n", &(i + 1)), ("w", &w), ("h", &h)]));
         }
     }
     if out.is_empty() {
-        out.push("Monitor 1".into());
+        out.push(t("Monitor 1").into());
     }
     out
 }

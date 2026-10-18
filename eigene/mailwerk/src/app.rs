@@ -10,6 +10,7 @@ use crate::mime::{self, Address};
 use crate::presets;
 use crate::role::Role;
 use crate::save;
+use crate::sprache::{is_en, t, tf};
 use crate::store::Saved;
 use crate::textutil;
 use crate::timeutil;
@@ -289,7 +290,7 @@ impl App {
                 self.pending = self.pending.saturating_sub(1);
                 if what == "send" {
                     self.compose = None;
-                    self.set_status(if note.is_empty() { "Nachricht gesendet.".to_string() } else { note }, false);
+                    self.set_status(if note.is_empty() { t("Nachricht gesendet.").to_string() } else { note }, false);
                     self.refresh();
                 } else {
                     if what.starts_with("move:") || what.starts_with("delete:") {
@@ -404,7 +405,7 @@ impl App {
                 } else if !att.blob.is_empty() {
                     self.cmd(Cmd::Attachment { blob: att.blob, name: att.name, content_type: att.content_type });
                 } else {
-                    self.set_status("Der Anhang ist noch nicht geladen. Bitte einen Moment warten und nochmals versuchen.", false);
+                    self.set_status(t("Der Anhang ist noch nicht geladen. Bitte einen Moment warten und nochmals versuchen."), false);
                 }
             }
             Act::AddAccount => {
@@ -445,7 +446,7 @@ impl App {
             }
             Act::SuggestServers => {
                 if let Some(s) = self.setup.as_mut() {
-                    s.hint = presets::apply(&mut s.acc).map(|h| h.note.to_string()).unwrap_or_default();
+                    s.hint = presets::apply(&mut s.acc).map(|h| t(h.note).to_string()).unwrap_or_default();
                     if s.acc.user.is_empty() {
                         s.acc.user = s.acc.email.clone();
                     }
@@ -462,7 +463,7 @@ impl App {
                     s.acc.person = s.acc.name.clone();
                 }
                 if cfg!(target_arch = "wasm32") && s.acc.kind == Kind::Imap {
-                    s.error = "Im Browser gehen nur Anbieter mit JMAP. Für dieses Konto bitte die Desktop-Version verwenden.".into();
+                    s.error = t("Im Browser gehen nur Anbieter mit JMAP. Für dieses Konto bitte die Desktop-Version verwenden.").into();
                     self.setup = Some(s);
                     return;
                 }
@@ -517,40 +518,42 @@ impl App {
                 c.show_cc = !cc.is_empty();
                 c.subject = mime::reply_subject(&b.subject);
                 let who = b.from.first().map(|a| a.display()).unwrap_or_default();
-                let when = timeutil::long_label(b.ts, timeutil::now_ts());
-                c.body = format!("\n\nAm {when} schrieb {who}:\n{}{sig}", mime::quote_text(&b.text));
+                let when = long_date(b.ts, timeutil::now_ts());
+                let intro = tf("\n\nAm {when} schrieb {who}:\n", &[("when", &when), ("who", &who)]);
+                c.body = format!("{intro}{}{sig}", mime::quote_text(&b.text));
                 c.in_reply_to = b.message_id.clone();
                 c.references = format!("{} {}", b.references, b.message_id).trim().to_string();
             }
             Mode::Forward => {
                 let b = self.open.clone().unwrap();
                 c.subject = mime::forward_subject(&b.subject);
-                c.body = format!(
-                    "{sig}\n\n---------- Weitergeleitete Nachricht ----------\nVon: {}\nDatum: {}\nBetreff: {}\nAn: {}\n\n{}",
-                    addr_list_text(&b.from),
-                    timeutil::long_label(b.ts, timeutil::now_ts()),
-                    b.subject,
-                    addr_list_text(&b.to),
-                    b.text
+                let head = tf("\n\n---------- Weitergeleitete Nachricht ----------\nVon: {from}\nDatum: {date}\nBetreff: {subject}\nAn: {to}\n\n",
+                    &[
+                        ("date", &long_date(b.ts, timeutil::now_ts())),
+                        ("from", &addr_list_text(&b.from)),
+                        ("to", &addr_list_text(&b.to)),
+                        ("subject", &b.subject),
+                    ],
                 );
+                c.body = format!("{sig}{head}{}", b.text);
             }
         }
         self.compose = Some(c);
     }
 
     fn build_outgoing(&self, acc: &Account) -> Result<mime::Outgoing, String> {
-        let c = self.compose.as_ref().ok_or("Kein Entwurf offen.")?;
+        let c = self.compose.as_ref().ok_or(t("Kein Entwurf offen."))?;
         let to = Address::parse_list(&c.to);
         let cc = Address::parse_list(&c.cc);
         let bcc = Address::parse_list(&c.bcc);
         if to.is_empty() && cc.is_empty() && bcc.is_empty() {
-            return Err("Bitte mindestens einen Empfänger eingeben.".into());
+            return Err(t("Bitte mindestens einen Empfänger eingeben.").into());
         }
         if let Some(bad) = to.iter().chain(cc.iter()).chain(bcc.iter()).find(|a| !a.email.contains('@')) {
-            return Err(format!("«{}» ist keine gültige E-Mail-Adresse.", bad.email));
+            return Err(tf("«{email}» ist keine gültige E-Mail-Adresse.", &[("email", &bad.email)]));
         }
         if acc.kind == Kind::Jmap && !c.atts.is_empty() {
-            return Err("Anhänge beim Senden über JMAP sind noch nicht möglich. Bitte ohne Anhang senden.".into());
+            return Err(t("Anhänge beim Senden über JMAP sind noch nicht möglich. Bitte ohne Anhang senden.").into());
         }
         Ok(mime::Outgoing {
             from: acc.from_address(),
@@ -574,7 +577,7 @@ impl App {
         let Some(acc) = self.saved.accounts.iter().find(|a| a.id == acc_id).cloned() else { return };
         if !Self::usable(&acc) {
             if let Some(c) = self.compose.as_mut() {
-                c.error = "Dieses Konto funktioniert nur in der Desktop-Version.".into();
+                c.error = t("Dieses Konto funktioniert nur in der Desktop-Version.").into();
             }
             return;
         }
@@ -626,6 +629,60 @@ fn guess_type(name: &str) -> &'static str {
         "xls" => "application/vnd.ms-excel",
         "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         _ => "application/octet-stream",
+    }
+}
+
+// ================================================================ Datum in der gewählten Sprache
+
+const EN_WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const EN_MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+fn en_month(m: i64) -> &'static str {
+    EN_MONTHS.get((m - 1).max(0) as usize).copied().unwrap_or("")
+}
+
+fn hour_min(loc: i64) -> String {
+    let rem = loc.rem_euclid(86400);
+    format!("{:02}:{:02}", rem / 3600, (rem % 3600) / 60)
+}
+
+/// Kurze Zeit für die Liste (Deutsch aus `timeutil`, Englisch hier).
+fn short_date(ts: i64, now: i64) -> String {
+    if !is_en() {
+        return timeutil::short_label(ts, now);
+    }
+    let loc = ts + timeutil::local_offset(ts);
+    let diff = timeutil::local_day(now) - timeutil::local_day(ts);
+    if diff <= 0 {
+        hour_min(loc)
+    } else if diff < 7 {
+        let wd = timeutil::weekday(loc.div_euclid(86400));
+        EN_WEEKDAYS.get(wd.max(0) as usize).copied().unwrap_or("").to_string()
+    } else {
+        let (y, m, d) = timeutil::civil_from_days(loc.div_euclid(86400));
+        let (ny, _, _) = timeutil::civil_from_days(timeutil::local_day(now));
+        if y == ny {
+            format!("{d} {}", en_month(m))
+        } else {
+            format!("{d} {} {y}", en_month(m))
+        }
+    }
+}
+
+/// Langes Datum für die Leseansicht (Deutsch aus `timeutil`, Englisch hier).
+fn long_date(ts: i64, now: i64) -> String {
+    if !is_en() {
+        return timeutil::long_label(ts, now);
+    }
+    let loc = ts + timeutil::local_offset(ts);
+    let hm = hour_min(loc);
+    match timeutil::local_day(now) - timeutil::local_day(ts) {
+        i64::MIN..=0 => format!("Today, {hm}"),
+        1 => format!("Yesterday, {hm}"),
+        _ => {
+            let (y, m, d) = timeutil::civil_from_days(loc.div_euclid(86400));
+            format!("{d} {} {y}, {hm}", en_month(m))
+        }
     }
 }
 
@@ -720,7 +777,7 @@ fn mail_row(ui: &mut egui::Ui, h: &HeaderRow, selected: bool, now: i64) -> egui:
     let weak = vis.weak_text_color();
     let main = if h.unread { strong } else { normal };
 
-    let tg = p.layout_no_wrap(timeutil::short_label(h.ts, now), FontId::proportional(12.0), weak);
+    let tg = p.layout_no_wrap(short_date(h.ts, now), FontId::proportional(12.0), weak);
     let tw = tg.size().x;
     p.galley(pos2(right - tw, rect.min.y + 11.0), tg, weak);
 
@@ -729,8 +786,8 @@ fn mail_row(ui: &mut egui::Ui, h: &HeaderRow, selected: bool, now: i64) -> egui:
     let g = fit(&p, &name, FontId::proportional(14.5), main, right - tw - 10.0 - x0);
     p.galley(pos2(x0, rect.min.y + 9.0), g, main);
 
-    let subj = if h.has_att { format!("{}  [Anhang]", h.subject) } else { h.subject.clone() };
-    let g = fit(&p, if subj.trim().is_empty() { "(ohne Betreff)" } else { &subj }, FontId::proportional(13.5), main, right - x0);
+    let subj = if h.has_att { format!("{}  [{}]", h.subject, t("Anhang")) } else { h.subject.clone() };
+    let g = fit(&p, if subj.trim().is_empty() { t("(ohne Betreff)") } else { &subj }, FontId::proportional(13.5), main, right - x0);
     p.galley(pos2(x0, rect.min.y + 28.0), g, main);
 
     if !h.preview.is_empty() {
@@ -768,7 +825,7 @@ impl App {
         });
         ui.add_space(8.0);
         let w = ui.available_width();
-        if ui.add_enabled(self.cur_acc().is_some(), egui::Button::new(RichText::new("Neue Nachricht").color(Color32::WHITE)).fill(ACCENT).min_size(vec2(w, 34.0))).clicked() {
+        if ui.add_enabled(self.cur_acc().is_some(), egui::Button::new(RichText::new(t("Neue Nachricht")).color(Color32::WHITE)).fill(ACCENT).min_size(vec2(w, 34.0))).clicked() {
             acts.push(Act::Compose(Mode::New));
         }
         ui.add_space(10.0);
@@ -786,14 +843,14 @@ impl App {
                             }
                         }
                     }
-                    if ui.small_button("Konto bearbeiten").clicked() {
+                    if ui.small_button(t("Konto bearbeiten")).clicked() {
                         acts.push(Act::EditAccount(a.id));
                     }
                 }
                 ui.add_space(4.0);
             }
             ui.add_space(8.0);
-            if ui.button("Konto hinzufügen").clicked() {
+            if ui.button(t("Konto hinzufügen")).clicked() {
                 acts.push(Act::AddAccount);
             }
         });
@@ -802,7 +859,11 @@ impl App {
     fn ui_list(&self, ui: &mut egui::Ui, acts: &mut Vec<Act>) {
         let Some(acc) = self.cur_acc() else { return };
         if !Self::usable(acc) {
-            hint_box(ui, "Nur in der Desktop-Version", "Dieses Konto verwendet IMAP/SMTP. Das kann ein Browser nicht.\nIm Browser gehen das Beispielkonto und Anbieter mit JMAP (z. B. Fastmail).");
+            hint_box(
+                ui,
+                t("Nur in der Desktop-Version"),
+                t("Dieses Konto verwendet IMAP/SMTP. Das kann ein Browser nicht.\nIm Browser gehen das Beispielkonto und Anbieter mit JMAP (z. B. Fastmail)."),
+            );
             return;
         }
         let now = timeutil::now_ts();
@@ -825,15 +886,15 @@ impl App {
             ui.vertical_centered(|ui| {
                 if self.pending > 0 {
                     ui.spinner();
-                    ui.label(RichText::new("Lade Nachrichten …").weak());
+                    ui.label(RichText::new(t("Lade Nachrichten …")).weak());
                 } else {
-                    ui.label(RichText::new("Keinen Ordner gewählt.").weak());
+                    ui.label(RichText::new(t("Keinen Ordner gewählt.")).weak());
                 }
             });
             return;
         }
         if rows.is_empty() {
-            let msg = if q.is_empty() && !self.only_unread { "Dieser Ordner ist leer." } else { "Keine passenden Nachrichten." };
+            let msg = if q.is_empty() && !self.only_unread { t("Dieser Ordner ist leer.") } else { t("Keine passenden Nachrichten.") };
             hint_box(ui, "", msg);
             return;
         }
@@ -847,7 +908,7 @@ impl App {
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
                         ui.add_space(10.0);
-                        ui.label(RichText::new(g).small().weak());
+                        ui.label(RichText::new(t(g)).small().weak());
                     });
                     ui.add_space(2.0);
                 }
@@ -861,17 +922,17 @@ impl App {
 
     fn ui_reader(&self, ui: &mut egui::Ui, acts: &mut Vec<Act>, narrow: bool) {
         let Some(id) = self.sel_mail.as_deref() else {
-            hint_box(ui, "Keine Nachricht ausgewählt", "Wähle links eine Nachricht aus.");
+            hint_box(ui, t("Keine Nachricht ausgewählt"), t("Wähle links eine Nachricht aus."));
             return;
         };
-        if narrow && ui.button("Zurück").clicked() {
+        if narrow && ui.button(t("Zurück")).clicked() {
             acts.push(Act::Back);
         }
         let Some(b) = self.open.as_ref().filter(|b| b.id == id) else {
             ui.add_space(30.0);
             ui.vertical_centered(|ui| {
                 ui.spinner();
-                ui.label(RichText::new("Lade Nachricht …").weak());
+                ui.label(RichText::new(t("Lade Nachricht …")).weak());
             });
             return;
         };
@@ -881,26 +942,26 @@ impl App {
 
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {
-            if primary_button(ui, "Antworten").clicked() {
+            if primary_button(ui, t("Antworten")).clicked() {
                 acts.push(Act::Compose(Mode::Reply(false)));
             }
-            if ui.button("Allen antworten").clicked() {
+            if ui.button(t("Allen antworten")).clicked() {
                 acts.push(Act::Compose(Mode::Reply(true)));
             }
-            if ui.button("Weiterleiten").clicked() {
+            if ui.button(t("Weiterleiten")).clicked() {
                 acts.push(Act::Compose(Mode::Forward));
             }
             ui.separator();
-            if ui.button(if flagged { "★ Markiert" } else { "☆ Markieren" }).clicked() {
+            if ui.button(if flagged { t("★ Markiert") } else { t("☆ Markieren") }).clicked() {
                 acts.push(Act::ToggleFlag);
             }
-            if ui.button("Ungelesen").clicked() {
+            if ui.button(t("Ungelesen")).clicked() {
                 acts.push(Act::MarkUnread);
             }
-            if ui.add_enabled(has_archive, egui::Button::new("Archivieren")).clicked() {
+            if ui.add_enabled(has_archive, egui::Button::new(t("Archivieren"))).clicked() {
                 acts.push(Act::Archive);
             }
-            let del = if self.cur_role() == Role::Trash { "Endgültig löschen" } else { "Löschen" };
+            let del = if self.cur_role() == Role::Trash { t("Endgültig löschen") } else { t("Löschen") };
             if ui.button(del).clicked() {
                 acts.push(Act::Delete);
             }
@@ -909,7 +970,7 @@ impl App {
 
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(4.0);
-            ui.heading(if b.subject.trim().is_empty() { "(ohne Betreff)" } else { b.subject.as_str() });
+            ui.heading(if b.subject.trim().is_empty() { t("(ohne Betreff)") } else { b.subject.as_str() });
             ui.add_space(8.0);
             let from = b.from.first().cloned().unwrap_or_default();
             ui.horizontal(|ui| {
@@ -920,12 +981,12 @@ impl App {
                     if !from.name.is_empty() {
                         ui.label(RichText::new(&from.email).weak().small());
                     }
-                    ui.label(RichText::new(timeutil::long_label(b.ts, timeutil::now_ts())).weak().small());
+                    ui.label(RichText::new(long_date(b.ts, timeutil::now_ts())).weak().small());
                 });
             });
             ui.add_space(4.0);
             if !b.to.is_empty() {
-                ui.label(RichText::new(format!("An: {}", addr_list_text(&b.to))).weak().small());
+                ui.label(RichText::new(tf("An: {to}", &[("to", &addr_list_text(&b.to))])).weak().small());
             }
             if !b.cc.is_empty() {
                 ui.label(RichText::new(format!("Cc: {}", addr_list_text(&b.cc))).weak().small());
@@ -935,7 +996,7 @@ impl App {
                 ui.horizontal_wrapped(|ui| {
                     for (i, a) in b.atts.iter().enumerate() {
                         let size = if a.size > 0 { format!(" ({})", textutil::human_size(a.size)) } else { String::new() };
-                        if ui.button(format!("{}{}", a.name, size)).on_hover_text("Speichern").clicked() {
+                        if ui.button(format!("{}{}", a.name, size)).on_hover_text(t("Speichern")).clicked() {
                             acts.push(Act::SaveAtt(i));
                         }
                     }
@@ -945,7 +1006,7 @@ impl App {
             ui.separator();
             ui.add_space(8.0);
             if b.text.trim().is_empty() {
-                ui.label(RichText::new("(Diese Nachricht hat keinen Text.)").weak());
+                ui.label(RichText::new(t("(Diese Nachricht hat keinen Text.)")).weak());
             } else {
                 ui.label(&b.text);
             }
@@ -958,22 +1019,22 @@ impl App {
         ui.vertical_centered(|ui| {
             ui.heading(RichText::new("Mailwerk").color(ACCENT).size(32.0));
             ui.add_space(6.0);
-            ui.label("Dein eigenes Mailprogramm. Ohne Server, ohne Konto bei uns.");
+            ui.label(t("Dein eigenes Mailprogramm. Ohne Server, ohne Konto bei uns."));
             ui.add_space(24.0);
-            if primary_button(ui, "Konto hinzufügen").clicked() {
+            if primary_button(ui, t("Konto hinzufügen")).clicked() {
                 acts.push(Act::AddAccount);
             }
             ui.add_space(8.0);
-            if ui.button("Zuerst mit dem Beispielkonto ausprobieren").clicked() {
+            if ui.button(t("Zuerst mit dem Beispielkonto ausprobieren")).clicked() {
                 acts.push(Act::AddDemo);
             }
             ui.add_space(24.0);
-            let t = if cfg!(target_arch = "wasm32") {
-                "Im Browser gehen Anbieter mit JMAP (z. B. Fastmail). Für Gmail, Outlook, Bluewin & Co. gibt es die Desktop-Version."
+            let info = if cfg!(target_arch = "wasm32") {
+                t("Im Browser gehen Anbieter mit JMAP (z. B. Fastmail). Für Gmail, Outlook, Bluewin & Co. gibt es die Desktop-Version.")
             } else {
-                "Normale Postfächer (IMAP/SMTP) funktionieren direkt. In der Browser-Version gehen nur Anbieter mit JMAP."
+                t("Normale Postfächer (IMAP/SMTP) funktionieren direkt. In der Browser-Version gehen nur Anbieter mit JMAP.")
             };
-            ui.label(RichText::new(t).weak().small());
+            ui.label(RichText::new(info).weak().small());
         });
     }
 
@@ -981,7 +1042,7 @@ impl App {
         let Some(mut s) = self.setup.take() else { return };
         let width = (ctx.screen_rect().width() - 24.0).clamp(280.0, 520.0);
         let wasm = cfg!(target_arch = "wasm32");
-        egui::Window::new(if s.is_new { "Konto hinzufügen" } else { "Konto bearbeiten" })
+        egui::Window::new(if s.is_new { t("Konto hinzufügen") } else { t("Konto bearbeiten") })
             .collapsible(false)
             .resizable(false)
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
@@ -990,32 +1051,32 @@ impl App {
                 egui::ScrollArea::vertical().max_height((ctx.screen_rect().height() - 140.0).max(200.0)).show(ui, |ui| {
                     ui.set_width(width - 24.0);
                     if s.acc.kind != Kind::Demo {
-                        ui.radio_value(&mut s.acc.kind, Kind::Imap, if wasm { "Normales Postfach (IMAP/SMTP), nur Desktop" } else { "Normales Postfach (IMAP/SMTP)" });
-                        ui.radio_value(&mut s.acc.kind, Kind::Jmap, "Anbieter mit JMAP (z. B. Fastmail), auch im Browser");
+                        ui.radio_value(&mut s.acc.kind, Kind::Imap, if wasm { t("Normales Postfach (IMAP/SMTP), nur Desktop") } else { t("Normales Postfach (IMAP/SMTP)") });
+                        ui.radio_value(&mut s.acc.kind, Kind::Jmap, t("Anbieter mit JMAP (z. B. Fastmail), auch im Browser"));
                         ui.add_space(6.0);
                     }
                     egui::Grid::new("setup_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
-                        ui.label("Kontoname");
-                        ui.add(egui::TextEdit::singleline(&mut s.acc.name).hint_text("z. B. Privat").desired_width(f32::INFINITY));
+                        ui.label(t("Kontoname"));
+                        ui.add(egui::TextEdit::singleline(&mut s.acc.name).hint_text(t("z. B. Privat")).desired_width(f32::INFINITY));
                         ui.end_row();
-                        ui.label("Dein Name");
-                        ui.add(egui::TextEdit::singleline(&mut s.acc.person).hint_text("erscheint als Absender").desired_width(f32::INFINITY));
+                        ui.label(t("Dein Name"));
+                        ui.add(egui::TextEdit::singleline(&mut s.acc.person).hint_text(t("erscheint als Absender")).desired_width(f32::INFINITY));
                         ui.end_row();
-                        ui.label("E-Mail");
-                        ui.add(egui::TextEdit::singleline(&mut s.acc.email).hint_text("name@beispiel.ch").desired_width(f32::INFINITY));
+                        ui.label(t("E-Mail"));
+                        ui.add(egui::TextEdit::singleline(&mut s.acc.email).hint_text(t("name@beispiel.ch")).desired_width(f32::INFINITY));
                         ui.end_row();
                         if s.acc.kind != Kind::Demo {
-                            ui.label("Benutzername");
-                            ui.add(egui::TextEdit::singleline(&mut s.acc.user).hint_text("leer = E-Mail-Adresse").desired_width(f32::INFINITY));
+                            ui.label(t("Benutzername"));
+                            ui.add(egui::TextEdit::singleline(&mut s.acc.user).hint_text(t("leer = E-Mail-Adresse")).desired_width(f32::INFINITY));
                             ui.end_row();
-                            ui.label("Passwort");
+                            ui.label(t("Passwort"));
                             ui.add(egui::TextEdit::singleline(&mut s.acc.password).password(true).desired_width(f32::INFINITY));
                             ui.end_row();
                         }
                     });
                     if s.acc.kind != Kind::Demo {
                         ui.add_space(4.0);
-                        if ui.button("Server aus der Adresse vorschlagen").clicked() {
+                        if ui.button(t("Server aus der Adresse vorschlagen")).clicked() {
                             acts.push(Act::SuggestServers);
                         }
                         if !s.hint.is_empty() {
@@ -1025,19 +1086,19 @@ impl App {
                     }
                     egui::Grid::new("setup_servers").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| match s.acc.kind {
                         Kind::Imap => {
-                            ui.label("Empfangen (IMAP)");
+                            ui.label(t("Empfangen (IMAP)"));
                             ui.horizontal(|ui| {
                                 ui.add(egui::TextEdit::singleline(&mut s.acc.imap_host).desired_width(220.0));
                                 ui.add(egui::DragValue::new(&mut s.acc.imap_port).range(1..=65535));
                             });
                             ui.end_row();
-                            ui.label("Senden (SMTP)");
+                            ui.label(t("Senden (SMTP)"));
                             ui.horizontal(|ui| {
                                 ui.add(egui::TextEdit::singleline(&mut s.acc.smtp_host).desired_width(220.0));
                                 ui.add(egui::DragValue::new(&mut s.acc.smtp_port).range(1..=65535));
                             });
                             ui.end_row();
-                            ui.label("Verschlüsselung");
+                            ui.label(t("Verschlüsselung"));
                             egui::ComboBox::from_id_salt("smtp_sec")
                                 .selected_text(if s.acc.smtp_security == Security::Tls { "SSL/TLS (Port 465)" } else { "STARTTLS (Port 587)" })
                                 .show_ui(ui, |ui| {
@@ -1047,22 +1108,22 @@ impl App {
                             ui.end_row();
                         }
                         Kind::Jmap => {
-                            ui.label("JMAP-Adresse");
+                            ui.label(t("JMAP-Adresse"));
                             ui.add(egui::TextEdit::singleline(&mut s.acc.jmap_url).hint_text("https://…/jmap/session").desired_width(f32::INFINITY));
                             ui.end_row();
                         }
                         Kind::Demo => {}
                     });
                     ui.add_space(6.0);
-                    ui.label("Signatur");
+                    ui.label(t("Signatur"));
                     ui.add(egui::TextEdit::multiline(&mut s.acc.signature).desired_rows(3).desired_width(f32::INFINITY));
                     if s.acc.kind != Kind::Demo {
                         ui.add_space(6.0);
-                        ui.label(RichText::new("Hinweis: Das Passwort wird auf diesem Gerät unverschlüsselt gespeichert.").weak().small());
+                        ui.label(RichText::new(t("Hinweis: Das Passwort wird auf diesem Gerät unverschlüsselt gespeichert.")).weak().small());
                     }
                     if wasm && s.acc.kind == Kind::Imap {
                         ui.add_space(4.0);
-                        ui.colored_label(ERR, "Im Browser geht das nicht. Bitte die Desktop-Version verwenden oder einen Anbieter mit JMAP wählen.");
+                        ui.colored_label(ERR, t("Im Browser geht das nicht. Bitte die Desktop-Version verwenden oder einen Anbieter mit JMAP wählen."));
                     }
                     if !s.error.is_empty() {
                         ui.add_space(4.0);
@@ -1071,13 +1132,13 @@ impl App {
                 });
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if primary_button(ui, "Speichern").clicked() {
+                    if primary_button(ui, t("Speichern")).clicked() {
                         acts.push(Act::SaveSetup);
                     }
-                    if ui.button("Abbrechen").clicked() {
+                    if ui.button(t("Abbrechen")).clicked() {
                         acts.push(Act::CancelSetup);
                     }
-                    if !s.is_new && ui.button(RichText::new("Konto entfernen").color(ERR)).clicked() {
+                    if !s.is_new && ui.button(RichText::new(t("Konto entfernen")).color(ERR)).clicked() {
                         acts.push(Act::AskDeleteAccount(s.acc.id));
                     }
                 });
@@ -1096,15 +1157,15 @@ impl App {
             .map(|a| format!("{} <{}>", a.person, a.email))
             .unwrap_or_default();
         let width = (ctx.screen_rect().width() - 24.0).clamp(280.0, 620.0);
-        let mut win = egui::Window::new("Neue Nachricht").collapsible(false).resizable(false).default_width(width);
+        let mut win = egui::Window::new(t("Neue Nachricht")).collapsible(false).resizable(false).default_width(width);
         win = if narrow { win.anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0)) } else { win.anchor(Align2::RIGHT_BOTTOM, vec2(-16.0, -16.0)) };
         win.show(ctx, |ui| {
             ui.set_width(width - 24.0);
             egui::Grid::new("compose_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
-                ui.label("Von");
+                ui.label(t("Von"));
                 ui.label(RichText::new(&from).weak());
                 ui.end_row();
-                ui.label("An");
+                ui.label(t("An"));
                 ui.horizontal(|ui| {
                     ui.add(egui::TextEdit::singleline(&mut c.to).desired_width((width - 150.0).max(120.0)));
                     if !c.show_cc && ui.small_button("Cc/Bcc").clicked() {
@@ -1120,7 +1181,7 @@ impl App {
                     ui.add(egui::TextEdit::singleline(&mut c.bcc).desired_width(f32::INFINITY));
                     ui.end_row();
                 }
-                ui.label("Betreff");
+                ui.label(t("Betreff"));
                 ui.add(egui::TextEdit::singleline(&mut c.subject).desired_width(f32::INFINITY));
                 ui.end_row();
             });
@@ -1132,7 +1193,7 @@ impl App {
                 ui.add_space(4.0);
                 ui.horizontal_wrapped(|ui| {
                     for (i, (n, d)) in c.atts.iter().enumerate() {
-                        if ui.small_button(format!("{} ({})  ✕", n, textutil::human_size(d.len()))).on_hover_text("Entfernen").clicked() {
+                        if ui.small_button(format!("{} ({})  ✕", n, textutil::human_size(d.len()))).on_hover_text(t("Entfernen")).clicked() {
                             acts.push(Act::RemoveAttachment(i));
                         }
                     }
@@ -1144,18 +1205,18 @@ impl App {
             }
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.add_enabled(!c.sending, egui::Button::new(RichText::new("Senden").color(Color32::WHITE)).fill(ACCENT).min_size(vec2(90.0, 30.0))).clicked() {
+                if ui.add_enabled(!c.sending, egui::Button::new(RichText::new(t("Senden")).color(Color32::WHITE)).fill(ACCENT).min_size(vec2(90.0, 30.0))).clicked() {
                     acts.push(Act::SendCompose);
                 }
-                if !cfg!(target_arch = "wasm32") && ui.add_enabled(!c.sending, egui::Button::new("Anhang …")).clicked() {
+                if !cfg!(target_arch = "wasm32") && ui.add_enabled(!c.sending, egui::Button::new(t("Anhang …"))).clicked() {
                     acts.push(Act::PickAttachment);
                 }
-                if ui.add_enabled(!c.sending, egui::Button::new("Verwerfen")).clicked() {
+                if ui.add_enabled(!c.sending, egui::Button::new(t("Verwerfen"))).clicked() {
                     acts.push(Act::CloseCompose);
                 }
                 if c.sending {
                     ui.spinner();
-                    ui.label(RichText::new("Wird gesendet …").weak());
+                    ui.label(RichText::new(t("Wird gesendet …")).weak());
                 }
             });
         });
@@ -1165,14 +1226,14 @@ impl App {
     fn ui_confirm_delete(&self, ctx: &egui::Context, acts: &mut Vec<Act>) {
         let Some(id) = self.confirm_delete else { return };
         let name = self.saved.accounts.iter().find(|a| a.id == id).map(|a| a.name.clone()).unwrap_or_default();
-        egui::Window::new("Konto entfernen?").collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0)).show(ctx, |ui| {
-            ui.label(format!("«{name}» wird aus Mailwerk entfernt. Die Nachrichten auf dem Server bleiben erhalten."));
+        egui::Window::new(t("Konto entfernen?")).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0)).show(ctx, |ui| {
+            ui.label(tf("«{name}» wird aus Mailwerk entfernt. Die Nachrichten auf dem Server bleiben erhalten.", &[("name", &name)]));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.button(RichText::new("Entfernen").color(ERR)).clicked() {
+                if ui.button(RichText::new(t("Entfernen")).color(ERR)).clicked() {
                     acts.push(Act::DeleteAccount(id));
                 }
-                if ui.button("Abbrechen").clicked() {
+                if ui.button(t("Abbrechen")).clicked() {
                     acts.push(Act::CancelDelete);
                 }
             });
@@ -1204,9 +1265,9 @@ impl eframe::App for App {
         }
 
         // Alle fünf Minuten automatisch aktualisieren.
-        let t = ctx.input(|i| i.time);
-        if t - self.last_refresh > REFRESH_SECS {
-            self.last_refresh = t;
+        let time = ctx.input(|i| i.time);
+        if time - self.last_refresh > REFRESH_SECS {
+            self.last_refresh = time;
             if self.pending == 0 && self.compose.as_ref().map_or(true, |c| !c.sending) {
                 self.refresh();
             }
@@ -1221,12 +1282,12 @@ impl eframe::App for App {
             egui::TopBottomPanel::top("leiste").show(ctx, |ui| {
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    if narrow && ui.button("Menü").clicked() {
+                    if narrow && ui.button(t("Menü")).clicked() {
                         acts.push(Act::ToggleNav);
                     }
-                    ui.add(egui::TextEdit::singleline(&mut self.search).hint_text("Suchen …").desired_width(if narrow { 140.0 } else { 260.0 }));
-                    ui.checkbox(&mut self.only_unread, "Ungelesen");
-                    if ui.button("Aktualisieren").clicked() {
+                    ui.add(egui::TextEdit::singleline(&mut self.search).hint_text(t("Suchen …")).desired_width(if narrow { 140.0 } else { 260.0 }));
+                    ui.checkbox(&mut self.only_unread, t("Ungelesen"));
+                    if ui.button(t("Aktualisieren")).clicked() {
                         acts.push(Act::Refresh);
                     }
                     if self.pending > 0 {

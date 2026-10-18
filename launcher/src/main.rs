@@ -5,6 +5,7 @@ mod assoc;
 mod core;
 mod gui;
 mod icons;
+mod sprache;
 mod weather;
 
 use crate::core::{fmt_version, App, Kind, Manifest, Version};
@@ -29,7 +30,7 @@ fn main() {
                 return;
             }
             let name = app.name.clone();
-            gui::run(move || manifest.clone(), None, true, Some(format!("{name} ist nicht installiert. Zum Öffnen von {file} zuerst installieren.")));
+            gui::run(move || manifest.clone(), None, true, Some(sprache::tf("{name} ist nicht installiert. Zum Öffnen von {datei} zuerst installieren.", &[("name", &name), ("datei", file)])));
             return;
         }
         std::process::exit(1);

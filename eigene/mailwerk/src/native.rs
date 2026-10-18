@@ -10,6 +10,7 @@ use std::time::Duration;
 use crate::imap::Imap;
 use crate::mime;
 use crate::smtp::Smtp;
+use crate::sprache::{t, tf};
 use crate::timeutil;
 use crate::types::{Account, Cmd, Ev, FolderInfo, HeaderRow, MailBody, Security};
 
@@ -34,9 +35,9 @@ fn tls_config() -> Arc<rustls::ClientConfig> {
 fn connect_tcp(host: &str, port: u16) -> Result<TcpStream, String> {
     let addrs: Vec<_> = (host, port)
         .to_socket_addrs()
-        .map_err(|e| format!("Server «{host}» nicht gefunden: {e}"))?
+        .map_err(|e| tf("Server «{host}» nicht gefunden: {e}", &[("host", &host), ("e", &e)]))?
         .collect();
-    let mut last = format!("Keine Adresse für «{host}».");
+    let mut last = tf("Keine Adresse für «{host}».", &[("host", &host)]);
     for a in addrs {
         match TcpStream::connect_timeout(&a, Duration::from_secs(15)) {
             Ok(s) => {
@@ -45,15 +46,15 @@ fn connect_tcp(host: &str, port: u16) -> Result<TcpStream, String> {
                 let _ = s.set_nodelay(true);
                 return Ok(s);
             }
-            Err(e) => last = format!("Verbindung zu {host}:{port} fehlgeschlagen: {e}"),
+            Err(e) => last = tf("Verbindung zu {host}:{port} fehlgeschlagen: {e}", &[("host", &host), ("port", &port), ("e", &e)]),
         }
     }
     Err(last)
 }
 
 fn wrap_tls(host: &str, tcp: TcpStream) -> Result<Tls, String> {
-    let name = rustls::pki_types::ServerName::try_from(host.to_string()).map_err(|_| format!("Ungültiger Servername: {host}"))?;
-    let conn = rustls::ClientConnection::new(tls_config(), name).map_err(|e| format!("Sichere Verbindung zu {host} fehlgeschlagen: {e}"))?;
+    let name = rustls::pki_types::ServerName::try_from(host.to_string()).map_err(|_| tf("Ungültiger Servername: {host}", &[("host", &host)]))?;
+    let conn = rustls::ClientConnection::new(tls_config(), name).map_err(|e| tf("Sichere Verbindung zu {host} fehlgeschlagen: {e}", &[("host", &host), ("e", &e)]))?;
     Ok(rustls::StreamOwned::new(conn, tcp))
 }
 
@@ -67,7 +68,7 @@ fn login_name(acc: &Account) -> &str {
 
 fn imap_connect(acc: &Account) -> Result<Imap<Tls>, String> {
     if acc.imap_port == 143 {
-        return Err("Unverschlüsseltes IMAP (Port 143) wird nicht unterstützt. Bitte Port 993 verwenden.".into());
+        return Err(t("Unverschlüsseltes IMAP (Port 143) wird nicht unterstützt. Bitte Port 993 verwenden.").into());
     }
     let tcp = connect_tcp(&acc.imap_host, acc.imap_port)?;
     let tls = wrap_tls(&acc.imap_host, tcp)?;
@@ -103,7 +104,7 @@ fn smtp_send(acc: &Account, from: &str, rcpts: &[String], raw: &[u8]) -> Result<
             sm.read_greeting()?;
             sm.ehlo(&acc.helo_name())?;
             if !sm.has_cap("STARTTLS") {
-                return Err("Der Server bietet keine Verschlüsselung (STARTTLS) an.".into());
+                return Err(t("Der Server bietet keine Verschlüsselung (STARTTLS) an.").into());
             }
             sm.starttls()?;
             let tcp = sm.into_inner()?;
@@ -115,7 +116,7 @@ fn smtp_send(acc: &Account, from: &str, rcpts: &[String], raw: &[u8]) -> Result<
 }
 
 fn uid(id: &str) -> Result<u32, String> {
-    id.parse::<u32>().map_err(|_| format!("Ungültige Nachrichtennummer «{id}»."))
+    id.parse::<u32>().map_err(|_| tf("Ungültige Nachrichtennummer «{id}».", &[("id", &id)]))
 }
 
 /// Führt einen Befehl aus und liefert die Ereignisse. Blockiert, darum in einem eigenen Thread aufrufen.
@@ -213,7 +214,7 @@ fn run_inner(acc: &Account, cmd: Cmd) -> Result<Vec<Ev>, String> {
         Cmd::Send { msg, sent_folder, .. } => {
             let rcpts = msg.envelope_recipients();
             if rcpts.is_empty() {
-                return Err("Kein Empfänger angegeben.".into());
+                return Err(t("Kein Empfänger angegeben.").into());
             }
             let (raw, _id) = mime::build(&msg, timeutil::now_ts(), seed());
             smtp_send(acc, &msg.from.email, &rcpts, &raw)?;
@@ -227,11 +228,11 @@ fn run_inner(acc: &Account, cmd: Cmd) -> Result<Vec<Ev>, String> {
                     r
                 });
                 if let Err(e) = res {
-                    note = format!("Gesendet, aber die Kopie konnte nicht im Ordner «Gesendet» abgelegt werden: {e}");
+                    note = tf("Gesendet, aber die Kopie konnte nicht im Ordner «Gesendet» abgelegt werden: {e}", &[("e", &e)]);
                 }
             }
             Ok(vec![done(&note)])
         }
-        Cmd::Attachment { .. } => Err("Anhänge von IMAP-Konten sind schon in der Nachricht enthalten.".into()),
+        Cmd::Attachment { .. } => Err(t("Anhänge von IMAP-Konten sind schon in der Nachricht enthalten.").into()),
     }
 }

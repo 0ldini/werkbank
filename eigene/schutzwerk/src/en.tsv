@@ -1,0 +1,89 @@
+# Schutzwerk: deutsch → englisch
+/ 100 Schutzpunkte	/ 100 protection points
+Achtung	Warning
+Aktiv.	Active.
+Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge.	Everything runs locally on your computer. Purely defensive – no attack tools.
+Am Zielort existiert bereits eine Datei gleichen Namens.	A file with the same name already exists at the destination.
+Aus	Off
+Ausgeschaltet.	Turned off.
+Bewertung	Rating
+Der Papierkorb ist leer.	The Recycle Bin is empty.
+Dienst läuft.	Service is running.
+Dienst nicht aktiv.	Service is not running.
+Eigene offene Ports und Geräte im Netz – nur Lesen, keine Fremdscans.	Your own open ports and devices on the network – read-only, no scanning of other systems.
+Einstellung: {ss}	Setting: {ss}
+Entropie	Entropy
+Für alle Profile aktiv.	Active for all profiles.
+GERÄTE IM NETZ	DEVICES ON THE NETWORK
+Gelöschte Dateien auflisten und an ihren Ursprungsort zurückholen.	List deleted files and restore them to their original location.
+Geschätzte Knackzeit: 	Estimated time to crack: 
+Gross- und Kleinbuchstaben	Upper- and lowercase letters
+In Ordnung	OK
+Kein bekanntes Passwort	Not a known password
+Keine Geräte gefunden.	No devices found.
+Keine Reihen/Wiederholungen	No sequences/repetitions
+Keine offenen Ports gefunden.	No open ports found.
+Kurzer Gesamtstatus. Für Details die Bereiche links öffnen.	Quick overall status. Open the sections on the left for details.
+Mindestens 12 Zeichen ({n})	At least 12 characters ({n})
+Mindestens ein Profil ist aus.	At least one profile is off.
+Netzwerk	Network
+Noch keine Prüfung. Öffne 'System-Schutz' und klicke auf 'Prüfen'.	Not checked yet. Open 'System protection' and click 'Check'.
+Noch nicht gelesen.	Not read yet.
+Noch nicht geprüft – auf 'Prüfen' klicken.	Not checked yet – click 'Check'.
+Noch nicht geprüft.	Not checked yet.
+OFFENE PORTS (DIESER PC)	OPEN PORTS (THIS PC)
+Papierkorb	Recycle Bin
+Papierkorb lesen	Read Recycle Bin
+Passwort eingeben …	Enter password …
+Passwort-Check	Password check
+Prüfen	Check
+Prüft die Stärke – vollständig offline, nichts wird gesendet oder gespeichert.	Checks the strength – fully offline, nothing is sent or stored.
+Scannen	Scan
+Schutz: noch nicht geprüft	Protection: not checked yet
+Schutz: {s}/100	Protection: {s}/100
+Sicherheit · Werkbank	Security · Werkbank
+Sonderzeichen enthalten	Contains special characters
+Status nicht lesbar.	Status could not be read.
+Status von Firewall, Virenschutz, Updates und SmartScreen.	Status of firewall, antivirus, updates and SmartScreen.
+System-Schutz	System protection
+System-Schutz noch nicht geprüft.	System protection not checked yet.
+Tipp: Eine Passphrase aus vier zufälligen Wörtern ist leichter zu merken und oft stärker als ein kurzes kompliziertes Passwort.	Tip: A passphrase of four random words is easier to remember and often stronger than a short, complicated password.
+Unbekannt	Unknown
+Virenschutz (Echtzeit)	Antivirus (real-time)
+Wiederhergestellt.	Restored.
+Wiederherstellen	Restore
+Wiederherstellen fehlgeschlagen: {e}	Restore failed: {e}
+Windows-Update	Windows Update
+Zahlen enthalten	Contains digits
+Zeichen	Characters
+Zeichenklassen	Character classes
+ein paar Sekunden	a few seconds
+praktisch unknackbar	practically uncrackable
+sofort	instantly
+verbergen	hide
+wird gelesen …	reading …
+wird geprüft …	checking …
+zeigen	show
+Übersicht	Overview
+{pfad} · {groesse} · gelöscht {datum}	{pfad} · {groesse} · deleted {datum}
+ca. {n} Minuten	about {n} minutes
+ca. {n} Stunden	about {n} hours
+ca. {n} Tage	about {n} days
+ca. {n} Monate	about {n} months
+ca. {n} Jahre	about {n} years
+ca. {n} Jahrhunderte	about {n} centuries
+Sehr schwach	Very weak
+Schwach	Weak
+Mittel	Fair
+Stark	Strong
+Sehr stark	Very strong
+Unverschlüsselt – besser SFTP verwenden.	Unencrypted – use SFTP instead.
+Unverschlüsselt und riskant – abschalten.	Unencrypted and risky – turn it off.
+Windows-Dienst – nicht ins Internet freigeben.	Windows service – do not expose to the internet.
+Datei-/Druckerfreigabe – nur im LAN.	File/printer sharing – LAN only.
+Datei­freigabe – niemals offen ins Internet.	File sharing – never open to the internet.
+Datenbank – nicht nach aussen öffnen.	Database – do not open to the outside.
+Fernzugriff – nur über VPN, nie offen.	Remote access – VPN only, never open.
+Fernsteuerung – nur über VPN.	Remote control – VPN only.
+Geräte-Erkennung – im LAN unkritisch.	Device discovery – harmless on the LAN.
+Dateifreigabe – nur im LAN.	File sharing – LAN only.

@@ -4,6 +4,7 @@ mod app;
 mod netparse;
 mod pwcheck;
 mod recycle;
+mod sprache;
 mod sys;
 
 fn main() -> eframe::Result<()> {

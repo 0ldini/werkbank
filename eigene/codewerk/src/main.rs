@@ -3,8 +3,11 @@
 mod app;
 mod qr;
 mod save;
+mod sprache;
 
 use app::App;
+#[cfg(not(target_arch = "wasm32"))]
+use sprache::{t, tf};
 
 // ---------------- Nativ ----------------
 
@@ -19,7 +22,7 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([900.0, 580.0])
             .with_min_inner_size([680.0, 460.0])
-            .with_title("Codewerk – QR-Codes"),
+            .with_title(t("Codewerk – QR-Codes")),
         ..Default::default()
     };
     eframe::run_native(
@@ -44,7 +47,7 @@ fn cli(args: &[String]) {
         };
         match a {
             "--help" | "-h" => {
-                println!("Codewerk – QR-Codes\n\nVerwendung:\n  codewerk --text \"Inhalt\" --out datei.png\n\nOptionen:\n  --text <s>   Inhalt (Text oder Link)\n  --out <f>    Zieldatei (.png oder .svg)\n  --scale <n>  Pixel je Modul (Standard 10)\n  --quiet <n>  Rand in Modulen (Standard 4)\n  --ec <L|M|Q|H>  Fehlerkorrektur (Standard M)\n  --fg <#hex>  Vordergrundfarbe\n  --bg <#hex>  Hintergrundfarbe\n\nOhne --Optionen startet die grafische Oberfläche.");
+                println!("{}", t("Codewerk – QR-Codes\n\nVerwendung:\n  codewerk --text \"Inhalt\" --out datei.png\n\nOptionen:\n  --text <s>   Inhalt (Text oder Link)\n  --out <f>    Zieldatei (.png oder .svg)\n  --scale <n>  Pixel je Modul (Standard 10)\n  --quiet <n>  Rand in Modulen (Standard 4)\n  --ec <L|M|Q|H>  Fehlerkorrektur (Standard M)\n  --fg <#hex>  Vordergrundfarbe\n  --bg <#hex>  Hintergrundfarbe\n\nOhne --Optionen startet die grafische Oberfläche."));
                 return;
             }
             "--text" => text = next(),
@@ -66,7 +69,7 @@ fn cli(args: &[String]) {
         i += 1;
     }
     if text.is_empty() || out.is_empty() {
-        eprintln!("Fehlt: --text und --out (siehe --help)");
+        eprintln!("{}", t("Fehlt: --text und --out (siehe --help)"));
         std::process::exit(2);
     }
     let res = if out.to_lowercase().ends_with(".svg") {
@@ -77,13 +80,13 @@ fn cli(args: &[String]) {
     match res {
         Ok(bytes) => {
             if let Err(e) = std::fs::write(&out, bytes) {
-                eprintln!("Schreiben fehlgeschlagen: {e}");
+                eprintln!("{}", tf("Schreiben fehlgeschlagen: {e}", &[("e", &e)]));
                 std::process::exit(1);
             }
-            println!("Geschrieben: {out}");
+            println!("{}", tf("Geschrieben: {out}", &[("out", &out)]));
         }
         Err(e) => {
-            eprintln!("Fehler: {e}");
+            eprintln!("{}", tf("Fehler: {e}", &[("e", &e)]));
             std::process::exit(1);
         }
     }

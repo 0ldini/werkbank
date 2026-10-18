@@ -3,6 +3,7 @@
 mod app;
 mod datefmt;
 mod rename;
+mod sprache;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

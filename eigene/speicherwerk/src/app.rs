@@ -3,6 +3,7 @@
 //! damit das Fenster flüssig bleibt; Fortschritt über Atomics.
 
 use crate::scan::{self, fmt_size, group_thousands, Node};
+use crate::sprache::{t, tf};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -53,7 +54,7 @@ impl App {
             rx: None,
             started: None,
             elapsed: 0.0,
-            status: "Ordner wählen, um den Speicherplatz zu analysieren.".into(),
+            status: t("Ordner wählen, um den Speicherplatz zu analysieren.").into(),
         }
     }
 
@@ -78,7 +79,7 @@ impl App {
         self.expanded.clear();
         self.root = Some(path);
         self.started = Some(Instant::now());
-        self.status = "Wird gescannt …".into();
+        self.status = t("Wird gescannt …").into();
     }
 
     fn poll(&mut self) {
@@ -100,11 +101,12 @@ impl App {
                     self.largest = scan::largest_files(&node, 30);
                     self.exts = scan::ext_sizes(&node);
                     self.expanded.insert(node.name.clone()); // Wurzel aufgeklappt
-                    self.status = format!("Fertig in {:.1} s", self.elapsed);
+                    let secs = format!("{:.1}", self.elapsed);
+                    self.status = tf("Fertig in {secs} s", &[("secs", &secs)]);
                     self.tree = Some(node);
                 }
                 None => {
-                    self.status = "Abgebrochen.".into();
+                    self.status = t("Abgebrochen.").into();
                     self.prog = None;
                 }
             }
@@ -123,7 +125,7 @@ impl eframe::App for App {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 let open = egui::Button::new(
-                    egui::RichText::new("   Ordner wählen   ").color(egui::Color32::WHITE),
+                    egui::RichText::new(format!("   {}   ", t("Ordner wählen"))).color(egui::Color32::WHITE),
                 )
                 .fill(teal());
                 if ui.add_enabled(!self.scanning, open).clicked() {
@@ -145,15 +147,15 @@ impl eframe::App for App {
                         .or_else(|| self.prog.as_ref().map(|p| p.bytes.load(Ordering::Relaxed)))
                         .unwrap_or(0);
                     ui.label(
-                        egui::RichText::new(format!("Gesamt: {}", fmt_size(total)))
+                        egui::RichText::new(tf("Gesamt: {size}", &[("size", &fmt_size(total))]))
                             .strong(),
                     );
                     if self.tree.is_some() {
                         ui.add_space(8.0);
-                        if ui.button("CSV speichern …").clicked() {
+                        if ui.button(t("CSV speichern …")).clicked() {
                             self.export_csv();
                         }
-                        if ui.button("Neu scannen").clicked() {
+                        if ui.button(t("Neu scannen")).clicked() {
                             if let Some(r) = self.root.clone() {
                                 self.start_scan(r);
                             }
@@ -161,7 +163,7 @@ impl eframe::App for App {
                     }
                     if self.scanning {
                         ui.add_space(8.0);
-                        if ui.button("Abbrechen").clicked() {
+                        if ui.button(t("Abbrechen")).clicked() {
                             if let Some(p) = &self.prog {
                                 p.cancel.store(true, Ordering::Relaxed);
                             }
@@ -178,18 +180,22 @@ impl eframe::App for App {
                 if self.scanning {
                     if let Some(p) = &self.prog {
                         ui.spinner();
-                        ui.label(format!(
-                            "Scanne … {} Dateien · {} Ordner",
-                            group_thousands(p.files.load(Ordering::Relaxed)),
-                            group_thousands(p.dirs.load(Ordering::Relaxed)),
+                        ui.label(tf(
+                            "Scanne … {files} Dateien · {dirs} Ordner",
+                            &[
+                                ("files", &group_thousands(p.files.load(Ordering::Relaxed))),
+                                ("dirs", &group_thousands(p.dirs.load(Ordering::Relaxed))),
+                            ],
                         ));
                     }
                 } else if let Some(p) = &self.prog {
-                    ui.weak(format!(
-                        "{} Dateien · {} Ordner · {}",
-                        group_thousands(p.files.load(Ordering::Relaxed)),
-                        group_thousands(p.dirs.load(Ordering::Relaxed)),
-                        self.status
+                    ui.weak(tf(
+                        "{files} Dateien · {dirs} Ordner · {status}",
+                        &[
+                            ("files", &group_thousands(p.files.load(Ordering::Relaxed))),
+                            ("dirs", &group_thousands(p.dirs.load(Ordering::Relaxed))),
+                            ("status", &self.status),
+                        ],
                     ));
                 } else {
                     ui.weak(self.status.as_str());
@@ -205,7 +211,7 @@ impl eframe::App for App {
                 .show(ctx, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("GRÖSSTE DATEIEN").strong().size(11.0).color(egui::Color32::from_gray(130)));
+                        ui.label(egui::RichText::new(t("GRÖSSTE DATEIEN")).strong().size(11.0).color(egui::Color32::from_gray(130)));
                         ui.add_space(4.0);
                         let maxf = self.largest.first().map(|x| x.1).unwrap_or(1).max(1);
                         for (name, sz) in self.largest.iter().take(15) {
@@ -220,12 +226,13 @@ impl eframe::App for App {
                         ui.add_space(12.0);
                         ui.separator();
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("DATEITYPEN").strong().size(11.0).color(egui::Color32::from_gray(130)));
+                        ui.label(egui::RichText::new(t("DATEITYPEN")).strong().size(11.0).color(egui::Color32::from_gray(130)));
                         ui.add_space(4.0);
                         let maxe = self.exts.first().map(|x| x.1).unwrap_or(1).max(1);
                         for (ext, sz, _c) in self.exts.iter().take(15) {
                             ui.horizontal(|ui| {
-                                ui.add(egui::Label::new(egui::RichText::new(format!(".{}", ext)).color(teal()).strong()));
+                                let shown = if ext == "(ohne)" { format!(".{}", t("(ohne)")) } else { format!(".{}", ext) };
+                                ui.add(egui::Label::new(egui::RichText::new(shown).color(teal()).strong()));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.monospace(fmt_size(*sz));
                                     bar(ui, *sz as f32 / maxe as f32, teal(), 90.0);
@@ -249,12 +256,12 @@ impl eframe::App for App {
                         ui.add_space(40.0);
                         ui.spinner();
                         ui.add_space(8.0);
-                        ui.weak("Wird gescannt …");
+                        ui.weak(t("Wird gescannt …"));
                     });
                 });
             } else {
                 ui.centered_and_justified(|ui| {
-                    ui.weak("Oben einen Ordner wählen.");
+                    ui.weak(t("Oben einen Ordner wählen."));
                 });
             }
         });

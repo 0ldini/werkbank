@@ -1,0 +1,64 @@
+# Wandelwerk: deutsch → englisch
++ Hinzufügen	+ Add
+AUSGABE	OUTPUT
+Anpassung	Fit
+B	I
+T	A
+V	V
+Bild lesen: {e}	Reading image: {e}
+Bild schreiben: {e}	Writing image: {e}
+Bilder in Rust · Ton & Video über ffmpeg	Images in Rust · audio & video via ffmpeg
+DATEIEN	FILES
+Dateien hierher ziehen – Ton, Bild oder Video gemischt.	Drag files here – audio, images or video, mixed.
+Dateien hinzufügen	Add files
+Dateien umwandeln · Werkbank	Convert files · Werkbank
+Dieses Video hat keine Tonspur.	This video has no audio track.
+Fehler	Error
+Für alle übernehmen	Apply to all
+Leeren	Clear
+Medien	Media
+Noch keine Dateien.	No files yet.
+Nur Ton speichern	Save audio only
+Qualität	Quality
+Seitenverhältnis	Aspect ratio
+Spur {n}	Track {n}
+Tonspur	Audio track
+Tonspur: {spur}	Audio track: {spur}
+Wählen …	Choose …
+Zielformat (Bild)	Output format (image)
+Zielformat (Ton)	Output format (audio)
+Zielformat (Video)	Output format (video)
+Zielordner	Output folder
+Zielordner …	Output folder …
+fertig	done
+ffmpeg eingebaut	ffmpeg built in
+ffmpeg fehlt (nur Bilder möglich)	ffmpeg missing (images only)
+ffmpeg gefunden	ffmpeg found
+ffmpeg konnte nicht gestartet werden: {e}	Could not start ffmpeg: {e}
+ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren.	ffmpeg was not found. Place ffmpeg.exe next to the program or install it.
+ffmpeg-Fehler. {detail}	ffmpeg error. {detail}
+kein ffmpeg-Ausgabekanal	no ffmpeg output channel
+von {from}	from {from}
+von {from} · {w}×{h}	from {from} · {w}×{h}
+{format} (Ton)	{format} (audio)
+{n} Dateien umwandeln	Convert {n} files
+Zuschneiden	Crop
+Ränder	Pad
+Strecken	Stretch
+Hoch	High
+Mittel	Medium
+Klein	Small
+Deutsch	German
+Schweizerdeutsch	Swiss German
+Englisch	English
+Französisch	French
+Italienisch	Italian
+Spanisch	Spanish
+Portugiesisch	Portuguese
+Niederländisch	Dutch
+Russisch	Russian
+Japanisch	Japanese
+Koreanisch	Korean
+Chinesisch	Chinese
+Türkisch	Turkish
+Polnisch	Polish

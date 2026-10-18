@@ -1,0 +1,41 @@
+# Mediathekwerk: deutsch → englisch
+Filme & Serien · Werkbank	Movies & TV · Werkbank
+Einstellungen	Settings
+Suchen	Search
+Film oder Serie suchen …	Search for a movie or show …
+TMDB verbunden	TMDB connected
+Kein TMDB-Schlüssel	No TMDB key
+{n} Titel in der Sammlung · Daten von TMDB	{n} titles in collection · Data from TMDB
+< Zur Sammlung	< Back to collection
+Suchergebnisse: {q}	Search results: {q}
+Noch nichts in der Sammlung. Oben nach einem Titel suchen und aufnehmen.	Your collection is empty. Search for a title above and add it.
+Wird gesucht …	Searching …
+Keine Treffer.	No results.
+{r} Min	{r} min
+{s} Staffeln	{s} seasons
+STATUS	STATUS
+MEINE BEWERTUNG	MY RATING
+Aus Sammlung entfernen	Remove from collection
+In Sammlung aufnehmen	Add to collection
+In Sammlung aufgenommen.	Added to collection.
+Aus Sammlung entfernt.	Removed from collection.
+TMDB-API-Schlüssel (kostenlos bei themoviedb.org):	TMDB API key (free at themoviedb.org):
+API-Schlüssel (v3 auth)	API key (v3 auth)
+Sprache:	Language:
+Speichern	Save
+Einstellungen gespeichert.	Settings saved.
+Der Schlüssel wird nur lokal gespeichert.	The key is stored only on this computer.
+Kein TMDB-Schlüssel hinterlegt (Einstellungen).	No TMDB key set (Settings).
+Antwort unlesbar: {e}	Unreadable response: {e}
+Keine Ergebnisse.	No results.
+Lesefehler: {e}	Read error: {e}
+Netzwerkfehler: {e}	Network error: {e}
+# Texte aus model.rs (Kind/Status/Filter::label), übersetzt an der Anzeige
+Film	Movie
+Serie	TV show
+Alle	All
+Filme	Movies
+Serien	TV shows
+Geplant	Planned
+Am Schauen	Watching
+Gesehen	Watched

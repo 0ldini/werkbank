@@ -6,6 +6,8 @@ use image::{ImageFormat, Rgba, RgbaImage};
 use qrcode::{EcLevel, QrCode};
 use std::io::Cursor;
 
+use crate::sprache::{t, tf};
+
 /// Fehlerkorrektur-Stufe.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Ec {
@@ -26,10 +28,10 @@ impl Ec {
     }
     pub fn label(self) -> &'static str {
         match self {
-            Ec::L => "L – niedrig (7 %)",
-            Ec::M => "M – mittel (15 %)",
-            Ec::Q => "Q – gehoben (25 %)",
-            Ec::H => "H – hoch (30 %)",
+            Ec::L => t("L – niedrig (7 %)"),
+            Ec::M => t("M – mittel (15 %)"),
+            Ec::Q => t("Q – gehoben (25 %)"),
+            Ec::H => t("H – hoch (30 %)"),
         }
     }
 }
@@ -301,10 +303,10 @@ impl Content {
 
 fn build_code(data: &str, ec: Ec) -> Result<QrCode, String> {
     if data.is_empty() {
-        return Err("Kein Inhalt".into());
+        return Err(t("Kein Inhalt").into());
     }
     QrCode::with_error_correction_level(data.as_bytes(), ec.level())
-        .map_err(|e| format!("QR-Code zu lang oder ungültig: {e}"))
+        .map_err(|e| tf("QR-Code zu lang oder ungültig: {e}", &[("e", &e)]))
 }
 
 /// Erzeugt ein RGBA-Bild (Breite = Höhe). Rückgabe: (pixels, size).
@@ -366,7 +368,7 @@ fn draw_swiss_cross(img: &mut RgbaImage, size: u32, codearea: u32) {
 /// Erzeugt die PNG-Bytes.
 pub fn to_png(data: &str, st: &Style) -> Result<Vec<u8>, String> {
     let (raw, size) = to_rgba(data, st)?;
-    let img = RgbaImage::from_raw(size, size, raw).ok_or("Bildpuffer ungültig")?;
+    let img = RgbaImage::from_raw(size, size, raw).ok_or(t("Bildpuffer ungültig"))?;
     let mut buf = Vec::new();
     img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)
         .map_err(|e| e.to_string())?;

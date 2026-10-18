@@ -177,8 +177,105 @@ def extend_notice():
     print("  NOTICE ergänzt")
 
 
+# ---------------------------------------------------------------------------------------------
+# Sprache: Der Werkbank-Launcher legt Deutsch oder Englisch fest (Umgebungsvariable WERKBANK_LANG
+# beim Start, sonst die Datei sprache.txt im Einstellungsordner der Werkbank). Ein kleiner Einschub
+# je Programm lässt diese Wahl vor der gespeicherten Einstellung und der Systemsprache gelten.
+# Programme ohne Übersetzungen (Klangwerk, Schauwerk) bleiben englisch.
+
+# Rust-Ausdruck vom Typ Option<String>: «de», «en» oder None (dann gilt die Wahl im Programm).
+WB = (
+    '(std::env::var("WERKBANK_LANG").ok().or_else(|| { '
+    'let base = if cfg!(windows) { std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Werkbank").join("config") } '
+    'else if cfg!(target_os = "macos") { std::path::PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/Werkbank") } '
+    'else { std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from).filter(|p| p.is_absolute())'
+    '.or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))?.join("werkbank") }; '
+    'std::fs::read_to_string(base.join("sprache.txt")).ok() })'
+    '.map(|v| v.trim().to_ascii_lowercase()).filter(|v| v == "de" || v == "en"))'
+)
+
+_FROM_PREF = (
+    "after",
+    "pub fn from_pref(pref: &str) -> Lang {",
+    0,
+    [
+        "// Werkbank: Sprache aus dem Launcher.",
+        "static WERKBANK: OnceLock<Option<Lang>> = OnceLock::new();",
+        f"if let Some(lang) = *WERKBANK.get_or_init(|| {WB}.and_then(|v| Lang::from_code(&v))) {{ return lang; }}",
+    ],
+)
+
+# Programm → [(Datei, (Art, Ankerzeile, Zeilen danach überspringen, neue Zeilen))]
+#   Art: «after» fügt nach der Ankerzeile (+ übersprungene Zeilen) ein, «before» davor,
+#        «replace» ersetzt die Ankerzeile.
+LANG_PATCHES = {
+    "photocraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
+    "vectorcraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
+    "pdfcraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
+    "wordcraft": [("apps/wordcraft/src/main.rs", ("after", "load_prefs(&mut app);", 0, [
+        f"if let Some(code) = {WB}.and_then(|v| wordcraft_ui_egui::i18n::normalize_pref(&v)) {{ app.ui.language = code.to_string(); }}",
+    ]))],
+    "gridcraft": [("apps/gridcraft/src/main.rs", ("after", "load_prefs(&mut app);", 0, [
+        f"if let Some(l) = {WB}.and_then(|v| gridcraft_ui_egui::i18n::Language::parse(&v)) {{ app.ui.language = l; }}",
+    ]))],
+    "cadcraft": [("apps/cadcraft/src/main.rs", ("after", "app.load_prefs(&prefs);", 1, [
+        f"if let Some(p) = {WB}.and_then(|v| cadcraft_ui_egui::i18n::Preference::parse(&v)) {{ app.ui.interface_language = p; }}",
+    ]))],
+    "lightcraft": [("apps/lightcraft/src/main.rs", ("before", "lightcraft_ui_egui::i18n::set_language(app.ui.language);", 0, [
+        f"if let Some(l) = {WB}.and_then(|v| lightcraft_ui_egui::i18n::Locale::parse_tag(&v)) {{ app.ui.language = l; }}",
+    ]))],
+    "designcraft": [("apps/designcraft/src/main.rs", ("before", "// Engine preferences (Preferences dialog, favourites…) live beside the UI state.", 0, [
+        f'match {WB}.as_deref() {{ Some("de") => app.ui.language = "de".into(), Some("en") => app.ui.language = String::new(), _ => {{}} }}',
+    ]))],
+    "filmcraft": [("crates/ui-egui/src/lib.rs", ("replace", "let language = match i18n::Language::parse(&p.general.interface_language) {", 0, [
+        f"let werkbank = {WB}.and_then(|v| i18n::Language::parse(&v));",
+        "let language = match werkbank.or_else(|| i18n::Language::parse(&p.general.interface_language)) {",
+    ]))],
+    "effectcraft": [("crates/ui-egui/src/i18n.rs", ("after", "pub(crate) fn language(app: &EffectcraftApp) -> &'static str {", 0, [
+        "static WERKBANK: std::sync::OnceLock<Option<&'static str>> = std::sync::OnceLock::new();",
+        f'if let Some(l) = *WERKBANK.get_or_init(|| {WB}.map(|v| if v == "de" {{ "de" }} else {{ "en" }})) {{ return l; }}',
+    ]))],
+}
+
+
+def patch_language():
+    patches = LANG_PATCHES.get(APP, [])
+    if not patches:
+        print("  (keine Übersetzungen im Original)")
+    for rel, (kind, anchor, skip, lines) in patches:
+        path = ROOT / rel
+        if not path.is_file():
+            problems.append(f"Sprache: {rel} fehlt")
+            continue
+        text = read(path)
+        nl = "\r\n" if "\r\n" in text else "\n"
+        rows = text.split(nl)
+        hits = [i for i, r in enumerate(rows) if r.strip() == anchor]
+        if len(hits) != 1:
+            problems.append(f"Sprache: Ankerzeile {len(hits)}× statt 1× in {rel}: {anchor}")
+            continue
+        i = hits[0]
+        indent = rows[i][: len(rows[i]) - len(rows[i].lstrip())]
+        if kind == "after":
+            inner = indent + ("    " if anchor.endswith("{") else "")
+            at = i + 1 + skip
+            if skip:
+                inner = rows[i + skip][: len(rows[i + skip]) - len(rows[i + skip].lstrip())]
+            rows[at:at] = [inner + l for l in lines]
+        elif kind == "before":
+            rows[i:i] = [indent + l for l in lines]
+        else:
+            rows[i : i + 1] = [indent + l for l in lines]
+        if not CHECK:
+            path.write_bytes(nl.join(rows).encode("utf-8"))
+        print(f"  Sprachwahl der Werkbank in {rel}")
+
+
 def main():
     print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}")
+    # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
+    print("Sprache:")
+    patch_language()
     print("Texte:")
     rewrite_text()
     print("Bilder:")

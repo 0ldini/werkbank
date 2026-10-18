@@ -9,6 +9,7 @@ use crate::convert::{self, Job, JobState};
 use crate::model::{
     self, Aspect, AudioFmt, AudioTrack, Fit, ImageFmt, MediaKind, Quality, Target, VideoFmt,
 };
+use crate::sprache::{t, tf};
 
 fn vio() -> egui::Color32 {
     egui::Color32::from_rgb(0x6d, 0x49, 0xe0)
@@ -211,10 +212,10 @@ impl App {
                 ui.add_space(4.0);
                 ui.heading("Wandelwerk");
                 ui.add(egui::Label::new(
-                    egui::RichText::new("Dateien umwandeln · Werkbank").weak(),
+                    egui::RichText::new(t("Dateien umwandeln · Werkbank")).weak(),
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Zielordner …").clicked() {
+                    if ui.button(t("Zielordner …")).clicked() {
                         if let Some(d) = rfd::FileDialog::new().pick_folder() {
                             self.out_dir = d.display().to_string();
                         }
@@ -234,15 +235,15 @@ impl App {
             ui.horizontal(|ui| {
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
                 let (col, txt) = if self.ffmpeg.is_some() {
-                    let txt = if convert::HAS_EMBEDDED_FFMPEG { "ffmpeg eingebaut" } else { "ffmpeg gefunden" };
+                    let txt = if convert::HAS_EMBEDDED_FFMPEG { t("ffmpeg eingebaut") } else { t("ffmpeg gefunden") };
                     (egui::Color32::from_rgb(0x16, 0xa3, 0x4a), txt)
                 } else {
-                    (egui::Color32::from_rgb(0xe5, 0x34, 0x2e), "ffmpeg fehlt (nur Bilder möglich)")
+                    (egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("ffmpeg fehlt (nur Bilder möglich)"))
                 };
                 ui.painter().circle_filled(dot.center(), 4.0, col);
                 ui.weak(txt);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak("Bilder in Rust · Ton & Video über ffmpeg");
+                    ui.weak(t("Bilder in Rust · Ton & Video über ffmpeg"));
                 });
             });
             ui.add_space(4.0);
@@ -258,11 +259,11 @@ impl App {
                 if self.entries.is_empty() {
                     ui.add_space(20.0);
                     ui.vertical_centered(|ui| {
-                        ui.weak("Noch keine Dateien.");
+                        ui.weak(t("Noch keine Dateien."));
                         ui.add_space(6.0);
                         if ui
                             .add(egui::Button::new(
-                                egui::RichText::new("   Dateien hinzufügen   ").color(egui::Color32::WHITE),
+                                egui::RichText::new(format!("   {}   ", t("Dateien hinzufügen"))).color(egui::Color32::WHITE),
                             ).fill(vio()))
                             .clicked()
                         {
@@ -285,10 +286,10 @@ impl App {
             let kind = self.entries[self.sel].kind;
             let name = self.entries[self.sel].name.clone();
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("AUSGABE").size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("AUSGABE")).size(11.0).strong().color(egui::Color32::from_gray(150)));
                 ui.add(egui::Label::new(egui::RichText::new(format!("· {name}")).weak()).truncate());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Label::new(egui::RichText::new("Für alle übernehmen").color(vio()).size(12.0)).sense(egui::Sense::click())).clicked() {
+                    if ui.add(egui::Label::new(egui::RichText::new(t("Für alle übernehmen")).color(vio()).size(12.0)).sense(egui::Sense::click())).clicked() {
                         self.apply_to_all();
                     }
                 });
@@ -296,7 +297,7 @@ impl App {
 
             // Zielformat je nach Typ
             ui.add_space(10.0);
-            sub(ui, match kind { MediaKind::Audio=>"Zielformat (Ton)", MediaKind::Image=>"Zielformat (Bild)", MediaKind::Video=>"Zielformat (Video)" });
+            sub(ui, match kind { MediaKind::Audio=>t("Zielformat (Ton)"), MediaKind::Image=>t("Zielformat (Bild)"), MediaKind::Video=>t("Zielformat (Video)") });
             let e = &mut self.entries[self.sel];
             ui.horizontal_wrapped(|ui| match kind {
                 MediaKind::Audio => {
@@ -322,7 +323,7 @@ impl App {
             // Video: nur die Tonspur speichern (z. B. MP3 aus einem MKV-Film).
             if kind == MediaKind::Video {
                 ui.add_space(12.0);
-                sub(ui, "Nur Ton speichern");
+                sub(ui, t("Nur Ton speichern"));
                 let e = &mut self.entries[self.sel];
                 ui.horizontal_wrapped(|ui| {
                     for f in AudioFmt::all() {
@@ -333,23 +334,23 @@ impl App {
                 if e.target.kind() == MediaKind::Audio {
                     let tracks = e.tracks.lock().ok().and_then(|g| g.clone());
                     match tracks {
-                        Some(t) if t.is_empty() => {
+                        Some(tl) if tl.is_empty() => {
                             ui.add_space(6.0);
-                            ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), "Dieses Video hat keine Tonspur.");
+                            ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("Dieses Video hat keine Tonspur."));
                         }
-                        Some(t) if t.len() > 1 => {
+                        Some(tl) if tl.len() > 1 => {
                             ui.add_space(10.0);
-                            sub(ui, "Tonspur");
+                            sub(ui, t("Tonspur"));
                             let chosen = e.chosen_track();
-                            for tr in &t {
-                                if chip(ui, chosen == Some(tr.index), &tr.label()).clicked() {
+                            for tr in &tl {
+                                if chip(ui, chosen == Some(tr.index), &track_label(tr)).clicked() {
                                     e.audio_track = Some(tr.index);
                                 }
                             }
                         }
-                        Some(t) => {
+                        Some(tl) => {
                             ui.add_space(4.0);
-                            ui.weak(format!("Tonspur: {}", t[0].label()));
+                            ui.weak(tf("Tonspur: {spur}", &[("spur", &track_label(&tl[0]))]));
                         }
                         None => {}
                     }
@@ -360,7 +361,7 @@ impl App {
             let kind = self.entries[self.sel].target.kind();
             if kind != MediaKind::Audio {
                 ui.add_space(12.0);
-                sub(ui, "Seitenverhältnis");
+                sub(ui, t("Seitenverhältnis"));
                 let e = &mut self.entries[self.sel];
                 ui.horizontal_wrapped(|ui| {
                     for a in Aspect::all() {
@@ -378,22 +379,22 @@ impl App {
                 draw_preview(ui, prect, dims, asp, fit);
 
                 ui.add_space(10.0);
-                sub(ui, "Anpassung");
+                sub(ui, t("Anpassung"));
                 let e = &mut self.entries[self.sel];
                 ui.horizontal_wrapped(|ui| {
                     for f in [Fit::Crop, Fit::Pad, Fit::Stretch] {
-                        if chip(ui, e.fit == f, f.label()).clicked() { e.fit = f; }
+                        if chip(ui, e.fit == f, t(f.label())).clicked() { e.fit = f; }
                     }
                 });
             }
 
             // Qualität (nicht bei verlustfreien Formaten wie WAV/FLAC/PNG/BMP/TIFF – trotzdem anzeigen, schadet nicht)
             ui.add_space(12.0);
-            sub(ui, "Qualität");
+            sub(ui, t("Qualität"));
             let e = &mut self.entries[self.sel];
             ui.horizontal_wrapped(|ui| {
                 for q in [Quality::Hoch, Quality::Mittel, Quality::Klein] {
-                    if chip(ui, e.quality == q, q.label()).clicked() { e.quality = q; }
+                    if chip(ui, e.quality == q, t(q.label())).clicked() { e.quality = q; }
                 }
             });
         });
@@ -401,11 +402,11 @@ impl App {
 
     fn action_card(&mut self, ui: &mut egui::Ui) {
         card(ui, |ui| {
-            sub(ui, "Zielordner");
+            sub(ui, t("Zielordner"));
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(egui::RichText::new(short_dir(&self.out_dir))).truncate());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Wählen …").clicked() {
+                    if ui.button(t("Wählen …")).clicked() {
                         if let Some(d) = rfd::FileDialog::new().pick_folder() {
                             self.out_dir = d.display().to_string();
                         }
@@ -415,7 +416,7 @@ impl App {
             ui.add_space(12.0);
             let n = self.entries.len();
             let btn = egui::Button::new(
-                egui::RichText::new(format!("{n} Dateien umwandeln")).color(egui::Color32::WHITE).size(15.0),
+                egui::RichText::new(tf("{n} Dateien umwandeln", &[("n", &n)])).color(egui::Color32::WHITE).size(15.0),
             )
             .fill(vio())
             .min_size(egui::vec2(ui.available_width(), 46.0));
@@ -430,13 +431,13 @@ impl App {
             ui.add_space(10.0);
             card(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("DATEIEN").size(11.0).strong().color(egui::Color32::from_gray(150)));
+                    ui.label(egui::RichText::new(t("DATEIEN")).size(11.0).strong().color(egui::Color32::from_gray(150)));
                     ui.weak(format!("{}", self.entries.len()));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Leeren").clicked() {
+                        if ui.button(t("Leeren")).clicked() {
                             self.entries.clear();
                         }
-                        if ui.add(egui::Button::new(egui::RichText::new("+ Hinzufügen").color(egui::Color32::WHITE)).fill(vio())).clicked() {
+                        if ui.add(egui::Button::new(egui::RichText::new(t("+ Hinzufügen")).color(egui::Color32::WHITE)).fill(vio())).clicked() {
                             self.pick_files();
                         }
                     });
@@ -452,7 +453,7 @@ impl App {
                         self.entries.remove(i);
                     }
                     ui.add_space(4.0);
-                    ui.weak("Dateien hierher ziehen – Ton, Bild oder Video gemischt.");
+                    ui.weak(t("Dateien hierher ziehen – Ton, Bild oder Video gemischt."));
                 });
             });
         });
@@ -474,7 +475,7 @@ impl App {
                     let (ic, _) = ui.allocate_exact_size(egui::vec2(36.0, 36.0), egui::Sense::hover());
                     ui.painter().rect_filled(ic, 9.0, kind_color(e.kind));
                     ui.painter().text(ic.center(), egui::Align2::CENTER_CENTER,
-                        match e.kind { MediaKind::Audio=>"T", MediaKind::Image=>"B", MediaKind::Video=>"V" },
+                        match e.kind { MediaKind::Audio=>t("T"), MediaKind::Image=>t("B"), MediaKind::Video=>t("V") },
                         egui::FontId::proportional(15.0), egui::Color32::WHITE);
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
@@ -505,7 +506,7 @@ impl App {
     fn pick_files(&mut self) {
         if let Some(files) = rfd::FileDialog::new()
             .add_filter(
-                "Medien",
+                t("Medien"),
                 &[
                     "mp3", "wav", "flac", "ogg", "m4a", "aac", "opus", "wma", "jpg", "jpeg",
                     "png", "bmp", "gif", "tif", "tiff", "webp", "mp4", "mov", "mkv", "webm",
@@ -569,7 +570,7 @@ fn status_badge(ui: &mut egui::Ui, e: &Entry) {
     let badge = format!(
         "{}{}",
         if e.kind == MediaKind::Video && e.target.kind() == MediaKind::Audio {
-            format!("{} (Ton)", e.target.label())
+            tf("{format} (Ton)", &[("format", &e.target.label())])
         } else {
             e.target.label().to_string()
         },
@@ -582,10 +583,10 @@ fn status_badge(ui: &mut egui::Ui, e: &Entry) {
     match &e.job {
         Some(j) if j.done.load(std::sync::atomic::Ordering::SeqCst) => {
             if j.ok.load(std::sync::atomic::Ordering::SeqCst) {
-                ui.colored_label(egui::Color32::from_rgb(0x16, 0xa3, 0x4a), "fertig");
+                ui.colored_label(egui::Color32::from_rgb(0x16, 0xa3, 0x4a), t("fertig"));
             } else {
                 let m = j.msg.lock().unwrap().clone();
-                ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), "Fehler").on_hover_text(m);
+                ui.colored_label(egui::Color32::from_rgb(0xe5, 0x34, 0x2e), t("Fehler")).on_hover_text(m);
             }
         }
         Some(j) if j.running.load(std::sync::atomic::Ordering::SeqCst) => {
@@ -604,9 +605,42 @@ fn source_line(e: &Entry) -> String {
         .map(|x| x.to_string_lossy().to_uppercase())
         .unwrap_or_default();
     match e.dims {
-        Some((w, h)) => format!("von {from} · {w}×{h}"),
-        None => format!("von {from}"),
+        Some((w, h)) => tf("von {from} · {w}×{h}", &[("from", &from), ("w", &w), ("h", &h)]),
+        None => tf("von {from}", &[("from", &from)]),
     }
+}
+
+/// Deutsche Sprachnamen aus `model::language_name` (zum Übersetzen mit `t`).
+const LANG_NAMES: &[&str] = &[
+    "Deutsch", "Schweizerdeutsch", "Englisch", "Französisch", "Italienisch", "Spanisch",
+    "Portugiesisch", "Niederländisch", "Russisch", "Japanisch", "Koreanisch", "Chinesisch",
+    "Türkisch", "Polnisch",
+];
+
+/// Wie `AudioTrack::label`, aber in der gewählten Sprache
+/// (z. B. «Deutsch · AC3 · 5.1 · Kommentar» bzw. «German · AC3 · 5.1 · Kommentar»).
+fn track_label(tr: &AudioTrack) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    parts.push(match tr.lang.as_deref() {
+        Some(code) => {
+            let de = model::language_name(code);
+            match LANG_NAMES.iter().copied().find(|n| *n == de) {
+                Some(n) => t(n).to_string(),
+                None => de,
+            }
+        }
+        None => tf("Spur {n}", &[("n", &(tr.index + 1))]),
+    });
+    if !tr.codec.is_empty() {
+        parts.push(tr.codec.clone());
+    }
+    if !tr.channels.is_empty() {
+        parts.push(tr.channels.clone());
+    }
+    if let Some(title) = &tr.title {
+        parts.push(title.clone());
+    }
+    parts.join(" · ")
 }
 
 /// Zeichnet eine kleine Seitenverhältnis-Vorschau (Crop/Pad/Stretch).

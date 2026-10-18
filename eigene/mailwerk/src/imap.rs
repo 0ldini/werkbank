@@ -6,6 +6,7 @@
 use std::io::{Read, Write};
 
 use crate::b64;
+use crate::sprache::{t, tf};
 use crate::role::{guess_role, Role};
 
 // ================================================================ Antwort-Teile
@@ -305,12 +306,12 @@ impl<S: Read + Write> Imap<S> {
         }
         let mut tmp = [0u8; 16 * 1024];
         match self.s.read(&mut tmp) {
-            Ok(0) => Err("Der Server hat die Verbindung beendet.".to_string()),
+            Ok(0) => Err(t("Der Server hat die Verbindung beendet.").to_string()),
             Ok(n) => {
                 self.buf.extend_from_slice(&tmp[..n]);
                 Ok(())
             }
-            Err(e) => Err(format!("Lesen fehlgeschlagen: {e}")),
+            Err(e) => Err(tf("Lesen fehlgeschlagen: {e}", &[("e", &e)])),
         }
     }
 
@@ -351,17 +352,17 @@ impl<S: Read + Write> Imap<S> {
     }
 
     fn write_all(&mut self, data: &[u8]) -> Result<(), String> {
-        self.s.write_all(data).and_then(|_| self.s.flush()).map_err(|e| format!("Senden fehlgeschlagen: {e}"))
+        self.s.write_all(data).and_then(|_| self.s.flush()).map_err(|e| tf("Senden fehlgeschlagen: {e}", &[("e", &e)]))
     }
 
     /// Liest die Begrüssung. Gibt deren Text zurück.
     pub fn read_greeting(&mut self) -> Result<String, String> {
         let r = self.read_response()?;
-        let t = String::from_utf8_lossy(&r).trim().to_string();
-        if t.starts_with("* OK") || t.starts_with("* PREAUTH") {
-            Ok(t)
+        let g = String::from_utf8_lossy(&r).trim().to_string();
+        if g.starts_with("* OK") || g.starts_with("* PREAUTH") {
+            Ok(g)
         } else {
-            Err(format!("Unerwartete Begrüssung: {t}"))
+            Err(tf("Unerwartete Begrüssung: {g}", &[("g", &g)]))
         }
     }
 
@@ -422,7 +423,8 @@ impl<S: Read + Write> Imap<S> {
                 return Ok(());
             }
             if r.starts_with(tag.as_bytes()) {
-                return Err(format!("Server lehnt ab: {}", String::from_utf8_lossy(&r).trim()));
+                let reply = String::from_utf8_lossy(&r).trim().to_string();
+                return Err(tf("Server lehnt ab: {reply}", &[("reply", &reply)]));
             }
         }
     }
@@ -439,7 +441,7 @@ impl<S: Read + Write> Imap<S> {
     // ------------------------------------------------------------ Befehle
 
     pub fn login(&mut self, user: &str, pass: &str) -> Result<(), String> {
-        self.run(&[Arg::Raw("LOGIN"), Arg::Str(user), Arg::Str(pass)], "Anmeldung fehlgeschlagen")?;
+        self.run(&[Arg::Raw("LOGIN"), Arg::Str(user), Arg::Str(pass)], t("Anmeldung fehlgeschlagen"))?;
         self.refresh_capabilities()?;
         Ok(())
     }
@@ -461,7 +463,7 @@ impl<S: Read + Write> Imap<S> {
     }
 
     pub fn list_folders(&mut self) -> Result<Vec<FolderEntry>, String> {
-        let r = self.run(&[Arg::Raw("LIST"), Arg::Str(""), Arg::Str("*")], "Ordnerliste")?;
+        let r = self.run(&[Arg::Raw("LIST"), Arg::Str(""), Arg::Str("*")], t("Ordnerliste"))?;
         let mut out = Vec::new();
         for u in &r.untagged {
             let mut p = Parser::new(u);
@@ -487,7 +489,7 @@ impl<S: Read + Write> Imap<S> {
 
     pub fn select(&mut self, raw_name: &str, read_only: bool) -> Result<SelectInfo, String> {
         let cmd = if read_only { "EXAMINE" } else { "SELECT" };
-        let r = self.run(&[Arg::Raw(cmd), Arg::Str(raw_name)], "Ordner öffnen")?;
+        let r = self.run(&[Arg::Raw(cmd), Arg::Str(raw_name)], t("Ordner öffnen"))?;
         let mut info = SelectInfo::default();
         for u in &r.untagged {
             let t = String::from_utf8_lossy(u);
@@ -511,7 +513,7 @@ impl<S: Read + Write> Imap<S> {
 
     /// (Nachrichten, Ungelesene) eines Ordners, ohne ihn zu öffnen.
     pub fn status(&mut self, raw_name: &str) -> Result<(u32, u32), String> {
-        let r = self.run(&[Arg::Raw("STATUS"), Arg::Str(raw_name), Arg::Raw("(MESSAGES UNSEEN)")], "Ordnerstand")?;
+        let r = self.run(&[Arg::Raw("STATUS"), Arg::Str(raw_name), Arg::Raw("(MESSAGES UNSEEN)")], t("Ordnerstand"))?;
         let (mut total, mut unseen) = (0, 0);
         for u in &r.untagged {
             let mut p = Parser::new(u);
@@ -542,25 +544,25 @@ impl<S: Read + Write> Imap<S> {
     pub fn fetch_headers_range(&mut self, from: u32, to: u32) -> Result<Vec<FetchItem>, String> {
         let set = format!("{from}:{to}");
         let items = "(UID FLAGS RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM TO CC SUBJECT DATE MESSAGE-ID CONTENT-TYPE)])";
-        let r = self.run(&[Arg::Raw("FETCH"), Arg::Raw(&set), Arg::Raw(items)], "Nachrichten laden")?;
+        let r = self.run(&[Arg::Raw("FETCH"), Arg::Raw(&set), Arg::Raw(items)], t("Nachrichten laden"))?;
         Ok(parse_fetch_items(&r.untagged))
     }
 
     /// Ganze Nachricht (ohne sie als gelesen zu markieren).
     pub fn fetch_message(&mut self, uid: u32) -> Result<FetchItem, String> {
         let set = uid.to_string();
-        let r = self.run(&[Arg::Raw("UID FETCH"), Arg::Raw(&set), Arg::Raw("(UID FLAGS BODY.PEEK[])")], "Nachricht laden")?;
+        let r = self.run(&[Arg::Raw("UID FETCH"), Arg::Raw(&set), Arg::Raw("(UID FLAGS BODY.PEEK[])")], t("Nachricht laden"))?;
         parse_fetch_items(&r.untagged)
             .into_iter()
             .find(|f| f.uid == uid || f.uid == 0)
-            .ok_or_else(|| "Nachricht nicht gefunden (vielleicht gelöscht).".to_string())
+            .ok_or_else(|| t("Nachricht nicht gefunden (vielleicht gelöscht).").to_string())
     }
 
     pub fn set_flag(&mut self, uid: u32, flag: &str, on: bool) -> Result<(), String> {
         let set = uid.to_string();
         let op = if on { "+FLAGS.SILENT" } else { "-FLAGS.SILENT" };
         let fl = format!("({flag})");
-        self.run(&[Arg::Raw("UID STORE"), Arg::Raw(&set), Arg::Raw(op), Arg::Raw(&fl)], "Markierung ändern")?;
+        self.run(&[Arg::Raw("UID STORE"), Arg::Raw(&set), Arg::Raw(op), Arg::Raw(&fl)], t("Markierung ändern"))?;
         Ok(())
     }
 
@@ -568,10 +570,10 @@ impl<S: Read + Write> Imap<S> {
     pub fn move_to(&mut self, uid: u32, target_raw: &str) -> Result<(), String> {
         let set = uid.to_string();
         if self.has_cap("MOVE") {
-            self.run(&[Arg::Raw("UID MOVE"), Arg::Raw(&set), Arg::Str(target_raw)], "Verschieben")?;
+            self.run(&[Arg::Raw("UID MOVE"), Arg::Raw(&set), Arg::Str(target_raw)], t("Verschieben"))?;
             return Ok(());
         }
-        self.run(&[Arg::Raw("UID COPY"), Arg::Raw(&set), Arg::Str(target_raw)], "Kopieren")?;
+        self.run(&[Arg::Raw("UID COPY"), Arg::Raw(&set), Arg::Str(target_raw)], t("Kopieren"))?;
         self.delete_here(uid)
     }
 
@@ -580,9 +582,9 @@ impl<S: Read + Write> Imap<S> {
         self.set_flag(uid, "\\Deleted", true)?;
         let set = uid.to_string();
         if self.has_cap("UIDPLUS") {
-            self.run(&[Arg::Raw("UID EXPUNGE"), Arg::Raw(&set)], "Aufräumen")?;
+            self.run(&[Arg::Raw("UID EXPUNGE"), Arg::Raw(&set)], t("Aufräumen"))?;
         } else {
-            self.run(&[Arg::Raw("EXPUNGE")], "Aufräumen")?;
+            self.run(&[Arg::Raw("EXPUNGE")], t("Aufräumen"))?;
         }
         Ok(())
     }
@@ -590,7 +592,7 @@ impl<S: Read + Write> Imap<S> {
     /// Legt eine Nachricht in einem Ordner ab (z. B. «Gesendet»).
     pub fn append(&mut self, raw_name: &str, flags: &str, message: &[u8]) -> Result<(), String> {
         let fl = format!("({flags})");
-        self.run(&[Arg::Raw("APPEND"), Arg::Str(raw_name), Arg::Raw(&fl), Arg::Bytes(message)], "Ablegen")?;
+        self.run(&[Arg::Raw("APPEND"), Arg::Str(raw_name), Arg::Raw(&fl), Arg::Bytes(message)], t("Ablegen"))?;
         Ok(())
     }
 

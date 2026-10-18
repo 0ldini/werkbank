@@ -5,6 +5,7 @@
 use std::time::Instant;
 
 use crate::model::{Corner, Mode, Quality, Settings};
+use crate::sprache::{t, tf};
 use crate::record::{self, Recording};
 
 fn red() -> egui::Color32 {
@@ -50,7 +51,7 @@ impl App {
             monitors: record::list_monitors(),
             windows: Vec::new(),
             recents: Vec::new(),
-            status: "Bereit".into(),
+            status: t("Bereit").into(),
             last_err: None,
             hotkey_prev: false,
         }
@@ -76,11 +77,11 @@ impl App {
                 };
                 self.finish_to_recent(secs);
                 self.phase = Phase::Idle;
-                self.status = "Gespeichert".into();
+                self.status = t("Gespeichert").into();
             }
             Phase::Countdown { .. } => {
                 self.phase = Phase::Idle;
-                self.status = "Abgebrochen".into();
+                self.status = t("Abgebrochen").into();
             }
             Phase::Idle => {
                 if self.cfg.countdown > 0 {
@@ -101,7 +102,7 @@ impl App {
         let dims = match record::source_dims(&self.cfg) {
             Ok(d) => d,
             Err(e) => {
-                self.last_err = Some(format!("Quelle nicht verfügbar: {e}"));
+                self.last_err = Some(tf("Quelle nicht verfügbar: {e}", &[("e", &e)]));
                 self.phase = Phase::Idle;
                 return;
             }
@@ -113,10 +114,10 @@ impl App {
         match record::start(&self.cfg, dims, bitrate, path) {
             Ok(rec) => {
                 self.phase = Phase::Recording(rec);
-                self.status = "Aufnahme läuft".into();
+                self.status = t("Aufnahme läuft").into();
             }
             Err(e) => {
-                self.last_err = Some(format!("Start fehlgeschlagen: {e}"));
+                self.last_err = Some(tf("Start fehlgeschlagen: {e}", &[("e", &e)]));
                 self.phase = Phase::Idle;
             }
         }
@@ -129,9 +130,12 @@ impl App {
             "{} · {}",
             crate::model::fmt_timecode(secs),
             match self.cfg.mode {
-                Mode::Fullscreen => "Vollbild".to_string(),
-                Mode::Window => "Fenster".to_string(),
-                Mode::Region => format!("Bereich {}×{}", self.cfg.region.2, self.cfg.region.3),
+                Mode::Fullscreen => t("Vollbild").to_string(),
+                Mode::Window => t("Fenster").to_string(),
+                Mode::Region => tf(
+                    "Bereich {w}×{h}",
+                    &[("w", &self.cfg.region.2), ("h", &self.cfg.region.3)],
+                ),
             }
         );
         self.recents.insert(0, (name, meta));
@@ -164,7 +168,7 @@ impl eframe::App for App {
         if let Some(secs) = finished_secs {
             self.finish_to_recent(secs);
             self.phase = Phase::Idle;
-            self.status = "Gespeichert".into();
+            self.status = t("Gespeichert").into();
         }
         if self.is_recording() || self.is_counting() {
             ctx.request_repaint();
@@ -188,11 +192,14 @@ impl App {
                 ui.add_space(4.0);
                 ui.heading("Aufnahmewerk");
                 ui.add(egui::Label::new(
-                    egui::RichText::new("Bildschirm aufnehmen · Werkbank").weak(),
+                    egui::RichText::new(t("Bildschirm aufnehmen · Werkbank")).weak(),
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Ordner …").clicked() {
-                        if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                    if ui.button(t("Ordner …")).clicked() {
+                        if let Some(d) = rfd::FileDialog::new()
+                            .set_title(t("Zielordner wählen"))
+                            .pick_folder()
+                        {
                             self.cfg.out_dir = d.display().to_string();
                         }
                     }
@@ -219,12 +226,12 @@ impl App {
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let ton = match (self.cfg.system_audio, self.cfg.microphone) {
-                        (true, true) => "System-Ton + Mikrofon",
-                        (true, false) => "System-Ton",
-                        (false, true) => "Mikrofon",
-                        (false, false) => "ohne Ton",
+                        (true, true) => t("System-Ton + Mikrofon"),
+                        (true, false) => t("System-Ton"),
+                        (false, true) => t("Mikrofon"),
+                        (false, false) => t("ohne Ton"),
                     };
-                    ui.weak(format!("Hotkey: Strg+Umschalt+R · {}", ton));
+                    ui.weak(tf("Hotkey: Strg+Umschalt+R · {ton}", &[("ton", &ton)]));
                 });
             });
             ui.add_space(4.0);
@@ -251,13 +258,13 @@ impl App {
     }
 
     fn card_modus(&mut self, ui: &mut egui::Ui) {
-        card(ui, "AUFNAHMEMODUS", |ui| {
+        card(ui, t("AUFNAHMEMODUS"), |ui| {
             let busy = self.is_recording() || self.is_counting();
             ui.add_enabled_ui(!busy, |ui| {
                 ui.columns(3, |c| {
-                    mode_tile(&mut c[0], &mut self.cfg.mode, Mode::Fullscreen, "Ganzer Bildschirm", "Monitor wählen");
-                    mode_tile(&mut c[1], &mut self.cfg.mode, Mode::Window, "Einzelnes Fenster", "Programm wählen");
-                    mode_tile(&mut c[2], &mut self.cfg.mode, Mode::Region, "Bereich", "Ausschnitt ziehen");
+                    mode_tile(&mut c[0], &mut self.cfg.mode, Mode::Fullscreen, t("Ganzer Bildschirm"), t("Monitor wählen"));
+                    mode_tile(&mut c[1], &mut self.cfg.mode, Mode::Window, t("Einzelnes Fenster"), t("Programm wählen"));
+                    mode_tile(&mut c[2], &mut self.cfg.mode, Mode::Region, t("Bereich"), t("Ausschnitt ziehen"));
                 });
                 ui.add_space(10.0);
                 match self.cfg.mode {
@@ -268,7 +275,7 @@ impl App {
                                 self.monitors
                                     .get(self.cfg.monitor_index)
                                     .cloned()
-                                    .unwrap_or_else(|| "Monitor 1".into()),
+                                    .unwrap_or_else(|| t("Monitor 1").into()),
                             )
                             .show_ui(ui, |ui| {
                                 for (i, m) in self.monitors.iter().enumerate() {
@@ -281,7 +288,7 @@ impl App {
                             egui::ComboBox::from_id_salt("win")
                                 .width(ui.available_width() - 90.0)
                                 .selected_text(if self.cfg.window_title.is_empty() {
-                                    "Fenster wählen …".to_string()
+                                    t("Fenster wählen …").to_string()
                                 } else {
                                     self.cfg.window_title.clone()
                                 })
@@ -294,18 +301,18 @@ impl App {
                                         );
                                     }
                                 });
-                            if ui.button("Aktualisieren").clicked() {
+                            if ui.button(t("Aktualisieren")).clicked() {
                                 self.windows = record::list_windows();
                             }
                         });
                     }
                     Mode::Region => {
                         ui.horizontal(|ui| {
-                            ui.label("Bereich:");
-                            drag_u32(ui, &mut self.cfg.region.2, "Breite");
+                            ui.label(t("Bereich:"));
+                            drag_u32(ui, &mut self.cfg.region.2, t("Breite"));
                             ui.label("×");
-                            drag_u32(ui, &mut self.cfg.region.3, "Höhe");
-                            ui.label("ab");
+                            drag_u32(ui, &mut self.cfg.region.3, t("Höhe"));
+                            ui.label(t("ab"));
                             drag_i32(ui, &mut self.cfg.region.0, "X");
                             ui.label(",");
                             drag_i32(ui, &mut self.cfg.region.1, "Y");
@@ -317,43 +324,43 @@ impl App {
     }
 
     fn card_ton(&mut self, ui: &mut egui::Ui) {
-        card(ui, "TON", |ui| {
-            row(ui, "System-Ton", "Spiel, Video, Musik vom Rechner", |ui| {
+        card(ui, t("TON"), |ui| {
+            row(ui, t("System-Ton"), t("Spiel, Video, Musik vom Rechner"), |ui| {
                 toggle(ui, &mut self.cfg.system_audio, teal());
             });
             ui.add_space(8.0);
-            row(ui, "Mikrofon", "Deine Stimme für Erklärvideos (Etappe 2)", |ui| {
+            row(ui, t("Mikrofon"), t("Deine Stimme für Erklärvideos (Etappe 2)"), |ui| {
                 toggle(ui, &mut self.cfg.microphone, teal());
             });
         });
     }
 
     fn card_webcam(&mut self, ui: &mut egui::Ui) {
-        card(ui, "WEBCAM & ZEIGER", |ui| {
-            row(ui, "Webcam-Overlay", "Kleines Kamerabild in der Ecke", |ui| {
+        card(ui, t("WEBCAM & ZEIGER"), |ui| {
+            row(ui, t("Webcam-Overlay"), t("Kleines Kamerabild in der Ecke"), |ui| {
                 corner_pick(ui, &mut self.cfg.webcam_corner);
                 ui.add_space(8.0);
                 toggle(ui, &mut self.cfg.webcam, red());
             });
             ui.add_space(8.0);
-            row(ui, "Mauszeiger & Klicks", "Zeiger hervorheben, Klicks sichtbar", |ui| {
+            row(ui, t("Mauszeiger & Klicks"), t("Zeiger hervorheben, Klicks sichtbar"), |ui| {
                 toggle(ui, &mut self.cfg.highlight_clicks, red());
             });
         });
     }
 
     fn card_format(&mut self, ui: &mut egui::Ui) {
-        card(ui, "VOR DEM START · FORMAT", |ui| {
-            row(ui, "Countdown", "3-2-1 vor der Aufnahme", |ui| {
-                chip_u32(ui, &mut self.cfg.countdown, 0, "Aus", red());
+        card(ui, t("VOR DEM START · FORMAT"), |ui| {
+            row(ui, t("Countdown"), t("3-2-1 vor der Aufnahme"), |ui| {
+                chip_u32(ui, &mut self.cfg.countdown, 0, t("Aus"), red());
                 chip_u32(ui, &mut self.cfg.countdown, 3, "3 s", red());
                 chip_u32(ui, &mut self.cfg.countdown, 5, "5 s", red());
             });
             ui.add_space(8.0);
-            row(ui, "Format · Qualität", "MP4 · H.264", |ui| {
-                chip_q(ui, &mut self.cfg.quality, Quality::Hoch, "Hoch");
-                chip_q(ui, &mut self.cfg.quality, Quality::Mittel, "Mittel");
-                chip_q(ui, &mut self.cfg.quality, Quality::Sparsam, "Sparsam");
+            row(ui, t("Format · Qualität"), "MP4 · H.264", |ui| {
+                chip_q(ui, &mut self.cfg.quality, Quality::Hoch, t("Hoch"));
+                chip_q(ui, &mut self.cfg.quality, Quality::Mittel, t("Mittel"));
+                chip_q(ui, &mut self.cfg.quality, Quality::Sparsam, t("Sparsam"));
                 ui.add_space(8.0);
                 chip_u32(ui, &mut self.cfg.fps, 30, "30 fps", teal());
                 chip_u32(ui, &mut self.cfg.fps, 60, "60 fps", teal());
@@ -400,7 +407,7 @@ impl App {
                     p.text(
                         rect.center(),
                         egui::Align2::CENTER_CENTER,
-                        "Vorschau",
+                        t("Vorschau"),
                         egui::FontId::proportional(15.0),
                         egui::Color32::from_gray(150),
                     );
@@ -441,15 +448,15 @@ impl App {
                     ui.add_space(6.0);
                     ui.vertical(|ui| {
                         let label = if self.is_recording() {
-                            "Aufnahme stoppen"
+                            t("Aufnahme stoppen")
                         } else if self.is_counting() {
-                            "Countdown … (Abbrechen)"
+                            t("Countdown … (Abbrechen)")
                         } else {
-                            "Aufnahme starten"
+                            t("Aufnahme starten")
                         };
                         ui.label(egui::RichText::new(label).size(17.0).strong());
                         ui.label(
-                            egui::RichText::new("oder Strg + Umschalt + R")
+                            egui::RichText::new(t("oder Strg + Umschalt + R"))
                                 .weak()
                                 .size(12.0),
                         );
@@ -459,10 +466,10 @@ impl App {
     }
 
     fn recent_list(&mut self, ui: &mut egui::Ui) {
-        card(ui, "LETZTE AUFNAHMEN", |ui| {
+        card(ui, t("LETZTE AUFNAHMEN"), |ui| {
             if self.recents.is_empty() {
                 ui.add_space(4.0);
-                ui.weak("Noch keine Aufnahmen in dieser Sitzung.");
+                ui.weak(t("Noch keine Aufnahmen in dieser Sitzung."));
                 return;
             }
             egui::ScrollArea::vertical().show(ui, |ui| {

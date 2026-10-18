@@ -6,6 +6,7 @@
 use std::io::{Read, Write};
 
 use crate::b64;
+use crate::sprache::{t, tf};
 
 pub struct SmtpReply {
     pub code: u16,
@@ -28,7 +29,8 @@ pub struct Smtp<S: Read + Write> {
 
 fn check_addr(a: &str) -> Result<(), String> {
     if a.is_empty() || a.chars().any(|c| c.is_control() || c == '<' || c == '>' || c == ' ') {
-        return Err(format!("Ungültige Adresse: «{}»", a.escape_debug()));
+        let a = a.escape_debug().to_string();
+        return Err(tf("Ungültige Adresse: «{a}»", &[("a", &a)]));
     }
     Ok(())
 }
@@ -76,12 +78,12 @@ impl<S: Read + Write> Smtp<S> {
         }
         let mut tmp = [0u8; 4096];
         match self.s.read(&mut tmp) {
-            Ok(0) => Err("Der Server hat die Verbindung beendet.".to_string()),
+            Ok(0) => Err(t("Der Server hat die Verbindung beendet.").to_string()),
             Ok(n) => {
                 self.buf.extend_from_slice(&tmp[..n]);
                 Ok(())
             }
-            Err(e) => Err(format!("Lesen fehlgeschlagen: {e}")),
+            Err(e) => Err(tf("Lesen fehlgeschlagen: {e}", &[("e", &e)])),
         }
     }
 
@@ -103,9 +105,9 @@ impl<S: Read + Write> Smtp<S> {
         loop {
             let l = self.read_line()?;
             if l.len() < 3 {
-                return Err(format!("Ungültige Antwort: «{l}»"));
+                return Err(tf("Ungültige Antwort: «{l}»", &[("l", &l)]));
             }
-            let code: u16 = l[..3].parse().map_err(|_| format!("Ungültige Antwort: «{l}»"))?;
+            let code: u16 = l[..3].parse().map_err(|_| tf("Ungültige Antwort: «{l}»", &[("l", &l)]))?;
             let more = l.as_bytes().get(3) == Some(&b'-');
             lines.push(l.get(4..).unwrap_or("").to_string());
             if !more {
@@ -115,7 +117,7 @@ impl<S: Read + Write> Smtp<S> {
     }
 
     fn write_all(&mut self, data: &[u8]) -> Result<(), String> {
-        self.s.write_all(data).and_then(|_| self.s.flush()).map_err(|e| format!("Senden fehlgeschlagen: {e}"))
+        self.s.write_all(data).and_then(|_| self.s.flush()).map_err(|e| tf("Senden fehlgeschlagen: {e}", &[("e", &e)]))
     }
 
     fn cmd(&mut self, line: &str) -> Result<SmtpReply, String> {
@@ -133,7 +135,7 @@ impl<S: Read + Write> Smtp<S> {
 
     pub fn read_greeting(&mut self) -> Result<(), String> {
         let r = self.read_reply()?;
-        Self::expect(r, &[220], "Begrüssung").map(|_| ())
+        Self::expect(r, &[220], t("Begrüssung")).map(|_| ())
     }
 
     pub fn ehlo(&mut self, name: &str) -> Result<(), String> {
@@ -168,38 +170,39 @@ impl<S: Read + Write> Smtp<S> {
         if plain_ok {
             let blob = b64::encode(format!("\0{user}\0{pass}").as_bytes());
             let r = self.cmd(&format!("AUTH PLAIN {blob}"))?;
-            return Self::expect(r, &[235], "Anmeldung fehlgeschlagen").map(|_| ());
+            return Self::expect(r, &[235], t("Anmeldung fehlgeschlagen")).map(|_| ());
         }
         if mechs.iter().any(|m| m == "LOGIN") {
             let r = self.cmd("AUTH LOGIN")?;
-            Self::expect(r, &[334], "Anmeldung")?;
+            Self::expect(r, &[334], t("Anmeldung"))?;
             let r = self.cmd(&b64::encode(user.as_bytes()))?;
-            Self::expect(r, &[334], "Anmeldung")?;
+            Self::expect(r, &[334], t("Anmeldung"))?;
             let r = self.cmd(&b64::encode(pass.as_bytes()))?;
-            return Self::expect(r, &[235], "Anmeldung fehlgeschlagen").map(|_| ());
+            return Self::expect(r, &[235], t("Anmeldung fehlgeschlagen")).map(|_| ());
         }
-        Err(format!("Der Server bietet kein unterstütztes Anmeldeverfahren (nur: {}).", mechs.join(", ")))
+        let list = mechs.join(", ");
+        Err(tf("Der Server bietet kein unterstütztes Anmeldeverfahren (nur: {list}).", &[("list", &list)]))
     }
 
     /// Sendet eine fertige Nachricht (`message` = rohe Mail ohne Bcc-Kopfzeile).
     pub fn send(&mut self, from: &str, rcpts: &[String], message: &[u8]) -> Result<(), String> {
         check_addr(from)?;
         if rcpts.is_empty() {
-            return Err("Kein Empfänger angegeben.".to_string());
+            return Err(t("Kein Empfänger angegeben.").to_string());
         }
         let r = self.cmd(&format!("MAIL FROM:<{from}>"))?;
-        Self::expect(r, &[250], "Absender abgelehnt")?;
+        Self::expect(r, &[250], t("Absender abgelehnt"))?;
         for rc in rcpts {
             check_addr(rc)?;
             let r = self.cmd(&format!("RCPT TO:<{rc}>"))?;
-            Self::expect(r, &[250, 251], &format!("Empfänger {rc} abgelehnt"))?;
+            Self::expect(r, &[250, 251], &tf("Empfänger {rc} abgelehnt", &[("rc", rc)]))?;
         }
         let r = self.cmd("DATA")?;
         Self::expect(r, &[354], "DATA")?;
         let body = dot_stuff(message);
         self.write_all(&body)?;
         let r = self.read_reply()?;
-        Self::expect(r, &[250], "Senden abgelehnt").map(|_| ())
+        Self::expect(r, &[250], t("Senden abgelehnt")).map(|_| ())
     }
 
     pub fn quit(&mut self) {

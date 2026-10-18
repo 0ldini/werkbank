@@ -64,7 +64,7 @@ impl Backend {
         self.out.emit(Ev::Failed {
             acc: acc.id,
             what: cmd.what(),
-            err: "Dieses Konto funktioniert nur in der Desktop-Version (Browser dürfen keine IMAP/SMTP-Verbindung öffnen).".into(),
+            err: crate::sprache::t("Dieses Konto funktioniert nur in der Desktop-Version (Browser dürfen keine IMAP/SMTP-Verbindung öffnen).").into(),
         });
     }
 

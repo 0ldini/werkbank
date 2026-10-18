@@ -84,3 +84,14 @@ Die Protokolle sind eigener Code ohne Fremdbibliotheken und haben Tests
 
 Tests der Kerne ohne Cargo: die Module sind nur von der Standardbibliothek abhängig
 (`rustc --edition 2021 --test` mit einer kleinen Hauptdatei, die die Module einbindet).
+Weil die Module ihre Meldungen über `sprache.rs` übersetzen, muss diese Hauptdatei auch
+`mod sprache;` einbinden (`sprache.rs` liest `en.tsv` aus demselben Ordner). `json`, `b64`,
+`role` und `timeutil` lassen sich weiterhin einzeln mit `rustc --edition 2021 --test src/<datei>.rs`
+prüfen.
+
+## Sprache
+
+Deutsch oder Englisch, wie im Werkbank-Launcher gewählt (`WERKBANK_LANG` bzw. `sprache.txt`,
+siehe `src/sprache.rs`); im Browser immer Deutsch. Die englischen Texte stehen in `src/en.tsv`.
+Prüfen, ob alles übersetzt ist: `rustc --edition 2021 --test src/sprache.rs -o /tmp/sprache && /tmp/sprache`.
+Der Inhalt von Mails (auch im Beispielkonto) wird nicht übersetzt.

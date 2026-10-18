@@ -1,0 +1,150 @@
+# Mailwerk: deutsch → englisch
+(Diese Nachricht hat keinen Text.)	(This message has no text.)
+(ohne Betreff)	(no subject)
+Abbrechen	Cancel
+Ablegen	Store message
+Absender abgelehnt	Sender rejected
+Aktualisieren	Refresh
+Allen antworten	Reply all
+An	To
+An: {to}	To: {to}
+Anbieter mit JMAP (z. B. Fastmail), auch im Browser	Provider with JMAP (e.g. Fastmail), also in the browser
+Anhang	Attachment
+Anhang …	Attach …
+Anhänge beim Senden über JMAP sind noch nicht möglich. Bitte ohne Anhang senden.	Sending attachments via JMAP is not supported yet. Please send without attachments.
+Anhänge von IMAP-Konten sind schon in der Nachricht enthalten.	Attachments of IMAP accounts are already included in the message.
+Anmeldung	Sign-in
+Anmeldung abgelehnt. Bitte Benutzername und Passwort (oder Zugangsschlüssel) prüfen.	Sign-in rejected. Please check the username and password (or API token).
+Anmeldung fehlgeschlagen	Sign-in failed
+Antwort «{call_id}» fehlt in der Server-Antwort.	Response “{call_id}” is missing from the server reply.
+Antworten	Reply
+Archivieren	Archive
+Aufräumen	Expunge
+Begrüssung	Greeting
+Beim Anbieter wurde kein Ordner für Entwürfe oder Gesendet gefunden.	No Drafts or Sent folder was found at the provider.
+Beispielkonto	Sample account
+Benutzername	Username
+Betreff	Subject
+Bitte Server für Empfangen (IMAP) und Senden (SMTP) eingeben.	Please enter the servers for incoming (IMAP) and outgoing (SMTP) mail.
+Bitte das Passwort eingeben.	Please enter the password.
+Bitte das Passwort oder den Zugangsschlüssel eingeben.	Please enter the password or API token.
+Bitte eine gültige E-Mail-Adresse eingeben.	Please enter a valid email address.
+Bitte einen Namen für das Konto eingeben.	Please enter a name for the account.
+Bitte mindestens einen Empfänger eingeben.	Please enter at least one recipient.
+Dein Name	Your name
+Dein eigenes Mailprogramm. Ohne Server, ohne Konto bei uns.	Your own email program. No server, no account with us.
+Der Anhang ist noch nicht geladen. Bitte einen Moment warten und nochmals versuchen.	The attachment has not loaded yet. Please wait a moment and try again.
+Der Server antwortet mit Fehler {s} {text}.	The server responded with error {s} {text}.
+Der Server bietet kein unterstütztes Anmeldeverfahren (nur: {list}).	The server offers no supported sign-in method (only: {list}).
+Der Server bietet keine Verschlüsselung (STARTTLS) an.	The server does not offer encryption (STARTTLS).
+Der Server hat die Verbindung beendet.	The server closed the connection.
+Die JMAP-Adresse muss mit https:// beginnen.	The JMAP address must start with https://.
+Die JMAP-Sitzung enthält kein Mail-Konto.	The JMAP session contains no mail account.
+Die JMAP-Sitzung enthält keine apiUrl.	The JMAP session contains no apiUrl.
+Dieser Ordner ist leer.	This folder is empty.
+Dieses Konto funktioniert nur in der Desktop-Version (Browser dürfen keine IMAP/SMTP-Verbindung öffnen).	This account only works in the desktop version (browsers cannot open IMAP/SMTP connections).
+Dieses Konto funktioniert nur in der Desktop-Version.	This account only works in the desktop version.
+Dieses Konto verwendet IMAP/SMTP. Das kann ein Browser nicht.\nIm Browser gehen das Beispielkonto und Anbieter mit JMAP (z. B. Fastmail).	This account uses IMAP/SMTP, which a browser cannot do.\nIn the browser, the sample account and providers with JMAP (e.g. Fastmail) work.
+E-Mail	Email
+Empfangen (IMAP)	Incoming (IMAP)
+Empfänger {rc} abgelehnt	Recipient {rc} rejected
+Endgültig löschen	Delete permanently
+Entfernen	Remove
+Gesendet, aber die Kopie konnte nicht im Ordner «Gesendet» abgelegt werden: {e}	Sent, but the copy could not be saved to the Sent folder: {e}
+Hinweis: Das Passwort wird auf diesem Gerät unverschlüsselt gespeichert.	Note: The password is stored unencrypted on this device.
+Im Beispielkonto wird nichts wirklich versendet.	Nothing is actually sent from the sample account.
+Im Browser gehen Anbieter mit JMAP (z. B. Fastmail). Für Gmail, Outlook, Bluewin & Co. gibt es die Desktop-Version.	In the browser, providers with JMAP (e.g. Fastmail) work. For Gmail, Outlook, Bluewin and others, use the desktop version.
+Im Browser gehen nur Anbieter mit JMAP. Für dieses Konto bitte die Desktop-Version verwenden.	Only providers with JMAP work in the browser. Please use the desktop version for this account.
+Im Browser geht das nicht. Bitte die Desktop-Version verwenden oder einen Anbieter mit JMAP wählen.	This does not work in the browser. Please use the desktop version or choose a provider with JMAP.
+JMAP-Adresse	JMAP address
+Kein Empfänger angegeben.	No recipient specified.
+Kein Entwurf offen.	No draft open.
+Keine Absender-Identität beim Anbieter gefunden.	No sender identity found at the provider.
+Keine Adresse für «{host}».	No address for “{host}”.
+Keine Nachricht ausgewählt	No message selected
+Keine passenden Nachrichten.	No matching messages.
+Keinen Ordner gewählt.	No folder selected.
+Konto bearbeiten	Edit account
+Konto entfernen	Remove account
+Konto entfernen?	Remove account?
+Konto hinzufügen	Add account
+Kontoname	Account name
+Kopieren	Copy
+Lade Nachricht …	Loading message …
+Lade Nachrichten …	Loading messages …
+Lesen fehlgeschlagen: {e}	Read failed: {e}
+Löschen	Delete
+Markierung ändern	Change flags
+Menü	Menu
+Nachricht anlegen	Create message
+Nachricht gesendet.	Message sent.
+Nachricht laden	Load message
+Nachricht nicht gefunden (vielleicht gelöscht).	Message not found (maybe deleted).
+Nachricht nicht gefunden.	Message not found.
+Nachrichten laden	Load messages
+Neue Nachricht	New message
+Normale Postfächer (IMAP/SMTP) funktionieren direkt. In der Browser-Version gehen nur Anbieter mit JMAP.	Regular mailboxes (IMAP/SMTP) work directly. The browser version only supports providers with JMAP.
+Normales Postfach (IMAP/SMTP)	Regular mailbox (IMAP/SMTP)
+Normales Postfach (IMAP/SMTP), nur Desktop	Regular mailbox (IMAP/SMTP), desktop only
+Nur in der Desktop-Version	Desktop version only
+Ordner öffnen	Open folder
+Ordnerliste	Folder list
+Ordnerstand	Folder status
+Passwort	Password
+Senden	Send
+Senden (SMTP)	Outgoing (SMTP)
+Senden abgelehnt	Sending rejected
+Senden fehlgeschlagen: {e}	Sending failed: {e}
+Server aus der Adresse vorschlagen	Suggest servers from address
+Server lehnt ab: {reply}	Server refused: {reply}
+Server meldet Fehler: {detail}	Server reports error: {detail}
+Server «{host}» nicht gefunden: {e}	Server “{host}” not found: {e}
+Sichere Verbindung zu {host} fehlgeschlagen: {e}	Secure connection to {host} failed: {e}
+Signatur	Signature
+Speichern	Save
+Suchen …	Search …
+Unerwartete Begrüssung: {g}	Unexpected greeting: {g}
+Ungelesen	Unread
+Ungültige Adresse: «{a}»	Invalid address: “{a}”
+Ungültige Antwort: «{l}»	Invalid response: “{l}”
+Ungültige Nachrichtennummer «{id}».	Invalid message number “{id}”.
+Ungültiger Servername: {host}	Invalid server name: {host}
+Unverschlüsseltes IMAP (Port 143) wird nicht unterstützt. Bitte Port 993 verwenden.	Unencrypted IMAP (port 143) is not supported. Please use port 993.
+Verbindung fehlgeschlagen: {e}	Connection failed: {e}
+Verbindung zu {host}:{port} fehlgeschlagen: {e}	Connection to {host}:{port} failed: {e}
+Verschieben	Move
+Verschlüsselung	Encryption
+Verwerfen	Discard
+Von	From
+Weiterleiten	Forward
+Wird gesendet …	Sending …
+Wähle links eine Nachricht aus.	Select a message on the left.
+Zuerst mit dem Beispielkonto ausprobieren	Try the sample account first
+Zurück	Back
+\n\nAm {when} schrieb {who}:\n	\n\nOn {when}, {who} wrote:\n
+\n\n---------- Weitergeleitete Nachricht ----------\nVon: {from}\nDatum: {date}\nBetreff: {subject}\nAn: {to}\n\n	\n\n---------- Forwarded message ----------\nFrom: {from}\nDate: {date}\nSubject: {subject}\nTo: {to}\n\n
+erscheint als Absender	shown as sender
+leer = E-Mail-Adresse	empty = email address
+name@beispiel.ch	name@example.com
+z. B. Privat	e.g. Personal
+«{email}» ist keine gültige E-Mail-Adresse.	“{email}” is not a valid email address.
+«{name}» wird aus Mailwerk entfernt. Die Nachrichten auf dem Server bleiben erhalten.	“{name}” will be removed from Mailwerk. The messages on the server are kept.
+★ Markiert	★ Flagged
+☆ Markieren	☆ Flag
+Posteingang	Inbox
+Entwürfe	Drafts
+Gesendet	Sent
+Archiv	Archive
+Spam	Spam
+Papierkorb	Trash
+Markiert	Flagged
+Heute	Today
+Gestern	Yesterday
+Diese Woche	This week
+Älter	Older
+Gmail verlangt ein App-Passwort: In deinem Google-Konto die Bestätigung in zwei Schritten einschalten und dann ein App-Passwort erstellen.	Gmail requires an app password: turn on 2-Step Verification in your Google account, then create an app password.
+Microsoft hat die Anmeldung mit Passwort bei vielen Konten abgeschaltet. Falls es nicht klappt, ein App-Passwort erstellen.	Microsoft has turned off password sign-in for many accounts. If it does not work, create an app password.
+iCloud verlangt ein App-spezifisches Passwort (Apple-ID → Anmeldung und Sicherheit).	iCloud requires an app-specific password (Apple ID → Sign-In and Security).
+Yahoo verlangt ein App-Passwort.	Yahoo requires an app password.
+Proton Mail bietet keinen direkten Zugriff. Dafür wäre die «Proton Mail Bridge» nötig (Server 127.0.0.1).	Proton Mail does not offer direct access. This would require “Proton Mail Bridge” (server 127.0.0.1).
+Fastmail: Unter Einstellungen → Passwort & Sicherheit → Zugangsschlüssel einen Schlüssel mit Mail-Zugriff erstellen und hier als Passwort eintragen. Benutzername leer lassen.	Fastmail: under Settings → Privacy & Security → API tokens, create a token with mail access and enter it here as the password. Leave the username empty.

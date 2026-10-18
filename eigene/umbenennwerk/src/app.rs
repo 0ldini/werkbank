@@ -4,6 +4,7 @@
 
 use crate::datefmt::fmt_date;
 use crate::rename::{self, Case, Pos, Rules};
+use crate::sprache::{t, tf};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -47,7 +48,7 @@ impl App {
             rules: Rules::default(),
             date_fmt: "JJJJ-MM-TT".into(),
             undo: Vec::new(),
-            status: "Dateien oder einen Ordner hinzufügen.".into(),
+            status: t("Dateien oder einen Ordner hinzufügen.").into(),
             status_warn: false,
         }
     }
@@ -63,7 +64,7 @@ impl App {
                 }
             }
         }
-        self.status = format!("{} Dateien", self.rows.len());
+        self.status = tf("{n} Dateien", &[("n", &self.rows.len())]);
         self.status_warn = false;
     }
 
@@ -125,7 +126,7 @@ impl App {
             }
         }
         if jobs.is_empty() {
-            self.status = "Nichts umzubenennen.".into();
+            self.status = t("Nichts umzubenennen.").into();
             self.status_warn = false;
             return;
         }
@@ -161,9 +162,9 @@ impl App {
         }
         self.undo = undo;
         self.status = if err > 0 {
-            format!("{} umbenannt, {} fehlgeschlagen", done, err)
+            tf("{n} umbenannt, {f} fehlgeschlagen", &[("n", &done), ("f", &err)])
         } else {
-            format!("{} umbenannt", done)
+            tf("{n} umbenannt", &[("n", &done)])
         };
         self.status_warn = err > 0;
     }
@@ -182,7 +183,7 @@ impl App {
             }
         }
         self.undo.clear();
-        self.status = format!("{} rückgängig gemacht", ok);
+        self.status = tf("{n} rückgängig gemacht", &[("n", &ok)]);
         self.status_warn = false;
     }
 }
@@ -194,29 +195,29 @@ impl eframe::App for App {
         egui::TopBottomPanel::top("tbar").show(ctx, |ui| {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                if ui.button("  ＋ Dateien  ").clicked() {
-                    if let Some(p) = rfd::FileDialog::new().pick_files() {
+                if ui.button(t("  ＋ Dateien  ")).clicked() {
+                    if let Some(p) = rfd::FileDialog::new().set_title(t("Dateien hinzufügen")).pick_files() {
                         self.add_paths(p);
                     }
                 }
-                if ui.button("  📁 Ordner  ").clicked() {
-                    if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                if ui.button(t("  📁 Ordner  ")).clicked() {
+                    if let Some(d) = rfd::FileDialog::new().set_title(t("Ordner hinzufügen")).pick_folder() {
                         self.add_dir(&d);
                     }
                 }
                 ui.add_enabled_ui(!self.undo.is_empty(), |ui| {
-                    if ui.button("  ↩ Rückgängig  ").clicked() {
+                    if ui.button(t("  ↩ Rückgängig  ")).clicked() {
                         self.do_undo();
                     }
                 });
-                if ui.button("Liste leeren").clicked() {
+                if ui.button(t("Liste leeren")).clicked() {
                     self.rows.clear();
                     self.undo.clear();
-                    self.status = "Liste geleert.".into();
+                    self.status = t("Liste geleert.").into();
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let btn = egui::Button::new(
-                        egui::RichText::new("  ✓  Umbenennen  ").color(egui::Color32::WHITE),
+                        egui::RichText::new(t("  ✓  Umbenennen  ")).color(egui::Color32::WHITE),
                     )
                     .fill(accent());
                     if ui.add_enabled(!self.rows.is_empty(), btn).clicked() {
@@ -226,11 +227,11 @@ impl eframe::App for App {
                     if nconf > 0 {
                         ui.colored_label(
                             egui::Color32::from_rgb(0xc0, 0x39, 0x2b),
-                            format!("{} Konflikt(e)", nconf),
+                            tf("{n} Konflikt(e)", &[("n", &nconf)]),
                         );
                         ui.label("·");
                     }
-                    ui.weak(format!("{} Dateien", self.rows.len()));
+                    ui.weak(tf("{n} Dateien", &[("n", &self.rows.len())]));
                 });
             });
             ui.add_space(6.0);
@@ -268,9 +269,9 @@ impl eframe::App for App {
                 .spacing([8.0, 6.0])
                 .show(ui, |ui| {
                     ui.strong("#");
-                    ui.strong("Alt");
+                    ui.strong(t("Alt"));
                     ui.label("");
-                    ui.strong("Neu");
+                    ui.strong(t("Neu"));
                     ui.end_row();
                 });
             ui.separator();
@@ -301,7 +302,7 @@ impl eframe::App for App {
                 if self.rows.is_empty() {
                     ui.add_space(40.0);
                     ui.vertical_centered(|ui| {
-                        ui.weak("Noch keine Dateien. Oben «Dateien» oder «Ordner» wählen.");
+                        ui.weak(t("Noch keine Dateien. Oben «Dateien» oder «Ordner» wählen."));
                     });
                 }
             });
@@ -311,87 +312,87 @@ impl eframe::App for App {
 
 impl App {
     fn rules_ui(&mut self, ui: &mut egui::Ui) {
-        section(ui, "Basisname");
-        ui.checkbox(&mut self.rules.replace_name, "Namen komplett ersetzen");
+        section(ui, t("Basisname"));
+        ui.checkbox(&mut self.rules.replace_name, t("Namen komplett ersetzen"));
         if self.rules.replace_name {
             ui.horizontal(|ui| {
-                ui.label("Neuer Name:");
+                ui.label(t("Neuer Name:"));
                 ui.text_edit_singleline(&mut self.rules.new_name);
             });
         } else {
             egui::Grid::new("fr").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                ui.label("Suchen:");
+                ui.label(t("Suchen:"));
                 ui.text_edit_singleline(&mut self.rules.find);
                 ui.end_row();
-                ui.label("Ersetzen:");
+                ui.label(t("Ersetzen:"));
                 ui.text_edit_singleline(&mut self.rules.repl);
                 ui.end_row();
             });
         }
 
         ui.add_space(10.0);
-        section(ui, "Nummerierung");
-        ui.checkbox(&mut self.rules.numbering, "Fortlaufend nummerieren");
+        section(ui, t("Nummerierung"));
+        ui.checkbox(&mut self.rules.numbering, t("Fortlaufend nummerieren"));
         if self.rules.numbering {
             egui::Grid::new("num").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                ui.label("Start / Schritt:");
+                ui.label(t("Start / Schritt:"));
                 ui.horizontal(|ui| {
                     ui.add(egui::DragValue::new(&mut self.rules.num_start).range(0..=1_000_000));
                     ui.add(egui::DragValue::new(&mut self.rules.num_step).range(1..=10_000));
                 });
                 ui.end_row();
-                ui.label("Stellen:");
+                ui.label(t("Stellen:"));
                 ui.add(egui::DragValue::new(&mut self.rules.num_pad).range(1..=10));
                 ui.end_row();
-                ui.label("Trennzeichen:");
+                ui.label(t("Trennzeichen:"));
                 ui.add(egui::TextEdit::singleline(&mut self.rules.num_sep).desired_width(60.0));
                 ui.end_row();
-                ui.label("Position:");
+                ui.label(t("Position:"));
                 seg_pos(ui, &mut self.rules.num_pos);
                 ui.end_row();
             });
         }
 
         ui.add_space(10.0);
-        section(ui, "Präfix / Suffix");
+        section(ui, t("Präfix / Suffix"));
         egui::Grid::new("ps").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-            ui.label("Präfix:");
+            ui.label(t("Präfix:"));
             ui.text_edit_singleline(&mut self.rules.prefix);
             ui.end_row();
-            ui.label("Suffix:");
+            ui.label(t("Suffix:"));
             ui.text_edit_singleline(&mut self.rules.suffix);
             ui.end_row();
         });
 
         ui.add_space(10.0);
-        section(ui, "Gross-/Kleinschreibung");
+        section(ui, t("Gross-/Kleinschreibung"));
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.rules.case, Case::Original, "Original");
-            ui.selectable_value(&mut self.rules.case, Case::Upper, "GROSS");
-            ui.selectable_value(&mut self.rules.case, Case::Lower, "klein");
-            ui.selectable_value(&mut self.rules.case, Case::Title, "Titel");
+            ui.selectable_value(&mut self.rules.case, Case::Original, t("Original"));
+            ui.selectable_value(&mut self.rules.case, Case::Upper, t("GROSS"));
+            ui.selectable_value(&mut self.rules.case, Case::Lower, t("klein"));
+            ui.selectable_value(&mut self.rules.case, Case::Title, t("Titel"));
         });
 
         ui.add_space(10.0);
-        section(ui, "Datum einfügen");
-        ui.checkbox(&mut self.rules.add_date, "Änderungsdatum der Datei");
+        section(ui, t("Datum einfügen"));
+        ui.checkbox(&mut self.rules.add_date, t("Änderungsdatum der Datei"));
         if self.rules.add_date {
             egui::Grid::new("dt").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                ui.label("Format:");
+                ui.label(t("Format:"));
                 ui.text_edit_singleline(&mut self.date_fmt);
                 ui.end_row();
-                ui.label("Position:");
+                ui.label(t("Position:"));
                 seg_pos(ui, &mut self.rules.date_pos);
                 ui.end_row();
             });
-            ui.weak("Tokens: JJJJ MM TT hh mm ss (UTC)");
+            ui.weak(t("Tokens: JJJJ MM TT hh mm ss (UTC)"));
         }
 
         ui.add_space(10.0);
-        section(ui, "Bereinigen");
-        ui.checkbox(&mut self.rules.spaces_us, "Leerzeichen → Unterstrich");
-        ui.checkbox(&mut self.rules.strip_special, "Sonderzeichen entfernen");
-        ui.checkbox(&mut self.rules.ext_lower, "Erweiterung klein schreiben");
+        section(ui, t("Bereinigen"));
+        ui.checkbox(&mut self.rules.spaces_us, t("Leerzeichen → Unterstrich"));
+        ui.checkbox(&mut self.rules.strip_special, t("Sonderzeichen entfernen"));
+        ui.checkbox(&mut self.rules.ext_lower, t("Erweiterung klein schreiben"));
     }
 }
 
@@ -401,7 +402,7 @@ fn section(ui: &mut egui::Ui, title: &str) {
 
 fn seg_pos(ui: &mut egui::Ui, pos: &mut Pos) {
     ui.horizontal(|ui| {
-        ui.selectable_value(pos, Pos::Front, "Vorn");
-        ui.selectable_value(pos, Pos::Back, "Hinten");
+        ui.selectable_value(pos, Pos::Front, t("Vorn"));
+        ui.selectable_value(pos, Pos::Back, t("Hinten"));
     });
 }

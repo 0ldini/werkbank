@@ -4,6 +4,7 @@
 use crate::json::{self, Json};
 use crate::mime::{self, Address};
 use crate::role::Role;
+use crate::sprache::t;
 
 // ================================================================ Konten
 
@@ -85,7 +86,7 @@ impl Account {
 
     pub fn demo(id: u64) -> Account {
         Account {
-            name: "Beispielkonto".into(),
+            name: t("Beispielkonto").into(),
             person: "Oli".into(),
             email: "oli@beispiel.example".into(),
             kind: Kind::Demo,
@@ -110,28 +111,28 @@ impl Account {
     /// Fehlt noch etwas Wichtiges? Meldung für den Einrichtungsdialog.
     pub fn validate(&self) -> Result<(), String> {
         if self.name.trim().is_empty() {
-            return Err("Bitte einen Namen für das Konto eingeben.".into());
+            return Err(t("Bitte einen Namen für das Konto eingeben.").into());
         }
         if !self.email.contains('@') {
-            return Err("Bitte eine gültige E-Mail-Adresse eingeben.".into());
+            return Err(t("Bitte eine gültige E-Mail-Adresse eingeben.").into());
         }
         match self.kind {
             Kind::Demo => Ok(()),
             Kind::Imap => {
                 if self.imap_host.trim().is_empty() || self.smtp_host.trim().is_empty() {
-                    return Err("Bitte Server für Empfangen (IMAP) und Senden (SMTP) eingeben.".into());
+                    return Err(t("Bitte Server für Empfangen (IMAP) und Senden (SMTP) eingeben.").into());
                 }
                 if self.password.is_empty() {
-                    return Err("Bitte das Passwort eingeben.".into());
+                    return Err(t("Bitte das Passwort eingeben.").into());
                 }
                 Ok(())
             }
             Kind::Jmap => {
                 if !self.jmap_url.starts_with("https://") {
-                    return Err("Die JMAP-Adresse muss mit https:// beginnen.".into());
+                    return Err(t("Die JMAP-Adresse muss mit https:// beginnen.").into());
                 }
                 if self.password.is_empty() {
-                    return Err("Bitte das Passwort oder den Zugangsschlüssel eingeben.".into());
+                    return Err(t("Bitte das Passwort oder den Zugangsschlüssel eingeben.").into());
                 }
                 Ok(())
             }
@@ -213,7 +214,7 @@ impl FolderInfo {
     /// Anzeigename: Standardordner deutsch, sonst der Servername (letzter Teil).
     pub fn label(&self) -> String {
         match self.role.label() {
-            Some(l) => l.to_string(),
+            Some(l) => t(l).to_string(),
             None => self.name.rsplit(|c| c == '/' || c == '.').next().unwrap_or(&self.name).to_string(),
         }
     }
@@ -544,6 +545,7 @@ mod tests {
 
     #[test]
     fn ordner_beschriftung() {
+        crate::sprache::set_lang(crate::sprache::Lang::De);
         let f = FolderInfo { id: "a".into(), name: "INBOX".into(), role: Role::Inbox, unread: 0, total: 0 };
         assert_eq!(f.label(), "Posteingang");
         let g = FolderInfo { id: "a".into(), name: "Kunden/Meier".into(), role: Role::Other, unread: 0, total: 0 };

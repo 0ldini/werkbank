@@ -34,6 +34,9 @@ pub struct Weather {
     pub temp: f32,
     pub text: String,
     pub sky: Sky,
+    /// WMO-Wettercode (für die Beschreibung in der gewählten Sprache).
+    #[serde(default)]
+    pub code: Option<i64>,
     pub wind: f32,
     pub today_max: f32,
     pub today_min: f32,
@@ -112,6 +115,7 @@ pub fn parse(place: &str, body: &str, now: u64) -> Result<Weather> {
         temp: f(&cur["temperature_2m"]).ok_or_else(|| anyhow!("keine Temperatur in der Antwort"))?,
         text: text.to_string(),
         sky,
+        code: cur["weather_code"].as_i64(),
         wind: f(&cur["wind_speed_10m"]).unwrap_or(0.0),
         today_max: maxs.first().and_then(f).unwrap_or(f32::NAN),
         today_min: mins.first().and_then(f).unwrap_or(f32::NAN),

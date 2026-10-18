@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::model::{self, Entry, Filter, Kind, Status};
+use crate::sprache::{t, tf};
 use crate::store::{self, Config};
 use crate::tmdb;
 
@@ -130,17 +131,17 @@ impl App {
                 paint_clap(ui.painter(), r);
                 ui.add_space(4.0);
                 ui.heading("Mediathekwerk");
-                ui.add(egui::Label::new(egui::RichText::new("Filme & Serien · Werkbank").weak()));
+                ui.add(egui::Label::new(egui::RichText::new(t("Filme & Serien · Werkbank")).weak()));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Einstellungen").clicked() {
+                    if ui.button(t("Einstellungen")).clicked() {
                         self.settings_open = true;
                     }
-                    if ui.button("Suchen").clicked() {
+                    if ui.button(t("Suchen")).clicked() {
                         self.do_search();
                     }
                     let resp = ui.add(
                         egui::TextEdit::singleline(&mut self.search_text)
-                            .hint_text("Film oder Serie suchen …")
+                            .hint_text(t("Film oder Serie suchen …"))
                             .desired_width(300.0),
                     );
                     if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -164,13 +165,13 @@ impl App {
                     egui::Color32::from_rgb(0xe5, 0x34, 0x2e)
                 };
                 ui.painter().circle_filled(dot.center(), 4.0, col);
-                ui.weak(if connected { "TMDB verbunden" } else { "Kein TMDB-Schlüssel" });
+                ui.weak(if connected { t("TMDB verbunden") } else { t("Kein TMDB-Schlüssel") });
                 if !self.msg.is_empty() {
                     ui.separator();
                     ui.weak(self.msg.as_str());
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak(format!("{} Titel in der Sammlung · Daten von TMDB", self.lib.len()));
+                    ui.weak(tf("{n} Titel in der Sammlung · Daten von TMDB", &[("n", &self.lib.len())]));
                 });
             });
             ui.add_space(4.0);
@@ -185,7 +186,7 @@ impl App {
                 Mode::Collection => {
                     ui.horizontal_wrapped(|ui| {
                         for f in Filter::all() {
-                            if chip(ui, self.filter == f, f.label()).clicked() {
+                            if chip(ui, self.filter == f, t(f.label())).clicked() {
                                 self.filter = f;
                             }
                         }
@@ -193,11 +194,11 @@ impl App {
                 }
                 Mode::Search => {
                     ui.horizontal(|ui| {
-                        if ui.button("< Zur Sammlung").clicked() {
+                        if ui.button(t("< Zur Sammlung")).clicked() {
                             self.mode = Mode::Collection;
                             self.sel = None;
                         }
-                        ui.label(egui::RichText::new(format!("Suchergebnisse: {}", self.search_text.trim())).strong());
+                        ui.label(egui::RichText::new(tf("Suchergebnisse: {q}", &[("q", &self.search_text.trim())])).strong());
                         if self.results.running() {
                             ui.spinner();
                         }
@@ -229,8 +230,8 @@ impl App {
             if display.is_empty() {
                 ui.add_space(20.0);
                 ui.weak(match self.mode {
-                    Mode::Collection => "Noch nichts in der Sammlung. Oben nach einem Titel suchen und aufnehmen.",
-                    Mode::Search => if self.results.running() { "Wird gesucht …" } else { "Keine Treffer." },
+                    Mode::Collection => t("Noch nichts in der Sammlung. Oben nach einem Titel suchen und aufnehmen."),
+                    Mode::Search => if self.results.running() { t("Wird gesucht …") } else { t("Keine Treffer.") },
                 });
                 return;
             }
@@ -281,15 +282,15 @@ impl App {
                 ui.add_space(12.0);
                 ui.add(egui::Label::new(egui::RichText::new(&sel.title).size(18.0).strong()).truncate());
                 ui.horizontal(|ui| {
-                    let mut parts = vec![sel.kind.label().to_string()];
+                    let mut parts = vec![t(sel.kind.label()).to_string()];
                     if let Some(y) = sel.year {
                         parts.insert(0, y.to_string());
                     }
                     if let Some(r) = sel.runtime {
-                        parts.push(format!("{r} Min"));
+                        parts.push(tf("{r} Min", &[("r", &r)]));
                     }
                     if let Some(s) = sel.seasons {
-                        parts.push(format!("{s} Staffeln"));
+                        parts.push(tf("{s} Staffeln", &[("s", &s)]));
                     }
                     ui.weak(parts.join(" · "));
                     if sel.rating > 0.0 {
@@ -305,19 +306,19 @@ impl App {
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new("STATUS").size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("STATUS")).size(11.0).strong().color(egui::Color32::from_gray(150)));
                 ui.add_space(6.0);
                 let mut set_status: Option<Status> = None;
                 ui.horizontal(|ui| {
                     for s in Status::all() {
-                        if chip(ui, sel.status == s, s.label()).clicked() {
+                        if chip(ui, sel.status == s, t(s.label())).clicked() {
                             set_status = Some(s);
                         }
                     }
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new("MEINE BEWERTUNG").size(11.0).strong().color(egui::Color32::from_gray(150)));
+                ui.label(egui::RichText::new(t("MEINE BEWERTUNG")).size(11.0).strong().color(egui::Color32::from_gray(150)));
                 ui.add_space(6.0);
                 let set_rating = star_row(ui, sel.my_rating);
 
@@ -325,10 +326,10 @@ impl App {
                 let mut do_add = false;
                 let mut do_remove = false;
                 if in_lib.is_some() {
-                    if ui.add(egui::Button::new(egui::RichText::new("Aus Sammlung entfernen").color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(0xe5, 0x34, 0x2e)).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new(t("Aus Sammlung entfernen")).color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(0xe5, 0x34, 0x2e)).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
                         do_remove = true;
                     }
-                } else if ui.add(egui::Button::new(egui::RichText::new("In Sammlung aufnehmen").color(egui::Color32::WHITE)).fill(am()).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
+                } else if ui.add(egui::Button::new(egui::RichText::new(t("In Sammlung aufnehmen")).color(egui::Color32::WHITE)).fill(am()).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
                     do_add = true;
                 }
 
@@ -354,7 +355,7 @@ impl App {
                 if do_add {
                     self.lib.push(sel.clone());
                     store::save_library(&self.lib);
-                    self.msg = "In Sammlung aufgenommen.".into();
+                    self.msg = t("In Sammlung aufgenommen.").into();
                 }
                 if do_remove {
                     if let Some(i) = in_lib {
@@ -362,24 +363,24 @@ impl App {
                         store::save_library(&self.lib);
                     }
                     self.sel = None;
-                    self.msg = "Aus Sammlung entfernt.".into();
+                    self.msg = t("Aus Sammlung entfernt.").into();
                 }
             });
     }
 
     fn settings_window(&mut self, ctx: &egui::Context) {
         let mut open = self.settings_open;
-        egui::Window::new("Einstellungen")
+        egui::Window::new(t("Einstellungen"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
                 ui.set_width(380.0);
-                ui.label("TMDB-API-Schlüssel (kostenlos bei themoviedb.org):");
-                ui.add(egui::TextEdit::singleline(&mut self.cfg.api_key).desired_width(360.0).password(false).hint_text("API-Schlüssel (v3 auth)"));
+                ui.label(t("TMDB-API-Schlüssel (kostenlos bei themoviedb.org):"));
+                ui.add(egui::TextEdit::singleline(&mut self.cfg.api_key).desired_width(360.0).password(false).hint_text(t("API-Schlüssel (v3 auth)")));
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    ui.label("Sprache:");
+                    ui.label(t("Sprache:"));
                     egui::ComboBox::from_id_salt("lang")
                         .selected_text(self.cfg.lang.clone())
                         .show_ui(ui, |ui| {
@@ -388,12 +389,12 @@ impl App {
                         });
                 });
                 ui.add_space(12.0);
-                if ui.add(egui::Button::new(egui::RichText::new("Speichern").color(egui::Color32::WHITE)).fill(am())).clicked() {
+                if ui.add(egui::Button::new(egui::RichText::new(t("Speichern")).color(egui::Color32::WHITE)).fill(am())).clicked() {
                     store::save_config(&self.cfg);
-                    self.msg = "Einstellungen gespeichert.".into();
+                    self.msg = t("Einstellungen gespeichert.").into();
                 }
                 ui.add_space(4.0);
-                ui.weak("Der Schlüssel wird nur lokal gespeichert.");
+                ui.weak(t("Der Schlüssel wird nur lokal gespeichert."));
             });
         self.settings_open = open;
     }
@@ -426,7 +427,7 @@ fn poster_card(ui: &mut egui::Ui, e: &Entry, pw: f32, ph: f32, selected: bool, s
         if let Some(y) = e.year {
             sub.push(y.to_string());
         }
-        sub.push(e.kind.label().to_string());
+        sub.push(t(e.kind.label()).to_string());
         ui.weak(sub.join(" · "));
         resp
     })
@@ -458,7 +459,7 @@ fn draw_poster(ui: &mut egui::Ui, rect: egui::Rect, e: &Entry, show_status: bool
     if show_status {
         let badge = egui::Rect::from_min_size(egui::pos2(rect.left() + 6.0, rect.top() + 6.0), egui::vec2(72.0, 19.0));
         ui.painter().rect_filled(badge, 6.0, status_color(e.status));
-        ui.painter().text(badge.center(), egui::Align2::CENTER_CENTER, e.status.label(), egui::FontId::proportional(10.5), egui::Color32::WHITE);
+        ui.painter().text(badge.center(), egui::Align2::CENTER_CENTER, t(e.status.label()), egui::FontId::proportional(10.5), egui::Color32::WHITE);
     }
 }
 
