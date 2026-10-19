@@ -188,6 +188,9 @@ jobs:
         working-directory: src
         run: |
           set -o pipefail
+          # Die Werk-Ausgabe bringt die Kiste werk-titel mit; das Original baut mit --locked,
+          # darum die Sperrdatei vorher um sie ergänzen (alles andere bleibt, wie es ist).
+          cargo update --workspace 2>&1 | tail -5
           case "${{ matrix.kind }}" in
             windows) pwsh ./packaging/windows/package.ps1 -Arch x64 ;;
             linux)   packaging/linux/package.sh --formats "tar" ;;
