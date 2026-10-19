@@ -18,6 +18,7 @@ mod save;
 mod smtp;
 mod sprache;
 mod status;
+mod stil;
 mod store;
 mod textutil;
 mod thema;

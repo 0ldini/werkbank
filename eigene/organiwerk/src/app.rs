@@ -7,6 +7,7 @@ use egui::{pos2, vec2, Color32, FontId, Key, Modifiers, Pos2, Rect, RichText, Se
 use crate::model::{self, Align, Doc, Kind, P, PALETTE};
 use crate::save;
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 
 /// Programmfarbe auf der (immer hellen) Zeichenfläche: Auswahl, Griffe, Verbindungslinie.
@@ -14,10 +15,6 @@ const ACCENT: Color32 = Color32::from_rgb(0x2F, 0x5F, 0xB3);
 /// Zeichenfläche («Papier»): bleibt in beiden Designs hell, wie das Diagramm im SVG.
 const PAPER: Color32 = Color32::from_rgb(0xFA, 0xFB, 0xFC);
 
-/// Programmfarbe für Text in der Oberfläche (im dunklen Design heller, damit lesbar).
-fn accent_text() -> Color32 {
-    thema::pick(ACCENT, Color32::from_rgb(0x7F, 0xA8, 0xF0))
-}
 const INK: Color32 = Color32::from_rgb(0x3A, 0x46, 0x50);
 const STORAGE_KEY: &str = "organiwerk_v1";
 const GRID: f32 = 10.0;
@@ -93,11 +90,7 @@ impl App {
         cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x2F, 0x5F, 0xB3]);
-        cc.egui_ctx.style_mut(|s| {
-            s.visuals.selection.bg_fill = thema::pick(Color32::from_rgb(0xC7, 0xD7, 0xF2), Color32::from_rgb(0x2D, 0x4A, 0x7A));
-            s.visuals.selection.stroke = Stroke::new(1.0, accent_text());
-            s.visuals.hyperlink_color = accent_text();
-        });
+        stil::init(&cc.egui_ctx, [0x2F, 0x5F, 0xB3]);
         let doc = cc
             .storage
             .and_then(|s| s.get_string(STORAGE_KEY))
@@ -728,70 +721,87 @@ impl App {
 // ================================================================ Leisten
 
 impl App {
-    fn ui_toolbar(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(4.0);
-        ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Organiwerk").strong().color(accent_text()));
-            if ui.button(t("Neu")).clicked() {
+    /// Kopfleiste: links Datei, Rückgängig, Werkzeug, Einfügen; rechts Zoom und Raster.
+    fn ui_kopf(&mut self, ctx: &egui::Context, narrow: bool) {
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Organiwerk");
+            if stil::leise(ui, true, Sym::Plus, t("Neu"), "").clicked() {
                 self.doc = Doc::default();
                 self.sel.clear();
                 self.sel_edge = None;
                 self.fitted = false;
             }
-            if ui.button(t("Öffnen")).clicked() {
+            if stil::leise(ui, true, Sym::OrdnerAuf, t("Öffnen"), "").clicked() {
                 self.open_file(&ui.ctx().clone());
             }
-            if ui.button(t("Speichern")).clicked() {
+            if stil::leise(ui, true, Sym::Speichern, t("Speichern"), "").clicked() {
                 self.save_file();
             }
-            if ui.button(t("Als SVG")).clicked() {
+            if stil::leise(ui, true, Sym::Download, t("Als SVG"), "").clicked() {
                 self.export_svg();
             }
-            ui.separator();
-            if ui.add_enabled(!self.undo.is_empty(), egui::Button::new(t("Rückgängig"))).clicked() {
+            stil::trenner(ui);
+            if stil::leise(ui, !self.undo.is_empty(), Sym::Rueckgaengig, if narrow { "" } else { t("Rückgängig") }, t("Rückgängig")).clicked() {
                 self.do_undo();
             }
-            if ui.add_enabled(!self.redo.is_empty(), egui::Button::new(t("Wiederholen"))).clicked() {
+            if stil::leise(ui, !self.redo.is_empty(), Sym::Aktualisieren, if narrow { "" } else { t("Wiederholen") }, t("Wiederholen")).clicked() {
                 self.do_redo();
             }
-            ui.separator();
-            ui.selectable_value(&mut self.tool, Tool::Select, t("Auswählen"));
-            ui.selectable_value(&mut self.tool, Tool::Connect, t("Verbinden"));
-            ui.separator();
-            if ui.button("−").clicked() {
-                self.zoom_by(1.0 / 1.2);
-            }
-            ui.label(format!("{:.0} %", self.zoom * 100.0));
-            if ui.button("+").clicked() {
-                self.zoom_by(1.2);
-            }
-            if ui.button(t("Einpassen")).clicked() {
-                self.fitted = false;
-            }
-            ui.checkbox(&mut self.snap, t("Einrasten"));
-            ui.checkbox(&mut self.show_grid, t("Raster"));
-        });
-        ui.horizontal_wrapped(|ui| {
-            ui.label(t("Einfügen:"));
-            for k in Kind::ALL {
-                if ui.button(t(k.label())).clicked() {
-                    self.add_at_center(k);
+            stil::trenner(ui);
+            ui.allocate_ui(vec2(190.0, 28.0), |ui| {
+                stil::wahl(ui, &mut self.tool, &[(Tool::Select, t("Auswählen")), (Tool::Connect, t("Verbinden"))]);
+            });
+            stil::trenner(ui);
+            let mut neu: Option<Kind> = None;
+            let mut beispiel = false;
+            stil::menue(ui, true, Sym::Plus, t("Einfügen"), |ui| {
+                for k in Kind::ALL {
+                    let s = match k {
+                        Kind::Org => Sym::Stern,
+                        Kind::Text => Sym::Text,
+                        Kind::Group => Sym::Ebenen,
+                        _ => Sym::Raster,
+                    };
+                    if stil::eintrag(ui, true, s, t(k.label())).clicked() {
+                        neu = Some(k);
+                    }
                 }
+                ui.separator();
+                if stil::eintrag(ui, true, Sym::Datei, t("Beispiel")).clicked() {
+                    beispiel = true;
+                }
+            });
+            if let Some(k) = neu {
+                self.add_at_center(k);
             }
-            ui.separator();
-            if ui.button(t("Organigramm anordnen")).on_hover_text(t("Ordnet die verbundenen Karten als Baum an (nur die Auswahl, wenn etwas gewählt ist).")).clicked() {
-                self.arrange();
-            }
-            if ui.button(t("Beispiel")).clicked() {
+            if beispiel {
                 self.doc = Doc::example();
                 self.sel.clear();
                 self.fitted = false;
             }
+            if stil::knopf(ui, Sym::Diagramm, t("Organigramm anordnen"))
+                .on_hover_text(t("Ordnet die verbundenen Karten als Baum an (nur die Auswahl, wenn etwas gewählt ist)."))
+                .clicked()
+            {
+                self.arrange();
+            }
+            stil::rechts(ui, |ui| {
+                // rechts nach links: zuletzt hinzugefügt steht am weitesten links
+                ui.checkbox(&mut self.show_grid, t("Raster"));
+                ui.checkbox(&mut self.snap, t("Einrasten"));
+                stil::trenner(ui);
+                if stil::leise(ui, true, Sym::Panorama, t("Einpassen"), "").clicked() {
+                    self.fitted = false;
+                }
+                if stil::knopf_text(ui, true, "+").clicked() {
+                    self.zoom_by(1.2);
+                }
+                stil::grau(ui, &format!("{:.0} %", self.zoom * 100.0));
+                if stil::knopf_text(ui, true, "−").clicked() {
+                    self.zoom_by(1.0 / 1.2);
+                }
+            });
         });
-        if !self.status.is_empty() {
-            ui.label(RichText::new(&self.status).small());
-        }
-        ui.add_space(4.0);
     }
 
     fn swatches(&mut self, ui: &mut egui::Ui, ids: &[u64]) {
@@ -810,44 +820,42 @@ impl App {
         });
     }
 
+    /// Eigenschaften als Karten (die Leiste rundherum mit Rollbalken kommt von `update`).
     fn ui_props(&mut self, ui: &mut egui::Ui) {
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            ui.add_space(6.0);
-            let sel = self.sel.clone();
-            if let Some(eid) = self.sel_edge {
-                ui.label(RichText::new(t("Verbinder")).strong());
+        let sel = self.sel.clone();
+        if let Some(eid) = self.sel_edge {
+            stil::karte(ui, "verbinder", Sym::Link, t("Verbinder"), true, |ui| {
                 if let Some(e) = self.doc.edge_mut(eid) {
-                    ui.label(t("Beschriftung"));
-                    let r = ui.add(egui::TextEdit::singleline(&mut e.label).desired_width(f32::INFINITY));
-                    self.typing |= r.has_focus();
-                    ui.checkbox(&mut e.arrow, t("Pfeilspitze"));
-                    ui.radio_value(&mut e.elbow, true, t("Rechtwinklig"));
-                    ui.radio_value(&mut e.elbow, false, t("Gerade"));
-                    if ui.button(t("Richtung umkehren")).clicked() {
+                    stil::feld(ui, t("Beschriftung"), |ui| {
+                        let r = ui.add(egui::TextEdit::singleline(&mut e.label).desired_width(f32::INFINITY));
+                        self.typing |= r.has_focus();
+                    });
+                    stil::schalter(ui, &mut e.arrow, t("Pfeilspitze"));
+                    stil::wahl(ui, &mut e.elbow, &[(true, t("Rechtwinklig")), (false, t("Gerade"))]);
+                    if stil::knopf(ui, Sym::Umwandeln, t("Richtung umkehren")).clicked() {
                         std::mem::swap(&mut e.a, &mut e.b);
                     }
                 }
-                if ui.button(t("Löschen")).clicked() {
+                ui.add_space(2.0);
+                if stil::gefahr(ui, true, Sym::Papierkorb, t("Löschen")).clicked() {
                     self.delete_selection();
                 }
-            } else if sel.len() == 1 && self.doc.shape(sel[0]).is_some() {
-                let id = sel[0];
-                ui.label(RichText::new(t("Form")).strong());
-                let want_focus = std::mem::take(&mut self.focus_text);
+            });
+        } else if sel.len() == 1 && self.doc.shape(sel[0]).is_some() {
+            let id = sel[0];
+            let want_focus = std::mem::take(&mut self.focus_text);
+            let arten: Vec<(Kind, &str)> = Kind::ALL.iter().map(|&k| (k, t(k.label()))).collect();
+            stil::karte(ui, "form", Sym::Stift, t("Form"), true, |ui| {
                 if let Some(s) = self.doc.shape_mut(id) {
-                    ui.label(if s.kind == Kind::Org { t("Name, Funktion (zweite Zeile)") } else { t("Text") });
-                    let r = ui.add(egui::TextEdit::multiline(&mut s.text).desired_rows(3).desired_width(f32::INFINITY));
-                    if want_focus {
-                        r.request_focus();
-                    }
-                    self.typing |= r.has_focus();
-                    ui.add_space(4.0);
-                    egui::ComboBox::from_id_salt("kind").selected_text(t(s.kind.label())).show_ui(ui, |ui| {
-                        for k in Kind::ALL {
-                            ui.selectable_value(&mut s.kind, k, t(k.label()));
+                    let label = if s.kind == Kind::Org { t("Name, Funktion (zweite Zeile)") } else { t("Text") };
+                    stil::feld(ui, label, |ui| {
+                        let r = ui.add(egui::TextEdit::multiline(&mut s.text).desired_rows(3).desired_width(f32::INFINITY));
+                        if want_focus {
+                            r.request_focus();
                         }
+                        self.typing |= r.has_focus();
                     });
-                    ui.add_space(4.0);
+                    stil::liste(ui, "kind", &mut s.kind, &arten);
                     ui.horizontal(|ui| {
                         ui.label(t("Breite"));
                         ui.add(egui::DragValue::new(&mut s.w).range(24.0..=2000.0).speed(1.0));
@@ -859,55 +867,47 @@ impl App {
                         ui.add(egui::DragValue::new(&mut s.font).range(8.0..=60.0).speed(0.2));
                     });
                 }
-                ui.add_space(4.0);
-                ui.label(t("Farbe"));
-                self.swatches(ui, &[id]);
-                ui.add_space(8.0);
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button(t("Untergeordnet hinzufügen")).on_hover_text(t("Strg+Enter")).clicked() {
-                        self.add_child();
-                    }
-                    if ui.button(t("Gleiche Ebene hinzufügen")).on_hover_text(t("Strg+Umschalt+Enter")).clicked() {
-                        self.add_sibling();
-                    }
-                });
-                ui.horizontal(|ui| {
-                    if ui.button(t("Duplizieren")).clicked() {
-                        self.duplicate();
-                    }
-                    if ui.button(t("Löschen")).clicked() {
-                        self.delete_selection();
-                    }
-                });
-            } else if sel.len() > 1 {
-                ui.label(RichText::new(tf("{n} Formen gewählt", &[("n", &sel.len())])).strong());
-                ui.add_space(4.0);
-                ui.label(t("Ausrichten"));
+            });
+            stil::karte(ui, "farbe", Sym::Bild, t("Farbe"), true, |ui| self.swatches(ui, &[id]));
+            ui.horizontal_wrapped(|ui| {
+                if stil::knopf(ui, Sym::Plus, t("Untergeordnet hinzufügen")).on_hover_text(t("Strg+Enter")).clicked() {
+                    self.add_child();
+                }
+                if stil::knopf(ui, Sym::Plus, t("Gleiche Ebene hinzufügen")).on_hover_text(t("Strg+Umschalt+Enter")).clicked() {
+                    self.add_sibling();
+                }
+                if stil::knopf(ui, Sym::Kopieren, t("Duplizieren")).clicked() {
+                    self.duplicate();
+                }
+                if stil::gefahr(ui, true, Sym::Papierkorb, t("Löschen")).clicked() {
+                    self.delete_selection();
+                }
+            });
+        } else if sel.len() > 1 {
+            ui.label(RichText::new(tf("{n} Formen gewählt", &[("n", &sel.len())])).strong().color(thema::text()));
+            stil::karte(ui, "ausrichten", Sym::Raster, t("Ausrichten"), true, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     for (label, how) in [("Links", Align::Left), ("Mitte", Align::HCenter), ("Rechts", Align::Right), ("Oben", Align::Top), ("Mitte ↕", Align::VCenter), ("Unten", Align::Bottom), ("Gleichmässig ↔", Align::DistributeH), ("Gleichmässig ↕", Align::DistributeV)] {
-                        if ui.button(t(label)).clicked() {
+                        if stil::knopf_text(ui, true, t(label)).clicked() {
                             self.doc.align(&sel, how);
                         }
                     }
                 });
-                ui.add_space(4.0);
-                ui.label(t("Farbe"));
-                self.swatches(ui, &sel);
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    if ui.button(t("Duplizieren")).clicked() {
-                        self.duplicate();
-                    }
-                    if ui.button(t("Löschen")).clicked() {
-                        self.delete_selection();
-                    }
-                });
-            } else {
-                ui.label(RichText::new(t("Nichts gewählt")).strong());
-                ui.add_space(4.0);
-                ui.label(tf("{s} Formen, {e} Verbinder", &[("s", &self.doc.shapes.len()), ("e", &self.doc.edges.len())]));
-                ui.add_space(8.0);
-                ui.label(RichText::new(t("So geht's")).strong());
+            });
+            stil::karte(ui, "farbe", Sym::Bild, t("Farbe"), true, |ui| self.swatches(ui, &sel));
+            ui.horizontal_wrapped(|ui| {
+                if stil::knopf(ui, Sym::Kopieren, t("Duplizieren")).clicked() {
+                    self.duplicate();
+                }
+                if stil::gefahr(ui, true, Sym::Papierkorb, t("Löschen")).clicked() {
+                    self.delete_selection();
+                }
+            });
+        } else {
+            stil::karte(ui, "nichts", Sym::Info, t("Nichts gewählt"), true, |ui| {
+                stil::grau(ui, &tf("{s} Formen, {e} Verbinder", &[("s", &self.doc.shapes.len()), ("e", &self.doc.edges.len())]));
+            });
+            stil::karte(ui, "hilfe", Sym::Info, t("So geht's"), true, |ui| {
                 for h in [
                     "Doppelklick auf die Fläche: neue Karte",
                     "Doppelklick auf eine Karte: Text ändern",
@@ -918,10 +918,10 @@ impl App {
                     "Fläche verschieben: Mausrad, Leertaste+Ziehen oder rechte Maustaste. Zoom: Strg+Mausrad",
                     "Strg+Z / Strg+Y: Rückgängig / Wiederholen, Strg+D: Duplizieren, Entf: Löschen",
                 ] {
-                    ui.label(RichText::new(format!("• {}", t(h))).small());
+                    stil::hinweis(ui, &format!("• {}", t(h)));
                 }
-            }
-        });
+            });
+        }
     }
 }
 
@@ -955,11 +955,35 @@ impl eframe::App for App {
         self.typing = false;
 
         let narrow = ctx.screen_rect().width() < 760.0;
-        egui::TopBottomPanel::top("leiste").show(ctx, |ui| self.ui_toolbar(ui));
+        self.ui_kopf(ctx, narrow);
+        if !self.status.is_empty() {
+            let mut weg = false;
+            stil::fussleiste(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    stil::symbol(ui, Sym::Info, 16.0, stil::akzent());
+                    ui.label(self.status.as_str());
+                    stil::rechts(ui, |ui| {
+                        weg = stil::leise(ui, true, Sym::Kreuz, "", t("Ausblenden")).clicked();
+                    });
+                });
+            });
+            if weg {
+                self.status.clear();
+            }
+        }
         if narrow {
-            egui::TopBottomPanel::bottom("eigenschaften").resizable(true).default_height(180.0).show(ctx, |ui| self.ui_props(ui));
+            egui::TopBottomPanel::bottom("eigenschaften")
+                .resizable(true)
+                .default_height(200.0)
+                .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(8.0)).stroke(Stroke::new(1.0, thema::border())))
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                        ui.spacing_mut().item_spacing.y = 8.0;
+                        self.ui_props(ui);
+                    });
+                });
         } else {
-            egui::SidePanel::right("eigenschaften").resizable(true).default_width(260.0).width_range(200.0..=420.0).show(ctx, |ui| self.ui_props(ui));
+            stil::seitenleiste(ctx, 270.0, |ui| self.ui_props(ui));
         }
         egui::CentralPanel::default().frame(egui::Frame::none()).show(ctx, |ui| self.canvas(ui));
 

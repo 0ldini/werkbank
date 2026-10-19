@@ -5,6 +5,7 @@ mod app;
 mod archiv;
 mod regeln;
 mod sprache;
+mod stil;
 mod thema;
 
 fn main() -> eframe::Result<()> {

@@ -8,6 +8,7 @@ mod record;
 mod schnapp;
 mod shot;
 mod sprache;
+mod stil;
 mod thema;
 
 fn main() -> eframe::Result<()> {

@@ -10,6 +10,7 @@ mod pruefsumme;
 mod regeln;
 mod sperre;
 mod sprache;
+mod stil;
 mod store;
 mod thema;
 mod zeitplan;

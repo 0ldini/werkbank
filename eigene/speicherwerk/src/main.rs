@@ -3,6 +3,7 @@
 mod app;
 mod scan;
 mod sprache;
+mod stil;
 mod thema;
 
 fn main() -> eframe::Result<()> {

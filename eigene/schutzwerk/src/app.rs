@@ -9,23 +9,16 @@ use crate::netparse::{self, Device};
 use crate::sprache::{t, tf};
 use crate::pwcheck::{self, PwResult};
 use crate::sys::{self, Check, PortInfo, RecItem, State};
+use crate::stil::{self, Sym};
 use crate::thema;
 
 // Schrift-, Linien- und Statusfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
 fn grn() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0x15, 0x7a, 0x3a), egui::Color32::from_rgb(0x4a, 0xde, 0x80))
 }
-/// Füllung von Schaltflächen/Logo mit weisser Schrift darauf – in beiden Designs gleich.
-fn grn_fill() -> egui::Color32 {
-    egui::Color32::from_rgb(0x18, 0x86, 0x4a)
-}
 /// Hintergrund für Gewähltes und Hinweise.
 fn grn_soft() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xe7, 0xf6, 0xee), egui::Color32::from_rgb(0x1b, 0x3a, 0x2a))
-}
-/// Schrift auf `grn_soft()`.
-fn grn_note() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x2b, 0x6b, 0x47), egui::Color32::from_rgb(0x9e, 0xe6, 0xbd))
 }
 fn amber() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
@@ -103,6 +96,7 @@ impl App {
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x3D, 0x6B, 0x8C]);
+        stil::init(&cc.egui_ctx, [0x3D, 0x6B, 0x8C]);
         App {
             section: Section::Password,
             pw: String::new(),
@@ -127,9 +121,10 @@ impl eframe::App for App {
             ctx.request_repaint();
         }
         self.top_bar(ctx);
+        self.footer(ctx);
         self.nav(ctx);
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
+        stil::mitte(ctx, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
                 match self.section {
                     Section::Password => self.page_password(ui),
@@ -145,28 +140,63 @@ impl eframe::App for App {
 
 impl App {
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.add_space(8.0);
+        let score = self.score();
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Schutzwerk");
+            stil::grau(ui, t("Sicherheit · Werkbank"));
+            stil::rechts(ui, |ui| match score {
+                Some(s) => {
+                    let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
+                    ui.label(egui::RichText::new(tf("Schutz: {s}/100", &[("s", &s)])).color(col).strong());
+                    stil::symbol(ui, Sym::Schild, 18.0, col);
+                }
+                None => {
+                    stil::grau(ui, t("Schutz: noch nicht geprüft"));
+                    stil::symbol(ui, Sym::Schild, 18.0, thema::muted());
+                }
+            });
+        });
+    }
+
+    /// Fussleiste: links der Stand, rechts der Hauptknopf des gewählten Bereichs.
+    fn footer(&mut self, ctx: &egui::Context) {
+        let busy = match self.section {
+            Section::Network => self.ports.running() || self.lan.running(),
+            Section::System | Section::Overview => self.checks.running(),
+            Section::Recycle => self.recycle.running(),
+            Section::Password => false,
+        };
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
-                let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, grn_fill());
-                paint_shield(ui.painter(), r.center());
-                ui.add_space(4.0);
-                ui.heading("Schutzwerk");
-                ui.add(egui::Label::new(egui::RichText::new(t("Sicherheit · Werkbank")).weak()));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    match self.score() {
-                        Some(s) => {
-                            let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
-                            ui.label(egui::RichText::new(tf("Schutz: {s}/100", &[("s", &s)])).color(col).strong());
-                        }
-                        None => {
-                            ui.weak(t("Schutz: noch nicht geprüft"));
+                if busy {
+                    ui.spinner();
+                    stil::grau(ui, if self.section == Section::Recycle { t("wird gelesen …") } else { t("wird geprüft …") });
+                } else if self.section == Section::Recycle && !self.restore_msg.is_empty() {
+                    ui.colored_label(grn(), self.restore_msg.as_str());
+                } else {
+                    stil::grau(ui, t("Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge."));
+                }
+                stil::rechts(ui, |ui| match self.section {
+                    Section::Network => {
+                        if stil::haupt(ui, !busy, Sym::Suche, t("Scannen")).clicked() {
+                            self.ports.start(sys::open_ports);
+                            self.lan.start(sys::lan_devices);
                         }
                     }
+                    Section::System | Section::Overview => {
+                        if stil::haupt(ui, !busy, Sym::Schild, t("Prüfen")).clicked() {
+                            self.checks.start(sys::protection_status);
+                        }
+                    }
+                    Section::Recycle => {
+                        if stil::haupt(ui, !busy, Sym::Papierkorb, t("Papierkorb lesen")).clicked() {
+                            self.restore_msg.clear();
+                            self.recycle.start(sys::list_recycle);
+                        }
+                    }
+                    Section::Password => {}
                 });
             });
-            ui.add_space(8.0);
         });
     }
 
@@ -174,24 +204,17 @@ impl App {
         egui::SidePanel::left("nav")
             .resizable(false)
             .exact_width(236.0)
+            .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(10.0)).stroke(egui::Stroke::new(1.0, thema::border())))
             .show(ctx, |ui| {
-                ui.add_space(12.0);
-                nav_item(ui, &mut self.section, Section::Password, t("Passwort-Check"), None);
-                nav_item(ui, &mut self.section, Section::Network, t("Netzwerk"), None);
-                nav_item(ui, &mut self.section, Section::System, t("System-Schutz"), None);
-                nav_item(ui, &mut self.section, Section::Recycle, t("Papierkorb"), None);
-                ui.add_space(8.0);
+                ui.add_space(4.0);
+                nav_item(ui, &mut self.section, Section::Password, Sym::Schluessel, t("Passwort-Check"), None);
+                nav_item(ui, &mut self.section, Section::Network, Sym::Link, t("Netzwerk"), None);
+                nav_item(ui, &mut self.section, Section::System, Sym::Schild, t("System-Schutz"), None);
+                nav_item(ui, &mut self.section, Section::Recycle, Sym::Papierkorb, t("Papierkorb"), None);
+                ui.add_space(6.0);
                 ui.separator();
-                ui.add_space(8.0);
-                nav_item(ui, &mut self.section, Section::Overview, t("Übersicht"), None);
-                ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                    ui.add_space(12.0);
-                    ui.add(egui::Label::new(
-                        egui::RichText::new(t("Alles läuft lokal auf deinem Rechner. Rein defensiv – keine Angriffswerkzeuge."))
-                            .size(11.0)
-                            .color(thema::muted()),
-                    ));
-                });
+                ui.add_space(6.0);
+                nav_item(ui, &mut self.section, Section::Overview, Sym::Diagramm, t("Übersicht"), None);
             });
     }
 
@@ -205,11 +228,11 @@ impl App {
                 let te = egui::TextEdit::singleline(&mut self.pw)
                     .password(!self.show_pw)
                     .hint_text(t("Passwort eingeben …"))
-                    .desired_width(ui.available_width() - 90.0)
+                    .desired_width(ui.available_width() - 120.0)
                     .font(egui::TextStyle::Monospace);
                 ui.add(te);
                 let lbl = if self.show_pw { t("verbergen") } else { t("zeigen") };
-                if ui.button(lbl).clicked() {
+                if stil::knopf(ui, Sym::Auge, lbl).clicked() {
                     self.show_pw = !self.show_pw;
                 }
             });
@@ -258,18 +281,6 @@ impl App {
     // ---------- Netzwerk ----------
     fn page_network(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("Netzwerk"), t("Eigene offene Ports und Geräte im Netz – nur Lesen, keine Fremdscans."));
-        ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Scannen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
-                self.ports.start(sys::open_ports);
-                self.lan.start(sys::lan_devices);
-            }
-            if self.ports.running() || self.lan.running() {
-                ui.add_space(8.0);
-                ui.spinner();
-                ui.weak(t("wird geprüft …"));
-            }
-        });
-        ui.add_space(12.0);
 
         card(ui, |ui| {
             ui.label(egui::RichText::new(t("OFFENE PORTS (DIESER PC)")).size(11.0).strong().color(thema::muted()));
@@ -324,20 +335,9 @@ impl App {
     // ---------- System-Schutz ----------
     fn page_system(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("System-Schutz"), t("Status von Firewall, Virenschutz, Updates und SmartScreen."));
-        ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Prüfen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
-                self.checks.start(sys::protection_status);
-            }
-            if self.checks.running() {
-                ui.add_space(8.0);
-                ui.spinner();
-                ui.weak(t("wird geprüft …"));
-            }
-        });
-        ui.add_space(12.0);
         let g = self.checks.data.lock().unwrap();
         match g.as_ref() {
-            None => { ui.weak(t("Noch nicht geprüft – auf 'Prüfen' klicken.")); }
+            None => { stil::leer(ui, Sym::Schild, t("System-Schutz"), t("Noch nicht geprüft – auf 'Prüfen' klicken.")); }
             Some(checks) => {
                 for c in checks {
                     card(ui, |ui| {
@@ -360,22 +360,6 @@ impl App {
     // ---------- Papierkorb ----------
     fn page_recycle(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("Papierkorb"), t("Gelöschte Dateien auflisten und an ihren Ursprungsort zurückholen."));
-        ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(egui::RichText::new(format!("   {}   ", t("Papierkorb lesen"))).color(egui::Color32::WHITE)).fill(grn_fill())).clicked() {
-                self.restore_msg.clear();
-                self.recycle.start(sys::list_recycle);
-            }
-            if self.recycle.running() {
-                ui.add_space(8.0);
-                ui.spinner();
-                ui.weak(t("wird gelesen …"));
-            }
-            if !self.restore_msg.is_empty() {
-                ui.add_space(8.0);
-                ui.colored_label(grn(), self.restore_msg.as_str());
-            }
-        });
-        ui.add_space(12.0);
 
         let mut do_restore: Option<usize> = None;
         {
@@ -399,7 +383,7 @@ impl App {
                                     ));
                                 });
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button(t("Wiederherstellen")).clicked() {
+                                    if stil::knopf(ui, Sym::Rueckgaengig, t("Wiederherstellen")).clicked() {
                                         do_restore = Some(i);
                                     }
                                 });
@@ -483,17 +467,17 @@ fn h1(ui: &mut egui::Ui, title: &str, sub: &str) {
 
 fn note(ui: &mut egui::Ui, text: &str) {
     egui::Frame::none()
-        .fill(grn_soft())
+        .fill(stil::toenung())
         .rounding(10.0)
         .inner_margin(egui::Margin::symmetric(14.0, 11.0))
         .show(ui, |ui| {
-            ui.label(egui::RichText::new(text).size(12.5).color(grn_note()));
+            ui.label(egui::RichText::new(text).size(12.5).color(thema::text()));
         });
 }
 
-fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, label: &str, _dot: Option<State>) {
+fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, sym: Sym, label: &str, _dot: Option<State>) {
     let sel = *cur == val;
-    let fill = if sel { grn_soft() } else { egui::Color32::TRANSPARENT };
+    let fill = if sel { stil::toenung() } else { egui::Color32::TRANSPARENT };
     let resp = egui::Frame::none()
         .fill(fill)
         .rounding(9.0)
@@ -501,12 +485,9 @@ fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, label: &str, _do
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
-                ui.label(
-                    egui::RichText::new(label)
-                        .size(13.5)
-                        .color(if sel { grn() } else { thema::text() })
-                        .strong(),
-                );
+                stil::symbol(ui, sym, 17.0, if sel { stil::akzent() } else { thema::muted() });
+                ui.add_space(4.0);
+                ui.label(egui::RichText::new(label).size(13.5).color(thema::text()).strong());
                 ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
             });
         })
@@ -625,20 +606,6 @@ fn crack_text(s: &str) -> String {
     s.to_string()
 }
 
-fn paint_shield(p: &egui::Painter, c: egui::Pos2) {
-    let st = egui::Stroke::new(2.0, egui::Color32::WHITE);
-    let pts = vec![
-        egui::pos2(c.x, c.y - 7.0),
-        egui::pos2(c.x + 6.0, c.y - 4.0),
-        egui::pos2(c.x + 6.0, c.y + 1.0),
-        egui::pos2(c.x, c.y + 7.0),
-        egui::pos2(c.x - 6.0, c.y + 1.0),
-        egui::pos2(c.x - 6.0, c.y - 4.0),
-    ];
-    p.add(egui::Shape::convex_polygon(pts, egui::Color32::TRANSPARENT, st));
-    p.line_segment([egui::pos2(c.x - 2.8, c.y), egui::pos2(c.x - 0.6, c.y + 2.4)], st);
-    p.line_segment([egui::pos2(c.x - 0.6, c.y + 2.4), egui::pos2(c.x + 3.0, c.y - 2.4)], st);
-}
 
 fn file_name(path: &str) -> String {
     path.rsplit(['\\', '/']).next().unwrap_or(path).to_string()

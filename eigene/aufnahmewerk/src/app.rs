@@ -9,30 +9,13 @@ use crate::model::{Corner, Mode, Quality, Settings};
 use crate::schnapp::{self, Img};
 use crate::shot::{self, ShotMode};
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 use crate::record::{self, Recording};
 
-// Füllfarben (Knöpfe, Punkte, Schalter) – in beiden Designs gleich.
+/// Rot für Aufnahme-Punkt und Auswahlrahmen – in beiden Designs gleich.
 fn red() -> egui::Color32 {
     egui::Color32::from_rgb(0xe5, 0x34, 0x2e)
-}
-fn teal() -> egui::Color32 {
-    egui::Color32::from_rgb(0x0f, 0x9f, 0x8a)
-}
-// Schrift- und Randfarben je Design (hell/dunkel), lesbar auf Hintergrund und Karten.
-fn red_text() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xc6, 0x28, 0x28), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
-}
-fn teal_text() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x2d, 0xd4, 0xbf))
-}
-/// Hintergrund gewählter Kacheln/Chips.
-fn red_soft() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xfd, 0xec, 0xec), egui::Color32::from_rgb(0x3a, 0x22, 0x26))
-}
-/// Rand nicht gewählter Kacheln/Chips.
-fn line() -> egui::Color32 {
-    thema::pick(egui::Color32::from_gray(222), egui::Color32::from_rgb(0x3c, 0x40, 0x49))
 }
 
 enum Phase {
@@ -92,6 +75,7 @@ impl App {
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0xB2, 0x3A, 0x48]);
+        stil::init(&cc.egui_ctx, [0xB2, 0x3A, 0x48]);
 
         let mut cfg = Settings::default();
         cfg.out_dir = default_out_dir();
@@ -491,98 +475,111 @@ impl eframe::App for App {
 
 impl App {
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, red());
-                ui.painter().circle_filled(r.center(), 5.0, egui::Color32::WHITE);
-                ui.add_space(4.0);
-                ui.heading("Aufnahmewerk");
-                ui.add(egui::Label::new(
-                    egui::RichText::new(t("Bildschirm aufnehmen · Werkbank")).weak(),
-                ));
-                ui.add_space(14.0);
-                chip(ui, &mut self.tab, Tab::Video, t("Video"), red_text());
-                chip(ui, &mut self.tab, Tab::Foto, t("Bildschirmfoto"), red_text());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(t("Ordner …")).clicked() {
-                        if let Some(d) = rfd::FileDialog::new()
-                            .set_title(t("Zielordner wählen"))
-                            .pick_folder()
-                        {
-                            self.cfg.out_dir = d.display().to_string();
-                        }
-                    }
-                    ui.add(egui::Label::new(
-                        egui::RichText::new(short_dir(&self.cfg.out_dir)).weak(),
-                    ));
-                });
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Aufnahmewerk");
+            stil::grau(ui, t("Bildschirm aufnehmen · Werkbank"));
+            stil::trenner(ui);
+            ui.allocate_ui(egui::vec2(260.0, 28.0), |ui| {
+                stil::wahl(ui, &mut self.tab, &[(Tab::Video, t("Video")), (Tab::Foto, t("Bildschirmfoto"))]);
             });
-            ui.add_space(8.0);
+            stil::rechts(ui, |ui| {
+                if stil::leise(ui, true, Sym::Ordner, t("Ordner …"), t("Zielordner wählen")).clicked() {
+                    if let Some(d) = rfd::FileDialog::new().set_title(t("Zielordner wählen")).pick_folder() {
+                        self.cfg.out_dir = d.display().to_string();
+                    }
+                }
+                stil::grau(ui, &short_dir(&self.cfg.out_dir));
+            });
         });
     }
 
     fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-            ui.add_space(4.0);
+        let recording = self.is_recording();
+        let counting = self.is_counting();
+        let shot_busy = self.shot_busy();
+        let mut do_toggle = false;
+        let mut do_shot = false;
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
-                let col = if self.is_recording() { red() } else { teal() };
-                ui.painter().circle_filled(dot.center(), 4.0, col);
+                ui.painter().circle_filled(dot.center(), 4.0, if recording { stil::rot() } else { stil::gruen() });
                 if let Some(e) = &self.last_err {
-                    ui.colored_label(red_text(), e.as_str());
+                    ui.colored_label(stil::rot(), e.as_str());
                 } else {
-                    ui.weak(self.status.as_str());
+                    stil::grau(ui, self.status.as_str());
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if self.tab == Tab::Foto {
-                        let fmt = if self.shot_jpg { "JPG" } else { "PNG" };
-                        ui.weak(tf("Hotkey: Strg+Umschalt+F · {fmt}", &[("fmt", &fmt)]));
-                        return;
-                    }
+                stil::trenner(ui);
+                if self.tab == Tab::Foto {
+                    let fmt = if self.shot_jpg { "JPG" } else { "PNG" };
+                    stil::grau(ui, &tf("Hotkey: Strg+Umschalt+F · {fmt}", &[("fmt", &fmt)]));
+                } else {
                     let ton = match (self.cfg.system_audio, self.cfg.microphone) {
                         (true, true) => t("System-Ton + Mikrofon"),
                         (true, false) => t("System-Ton"),
                         (false, true) => t("Mikrofon"),
                         (false, false) => t("ohne Ton"),
                     };
-                    ui.weak(tf("Hotkey: Strg+Umschalt+R · {ton}", &[("ton", &ton)]));
+                    stil::grau(ui, &tf("Hotkey: Strg+Umschalt+R · {ton}", &[("ton", &ton)]));
+                }
+                stil::rechts(ui, |ui| {
+                    if self.tab == Tab::Foto {
+                        let label = if self.overlay.is_some() {
+                            t("Bereich aufziehen …")
+                        } else if self.shot_job.is_some() {
+                            t("Bildschirmfoto läuft …")
+                        } else {
+                            t("Bildschirmfoto aufnehmen")
+                        };
+                        if stil::haupt(ui, !shot_busy, Sym::Kamera, label).on_hover_text(t("oder Strg + Umschalt + F")).clicked() {
+                            do_shot = true;
+                        }
+                    } else {
+                        let (sym, label) = if recording {
+                            (Sym::Stopp, t("Aufnahme stoppen"))
+                        } else if counting {
+                            (Sym::Stopp, t("Countdown … (Abbrechen)"))
+                        } else {
+                            (Sym::Aufnahme, t("Aufnahme starten"))
+                        };
+                        if stil::haupt(ui, true, sym, label).on_hover_text(t("oder Strg + Umschalt + R")).clicked() {
+                            do_toggle = true;
+                        }
+                    }
                 });
             });
-            ui.add_space(4.0);
         });
+        if do_toggle {
+            self.toggle();
+        }
+        if do_shot {
+            self.start_shot(ctx);
+        }
     }
 
     fn left_panel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("links")
             .resizable(false)
             .exact_width(612.0)
+            .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(10.0)).stroke(egui::Stroke::new(1.0, thema::border())))
             .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(10.0);
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    ui.spacing_mut().item_spacing.y = 8.0;
                     if self.tab == Tab::Foto {
                         self.card_foto(ui);
-                        ui.add_space(12.0);
                         self.card_foto_format(ui);
-                        ui.add_space(10.0);
                         return;
                     }
                     self.card_modus(ui);
-                    ui.add_space(12.0);
                     self.card_ton(ui);
-                    ui.add_space(12.0);
                     self.card_webcam(ui);
-                    ui.add_space(12.0);
                     self.card_format(ui);
-                    ui.add_space(10.0);
                 });
             });
     }
 
     fn card_modus(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("AUFNAHMEMODUS"), |ui| {
-            let busy = self.is_recording() || self.is_counting();
+        let busy = self.is_recording() || self.is_counting();
+        stil::karte(ui, "modus", Sym::Aufnahme, t("AUFNAHMEMODUS"), true, |ui| {
             ui.add_enabled_ui(!busy, |ui| {
                 ui.columns(3, |c| {
                     mode_tile(&mut c[0], &mut self.cfg.mode, Mode::Fullscreen, t("Ganzer Bildschirm"), t("Monitor wählen"));
@@ -595,7 +592,7 @@ impl App {
                     Mode::Window => {
                         ui.horizontal(|ui| {
                             egui::ComboBox::from_id_salt("win")
-                                .width(ui.available_width() - 90.0)
+                                .width(ui.available_width() - 140.0)
                                 .selected_text(if self.cfg.window_title.is_empty() {
                                     t("Fenster wählen …").to_string()
                                 } else {
@@ -610,14 +607,14 @@ impl App {
                                         );
                                     }
                                 });
-                            if ui.button(t("Aktualisieren")).clicked() {
+                            if stil::knopf(ui, Sym::Aktualisieren, t("Aktualisieren")).clicked() {
                                 self.windows = record::list_windows();
                             }
                         });
                     }
                     Mode::Region => {
                         ui.horizontal(|ui| {
-                            ui.label(t("Bereich:"));
+                            ui.label(egui::RichText::new(t("Bereich:")).color(thema::muted()));
                             drag_u32(ui, &mut self.cfg.region.2, t("Breite"));
                             ui.label("×");
                             drag_u32(ui, &mut self.cfg.region.3, t("Höhe"));
@@ -634,7 +631,7 @@ impl App {
 
     fn monitor_combo(&mut self, ui: &mut egui::Ui, salt: &str) {
         egui::ComboBox::from_id_salt(salt)
-            .width(ui.available_width())
+            .width(ui.available_width() - 4.0)
             .selected_text(
                 self.monitors
                     .get(self.cfg.monitor_index)
@@ -649,8 +646,8 @@ impl App {
     }
 
     fn card_foto(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("BILDSCHIRMFOTO"), |ui| {
-            let busy = self.shot_busy();
+        let busy = self.shot_busy();
+        stil::karte(ui, "foto", Sym::Kamera, t("BILDSCHIRMFOTO"), true, |ui| {
             ui.add_enabled_ui(!busy, |ui| {
                 ui.columns(3, |c| {
                     mode_tile(&mut c[0], &mut self.shot_mode, ShotMode::Screen, t("Ganzer Bildschirm"), t("Monitor wählen"));
@@ -661,11 +658,7 @@ impl App {
                 match self.shot_mode {
                     ShotMode::Screen | ShotMode::Region => self.monitor_combo(ui, "foto-mon"),
                     ShotMode::ActiveWindow => {
-                        ui.label(
-                            egui::RichText::new(t("Fotografiert das Fenster, das vorne ist, sobald Aufnahmewerk ausgeblendet ist. Mit Verzögerung bleibt Zeit, ein anderes Fenster anzuklicken."))
-                            .weak()
-                            .size(12.0),
-                        );
+                        stil::hinweis(ui, t("Fotografiert das Fenster, das vorne ist, sobald Aufnahmewerk ausgeblendet ist. Mit Verzögerung bleibt Zeit, ein anderes Fenster anzuklicken."));
                     }
                 }
             });
@@ -673,65 +666,60 @@ impl App {
     }
 
     fn card_foto_format(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("VOR DEM FOTO · FORMAT"), |ui| {
-            row(ui, t("Verzögerung"), t("Zeit, um Menüs zu öffnen oder Fenster zu wechseln"), |ui| {
-                chip(ui, &mut self.shot_delay, 10, "10 s", red_text());
-                chip(ui, &mut self.shot_delay, 5, "5 s", red_text());
-                chip(ui, &mut self.shot_delay, 3, "3 s", red_text());
-                chip(ui, &mut self.shot_delay, 0, t("Aus"), red_text());
+        stil::karte(ui, "foto-format", Sym::Uhr, t("VOR DEM FOTO · FORMAT"), true, |ui| {
+            stil::feld(ui, t("Verzögerung"), |ui| {
+                stil::wahl(ui, &mut self.shot_delay, &[(10, "10 s"), (5, "5 s"), (3, "3 s"), (0, t("Aus"))]);
             });
+            stil::hinweis(ui, t("Zeit, um Menüs zu öffnen oder Fenster zu wechseln"));
             ui.add_space(8.0);
-            row(ui, t("Format beim Speichern"), t("Strg + S im Editor"), |ui| {
-                chip(ui, &mut self.shot_jpg, true, "JPG", teal_text());
-                chip(ui, &mut self.shot_jpg, false, "PNG", teal_text());
+            stil::feld(ui, t("Format beim Speichern"), |ui| {
+                stil::wahl(ui, &mut self.shot_jpg, &[(true, "JPG"), (false, "PNG")]);
             });
+            stil::hinweis(ui, t("Strg + S im Editor"));
             ui.add_space(8.0);
-            row(ui, t("Nach dem Foto"), t("Der Editor öffnet sich: Pfeile, Text, Schwärzen, Zuschneiden"), |_ui| {});
+            stil::feld(ui, t("Nach dem Foto"), |ui| {
+                stil::hinweis(ui, t("Der Editor öffnet sich: Pfeile, Text, Schwärzen, Zuschneiden"));
+            });
         });
     }
 
     fn card_ton(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("TON"), |ui| {
-            row(ui, t("System-Ton"), t("Spiel, Video, Musik vom Rechner"), |ui| {
-                toggle(ui, &mut self.cfg.system_audio, teal());
-            });
+        stil::karte(ui, "ton", Sym::Musik, t("TON"), true, |ui| {
+            stil::schalter(ui, &mut self.cfg.system_audio, t("System-Ton"));
+            stil::hinweis(ui, t("Spiel, Video, Musik vom Rechner"));
             ui.add_space(8.0);
-            row(ui, t("Mikrofon"), t("Deine Stimme für Erklärvideos (Etappe 2)"), |ui| {
-                toggle(ui, &mut self.cfg.microphone, teal());
-            });
+            stil::schalter(ui, &mut self.cfg.microphone, t("Mikrofon"));
+            stil::hinweis(ui, t("Deine Stimme für Erklärvideos (Etappe 2)"));
         });
     }
 
     fn card_webcam(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("WEBCAM & ZEIGER"), |ui| {
-            row(ui, t("Webcam-Overlay"), t("Kleines Kamerabild in der Ecke"), |ui| {
+        stil::karte(ui, "webcam", Sym::Kamera, t("WEBCAM & ZEIGER"), true, |ui| {
+            stil::schalter(ui, &mut self.cfg.webcam, t("Webcam-Overlay"));
+            stil::hinweis(ui, t("Kleines Kamerabild in der Ecke"));
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(t("Ecke")).size(12.0).color(thema::muted()));
                 corner_pick(ui, &mut self.cfg.webcam_corner);
-                ui.add_space(8.0);
-                toggle(ui, &mut self.cfg.webcam, red());
             });
             ui.add_space(8.0);
-            row(ui, t("Mauszeiger & Klicks"), t("Zeiger hervorheben, Klicks sichtbar"), |ui| {
-                toggle(ui, &mut self.cfg.highlight_clicks, red());
-            });
+            stil::schalter(ui, &mut self.cfg.highlight_clicks, t("Mauszeiger & Klicks"));
+            stil::hinweis(ui, t("Zeiger hervorheben, Klicks sichtbar"));
         });
     }
 
     fn card_format(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("VOR DEM START · FORMAT"), |ui| {
-            row(ui, t("Countdown"), t("3-2-1 vor der Aufnahme"), |ui| {
-                chip(ui, &mut self.cfg.countdown, 0, t("Aus"), red_text());
-                chip(ui, &mut self.cfg.countdown, 3, "3 s", red_text());
-                chip(ui, &mut self.cfg.countdown, 5, "5 s", red_text());
+        stil::karte(ui, "format", Sym::Zeit, t("VOR DEM START · FORMAT"), true, |ui| {
+            stil::feld(ui, t("Countdown"), |ui| {
+                stil::wahl(ui, &mut self.cfg.countdown, &[(0, t("Aus")), (3, "3 s"), (5, "5 s")]);
             });
+            stil::hinweis(ui, t("3-2-1 vor der Aufnahme"));
             ui.add_space(8.0);
-            row(ui, t("Format · Qualität"), "MP4 · H.264", |ui| {
-                chip_q(ui, &mut self.cfg.quality, Quality::Hoch, t("Hoch"));
-                chip_q(ui, &mut self.cfg.quality, Quality::Mittel, t("Mittel"));
-                chip_q(ui, &mut self.cfg.quality, Quality::Sparsam, t("Sparsam"));
-                ui.add_space(8.0);
-                chip(ui, &mut self.cfg.fps, 30, "30 fps", teal_text());
-                chip(ui, &mut self.cfg.fps, 60, "60 fps", teal_text());
+            stil::feld(ui, t("Format · Qualität"), |ui| {
+                stil::wahl(ui, &mut self.cfg.quality, &[(Quality::Hoch, t("Hoch")), (Quality::Mittel, t("Mittel")), (Quality::Sparsam, t("Sparsam"))]);
+                ui.add_space(4.0);
+                stil::wahl(ui, &mut self.cfg.fps, &[(30, "30 fps"), (60, "60 fps")]);
             });
+            stil::hinweis(ui, "MP4 · H.264");
         });
     }
 
@@ -740,14 +728,14 @@ impl App {
             self.right_panel_foto(ctx);
             return;
         }
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
+        stil::mitte(ctx, |ui| {
+            ui.add_space(4.0);
             // Vorschau-/Zustandsfläche
             let (rect, _) =
                 ui.allocate_exact_size(egui::vec2(ui.available_width(), 230.0), egui::Sense::hover());
             let p = ui.painter();
             // Bildschirm-Fläche: in beiden Designs dunkel (wie ein Monitor), im dunklen etwas tiefer.
-            p.rect_filled(rect, 14.0, thema::pick(egui::Color32::from_rgb(0x1a, 0x1d, 0x22), egui::Color32::from_rgb(0x0c, 0x0d, 0x10)));
+            p.rect_filled(rect, 12.0, thema::pick(egui::Color32::from_rgb(0x1a, 0x1d, 0x22), egui::Color32::from_rgb(0x0c, 0x0d, 0x10)));
             match &self.phase {
                 Phase::Countdown { ends, from } => {
                     let left = ends.saturating_duration_since(Instant::now()).as_secs() + 1;
@@ -776,8 +764,10 @@ impl App {
                     );
                 }
                 Phase::Idle => {
+                    let r = egui::Rect::from_center_size(rect.center() - egui::vec2(0.0, 14.0), egui::vec2(34.0, 34.0));
+                    stil::sym(p, r, Sym::Aufnahme, egui::Color32::from_gray(150));
                     p.text(
-                        rect.center(),
+                        rect.center() + egui::vec2(0.0, 22.0),
                         egui::Align2::CENTER_CENTER,
                         t("Vorschau"),
                         egui::FontId::proportional(15.0),
@@ -786,20 +776,18 @@ impl App {
                 }
             }
 
-            ui.add_space(14.0);
-            self.record_button(ui);
-            ui.add_space(14.0);
+            ui.add_space(10.0);
             self.recent_list(ui);
         });
     }
 
     fn right_panel_foto(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
+        stil::mitte(ctx, |ui| {
+            ui.add_space(4.0);
             let (rect, _) =
                 ui.allocate_exact_size(egui::vec2(ui.available_width(), 230.0), egui::Sense::hover());
             let p = ui.painter();
-            p.rect_filled(rect, 14.0, thema::pick(egui::Color32::from_rgb(0x1a, 0x1d, 0x22), egui::Color32::from_rgb(0x0c, 0x0d, 0x10)));
+            p.rect_filled(rect, 12.0, thema::pick(egui::Color32::from_rgb(0x1a, 0x1d, 0x22), egui::Color32::from_rgb(0x0c, 0x0d, 0x10)));
             if let Some(tex) = &self.thumb {
                 let [w, h] = tex.size();
                 let inner = rect.shrink(12.0);
@@ -812,8 +800,10 @@ impl App {
                     egui::Color32::WHITE,
                 );
             } else {
+                let r = egui::Rect::from_center_size(rect.center() - egui::vec2(0.0, 14.0), egui::vec2(34.0, 34.0));
+                stil::sym(p, r, Sym::Kamera, egui::Color32::from_gray(150));
                 p.text(
-                    rect.center(),
+                    rect.center() + egui::vec2(0.0, 22.0),
                     egui::Align2::CENTER_CENTER,
                     t("Letztes Bildschirmfoto"),
                     egui::FontId::proportional(15.0),
@@ -821,76 +811,34 @@ impl App {
                 );
             }
 
-            ui.add_space(14.0);
-            self.shot_button(ui, ctx);
-            ui.add_space(14.0);
+            ui.add_space(10.0);
             self.shot_list(ui);
         });
     }
 
-    fn shot_button(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        egui::Frame::none()
-            .fill(ui.visuals().extreme_bg_color)
-            .rounding(14.0)
-            .stroke(egui::Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
-            .inner_margin(egui::Margin::same(14.0))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let (c, resp) = ui.allocate_exact_size(egui::vec2(56.0, 56.0), egui::Sense::click());
-                    let busy = self.shot_busy();
-                    ui.painter().circle_filled(c.center(), 28.0, if busy { thema::muted() } else { teal() });
-                    // Kamera-Symbol: Gehäuse + Linse
-                    let body = egui::Rect::from_center_size(c.center() + egui::vec2(0.0, 2.0), egui::vec2(26.0, 18.0));
-                    ui.painter().rect_filled(body, 4.0, egui::Color32::WHITE);
-                    ui.painter().rect_filled(
-                        egui::Rect::from_center_size(body.center_top() + egui::vec2(-5.0, -2.0), egui::vec2(9.0, 5.0)),
-                        1.5,
-                        egui::Color32::WHITE,
-                    );
-                    ui.painter().circle_filled(body.center(), 5.5, if busy { thema::muted() } else { teal() });
-                    if resp.clicked() && !busy {
-                        self.start_shot(ctx);
-                    }
-                    ui.add_space(6.0);
-                    ui.vertical(|ui| {
-                        let label = if self.overlay.is_some() {
-                            t("Bereich aufziehen …")
-                        } else if self.shot_job.is_some() {
-                            t("Bildschirmfoto läuft …")
-                        } else {
-                            t("Bildschirmfoto aufnehmen")
-                        };
-                        ui.label(egui::RichText::new(label).size(17.0).strong());
-                        ui.label(
-                            egui::RichText::new(t("oder Strg + Umschalt + F"))
-                                .weak()
-                                .size(12.0),
-                        );
-                    });
-                });
-            });
-    }
-
     fn shot_list(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("LETZTE BILDSCHIRMFOTOS"), |ui| {
-            if ui.button(t("Ordner öffnen")).clicked() {
-                let _ = std::fs::create_dir_all(&self.cfg.out_dir);
-                shot::open_folder(&self.cfg.out_dir);
-            }
+        stil::karte(ui, "fotos", Sym::Bild, t("LETZTE BILDSCHIRMFOTOS"), true, |ui| {
+            ui.horizontal(|ui| {
+                if stil::knopf(ui, Sym::OrdnerAuf, t("Ordner öffnen")).clicked() {
+                    let _ = std::fs::create_dir_all(&self.cfg.out_dir);
+                    shot::open_folder(&self.cfg.out_dir);
+                }
+            });
             ui.add_space(6.0);
             if self.shots.is_empty() {
-                ui.weak(t("Noch keine Bildschirmfotos gespeichert."));
+                stil::grau(ui, t("Noch keine Bildschirmfotos gespeichert."));
                 return;
             }
             egui::ScrollArea::vertical().id_salt("fotos").show(ui, |ui| {
                 for (name, path, info) in &self.shots {
                     ui.horizontal(|ui| {
+                        stil::symbol(ui, Sym::Bild, 18.0, stil::akzent());
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(name.as_str()).strong().size(13.0));
-                            ui.weak(info.as_str());
+                            ui.label(egui::RichText::new(name.as_str()).strong().size(13.0).color(thema::text()));
+                            stil::grau(ui, info.as_str());
                         });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button(t("Im Ordner zeigen")).clicked() {
+                        stil::rechts(ui, |ui| {
+                            if stil::leise(ui, true, Sym::Extern, t("Im Ordner zeigen"), "").clicked() {
                                 shot::show_in_folder(path);
                             }
                         });
@@ -901,67 +849,23 @@ impl App {
         });
     }
 
-    fn record_button(&mut self, ui: &mut egui::Ui) {
-        egui::Frame::none()
-            .fill(ui.visuals().extreme_bg_color)
-            .rounding(14.0)
-            .stroke(egui::Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
-            .inner_margin(egui::Margin::same(14.0))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let (c, resp) = ui.allocate_exact_size(
-                        egui::vec2(56.0, 56.0),
-                        egui::Sense::click(),
-                    );
-                    let recording = self.is_recording() || self.is_counting();
-                    ui.painter().circle_filled(c.center(), 28.0, red());
-                    if recording {
-                        // Stopp-Quadrat
-                        let s = egui::Rect::from_center_size(c.center(), egui::vec2(20.0, 20.0));
-                        ui.painter().rect_filled(s, 3.0, egui::Color32::WHITE);
-                    } else {
-                        ui.painter().circle_filled(c.center(), 11.0, egui::Color32::WHITE);
-                    }
-                    if resp.clicked() {
-                        self.toggle();
-                    }
-                    ui.add_space(6.0);
-                    ui.vertical(|ui| {
-                        let label = if self.is_recording() {
-                            t("Aufnahme stoppen")
-                        } else if self.is_counting() {
-                            t("Countdown … (Abbrechen)")
-                        } else {
-                            t("Aufnahme starten")
-                        };
-                        ui.label(egui::RichText::new(label).size(17.0).strong());
-                        ui.label(
-                            egui::RichText::new(t("oder Strg + Umschalt + R"))
-                                .weak()
-                                .size(12.0),
-                        );
-                    });
-                });
-            });
-    }
-
     fn recent_list(&mut self, ui: &mut egui::Ui) {
-        card(ui, t("LETZTE AUFNAHMEN"), |ui| {
+        stil::karte(ui, "aufnahmen", Sym::Film, t("LETZTE AUFNAHMEN"), true, |ui| {
             if self.recents.is_empty() {
                 ui.add_space(4.0);
-                ui.weak(t("Noch keine Aufnahmen in dieser Sitzung."));
+                stil::grau(ui, t("Noch keine Aufnahmen in dieser Sitzung."));
                 return;
             }
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for (name, meta) in &self.recents {
                     ui.horizontal(|ui| {
-                        let (t, _) =
+                        let (r, _) =
                             ui.allocate_exact_size(egui::vec2(58.0, 38.0), egui::Sense::hover());
-                        ui.painter().rect_filled(t, 6.0, egui::Color32::from_rgb(0x2a, 0x30, 0x38));
-                        ui.painter().circle_filled(t.center(), 7.0, egui::Color32::from_white_alpha(220));
+                        ui.painter().rect_filled(r, 6.0, egui::Color32::from_rgb(0x2a, 0x30, 0x38));
+                        stil::sym(ui.painter(), egui::Rect::from_center_size(r.center(), egui::vec2(18.0, 18.0)), Sym::Play, egui::Color32::from_white_alpha(220));
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(name.as_str()).strong().size(13.0));
-                            ui.weak(meta.as_str());
+                            ui.label(egui::RichText::new(name.as_str()).strong().size(13.0).color(thema::text()));
+                            stil::grau(ui, meta.as_str());
                         });
                     });
                     ui.add_space(4.0);
@@ -973,42 +877,14 @@ impl App {
 
 // ---------- kleine UI-Bausteine ----------
 
-fn card<R>(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui) -> R) {
-    egui::Frame::none()
-        .fill(thema::panel())
-        .rounding(14.0)
-        .stroke(egui::Stroke::new(1.0, thema::border()))
-        .inner_margin(egui::Margin::symmetric(16.0, 15.0))
-        .show(ui, |ui| {
-            ui.label(
-                egui::RichText::new(title)
-                    .size(11.0)
-                    .strong()
-                    .color(thema::muted()),
-            );
-            ui.add_space(10.0);
-            body(ui);
-        });
-}
-
-fn row<R>(ui: &mut egui::Ui, name: &str, desc: &str, right: impl FnOnce(&mut egui::Ui) -> R) {
-    ui.horizontal(|ui| {
-        ui.vertical(|ui| {
-            ui.label(egui::RichText::new(name).size(14.0).strong());
-            ui.label(egui::RichText::new(desc).weak().size(11.5));
-        });
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), right);
-    });
-}
-
 fn mode_tile<T: PartialEq + Copy>(ui: &mut egui::Ui, cur: &mut T, val: T, title: &str, sub: &str) {
     let sel = *cur == val;
-    let fill = if sel { red_soft() } else { thema::panel() };
-    let stroke = if sel { red_text() } else { line() };
+    let fill = if sel { stil::toenung() } else { thema::panel() };
+    let stroke = if sel { stil::farbe() } else { thema::border() };
     let resp = egui::Frame::none()
         .fill(fill)
-        .rounding(11.0)
-        .stroke(egui::Stroke::new(1.5, stroke))
+        .rounding(10.0)
+        .stroke(egui::Stroke::new(if sel { 1.5 } else { 1.0 }, stroke))
         .inner_margin(egui::Margin::symmetric(8.0, 12.0))
         .show(ui, |ui| {
             ui.vertical_centered(|ui| {
@@ -1016,9 +892,9 @@ fn mode_tile<T: PartialEq + Copy>(ui: &mut egui::Ui, cur: &mut T, val: T, title:
                     egui::RichText::new(title)
                         .size(13.5)
                         .strong()
-                        .color(if sel { red_text() } else { thema::text() }),
+                        .color(if sel { stil::akzent() } else { thema::text() }),
                 );
-                ui.label(egui::RichText::new(sub).weak().size(11.0));
+                ui.label(egui::RichText::new(sub).color(thema::muted()).size(11.0));
             });
         })
         .response
@@ -1028,24 +904,13 @@ fn mode_tile<T: PartialEq + Copy>(ui: &mut egui::Ui, cur: &mut T, val: T, title:
     }
 }
 
-fn toggle(ui: &mut egui::Ui, on: &mut bool, col: egui::Color32) {
-    let (rect, resp) = ui.allocate_exact_size(egui::vec2(40.0, 23.0), egui::Sense::click());
-    if resp.clicked() {
-        *on = !*on;
-    }
-    let bg = if *on { col } else { thema::pick(egui::Color32::from_gray(210), egui::Color32::from_rgb(0x4a, 0x4e, 0x58)) };
-    ui.painter().rect_filled(rect, 11.5, bg);
-    let cx = if *on { rect.right() - 11.5 } else { rect.left() + 11.5 };
-    ui.painter()
-        .circle_filled(egui::pos2(cx, rect.center().y), 9.5, egui::Color32::WHITE);
-}
-
 fn corner_pick(ui: &mut egui::Ui, cur: &mut Corner) {
     let order = [
         (Corner::ObenLinks, Corner::ObenRechts),
         (Corner::UntenLinks, Corner::UntenRechts),
     ];
     ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
         for (a, b) in order {
             ui.horizontal(|ui| {
                 corner_cell(ui, cur, a);
@@ -1061,36 +926,10 @@ fn corner_cell(ui: &mut egui::Ui, cur: &mut Corner, val: Corner) {
         *cur = val;
     }
     let sel = *cur == val;
-    let stroke = if sel { red_text() } else { thema::pick(egui::Color32::from_gray(205), egui::Color32::from_rgb(0x5a, 0x5f, 0x6a)) };
+    let stroke = if sel { stil::farbe() } else { thema::border() };
     ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(1.5, stroke));
     if sel {
-        ui.painter().rect_filled(rect.shrink(4.0), 2.0, red_soft());
-    }
-}
-
-fn chip<T: PartialEq + Copy>(ui: &mut egui::Ui, cur: &mut T, val: T, label: &str, col: egui::Color32) {
-    let sel = *cur == val;
-    let resp = ui.add(egui::Button::new(
-        egui::RichText::new(label)
-            .size(12.5)
-            .color(if sel { col } else { thema::muted() }),
-    ).fill(if sel { tint(col) } else { thema::panel() })
-     .stroke(egui::Stroke::new(1.0, if sel { col } else { line() })));
-    if resp.clicked() {
-        *cur = val;
-    }
-}
-
-fn chip_q(ui: &mut egui::Ui, cur: &mut Quality, val: Quality, label: &str) {
-    let sel = *cur == val;
-    let resp = ui.add(egui::Button::new(
-        egui::RichText::new(label)
-            .size(12.5)
-            .color(if sel { red_text() } else { thema::muted() }),
-    ).fill(if sel { red_soft() } else { thema::panel() })
-     .stroke(egui::Stroke::new(1.0, if sel { red_text() } else { line() })));
-    if resp.clicked() {
-        *cur = val;
+        ui.painter().rect_filled(rect.shrink(4.0), 2.0, stil::toenung());
     }
 }
 
@@ -1101,10 +940,6 @@ fn drag_u32(ui: &mut egui::Ui, v: &mut u32, tip: &str) {
 fn drag_i32(ui: &mut egui::Ui, v: &mut i32, tip: &str) {
     ui.add(egui::DragValue::new(v).range(0..=16384).speed(2.0))
         .on_hover_text(tip);
-}
-
-fn tint(c: egui::Color32) -> egui::Color32 {
-    egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), 28)
 }
 
 // ---------- Plattform-Helfer ----------

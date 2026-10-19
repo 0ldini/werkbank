@@ -10,25 +10,26 @@ use crate::model::{
     self, Aspect, AudioFmt, AudioTrack, Fit, ImageFmt, MediaKind, Quality, Target, VideoFmt,
 };
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 
-/// Violett für Schrift und Linien – je Design lesbar auf dem Hintergrund.
+/// Logofarbe für Schrift und Linien – je Design lesbar auf dem Hintergrund.
 fn vio() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x6d, 0x49, 0xe0), egui::Color32::from_rgb(0xa7, 0x8b, 0xfa))
+    stil::akzent()
 }
-/// Füllung von Schaltflächen/Flächen mit weisser Schrift darauf – in beiden Designs gleich.
+/// Füllung von Flächen mit weisser Schrift darauf.
 fn vio_fill() -> egui::Color32 {
-    egui::Color32::from_rgb(0x6d, 0x49, 0xe0)
+    stil::farbe()
 }
 /// Hintergrund für Gewähltes (Datei-Zeile, Chip).
 fn vio_soft() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xef, 0xea, 0xfc), egui::Color32::from_rgb(0x2f, 0x27, 0x4d))
+    stil::toenung()
 }
 fn green() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x15, 0x80, 0x3d), egui::Color32::from_rgb(0x4a, 0xde, 0x80))
+    stil::gruen()
 }
 fn red() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
+    stil::rot()
 }
 /// Füllung der Typ-Symbole (weisser Buchstabe darauf) – in beiden Designs gleich.
 fn kind_color(k: MediaKind) -> egui::Color32 {
@@ -83,6 +84,7 @@ impl App {
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x2B, 0x8A, 0x6E]);
+        stil::init(&cc.egui_ctx, [0x2B, 0x8A, 0x6E]);
         App {
             entries: Vec::new(),
             sel: 0,
@@ -219,35 +221,23 @@ impl eframe::App for App {
 
 impl App {
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, vio_fill());
-                paint_convert_logo(ui.painter(), r.center());
-                ui.add_space(4.0);
-                ui.heading("Wandelwerk");
-                ui.add(egui::Label::new(
-                    egui::RichText::new(t("Dateien umwandeln · Werkbank")).weak(),
-                ));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(t("Zielordner …")).clicked() {
-                        if let Some(d) = rfd::FileDialog::new().pick_folder() {
-                            self.out_dir = d.display().to_string();
-                        }
-                    }
-                    ui.add(egui::Label::new(
-                        egui::RichText::new(short_dir(&self.out_dir)).weak(),
-                    ));
-                });
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Wandelwerk");
+            stil::trenner(ui);
+            if stil::knopf(ui, Sym::Plus, t("Hinzufügen")).clicked() {
+                self.pick_files();
+            }
+            stil::rechts(ui, |ui| {
+                if stil::gefahr(ui, !self.entries.is_empty(), Sym::Papierkorb, t("Leeren")).clicked() {
+                    self.entries.clear();
+                    self.sel = 0;
+                }
             });
-            ui.add_space(8.0);
         });
     }
 
     fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-            ui.add_space(4.0);
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
                 let (col, txt) = if self.ffmpeg.is_some() {
@@ -257,55 +247,41 @@ impl App {
                     (red(), t("ffmpeg fehlt (nur Bilder möglich)"))
                 };
                 ui.painter().circle_filled(dot.center(), 4.0, col);
-                ui.weak(txt);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak(t("Bilder in Rust · Ton & Video über ffmpeg"));
+                stil::grau(ui, txt).on_hover_text(t("Bilder in Rust · Ton & Video über ffmpeg"));
+                let n = self.entries.len();
+                if n > 0 {
+                    stil::grau(ui, &format!("· {}", tf("{n} Dateien", &[("n", &n)])));
+                }
+                stil::rechts(ui, |ui| {
+                    let label = tf("{n} Dateien umwandeln", &[("n", &n)]);
+                    if stil::haupt(ui, n > 0, Sym::Umwandeln, &label).clicked() {
+                        self.start_all();
+                    }
                 });
             });
-            ui.add_space(4.0);
         });
     }
 
     fn right_panel(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::right("rechts")
-            .resizable(false)
-            .exact_width(404.0)
-            .show(ctx, |ui| {
-                ui.add_space(10.0);
-                if self.entries.is_empty() {
-                    ui.add_space(20.0);
-                    ui.vertical_centered(|ui| {
-                        ui.weak(t("Noch keine Dateien."));
-                        ui.add_space(6.0);
-                        if ui
-                            .add(egui::Button::new(
-                                egui::RichText::new(format!("   {}   ", t("Dateien hinzufügen"))).color(egui::Color32::WHITE),
-                            ).fill(vio_fill()))
-                            .clicked()
-                        {
-                            self.pick_files();
-                        }
-                    });
-                    return;
-                }
+        stil::seitenleiste(ctx, 380.0, |ui| {
+            if !self.entries.is_empty() {
                 if self.sel >= self.entries.len() {
                     self.sel = 0;
                 }
                 self.output_card(ui);
-                ui.add_space(12.0);
-                self.action_card(ui);
-            });
+            }
+            self.action_card(ui);
+        });
     }
 
     fn output_card(&mut self, ui: &mut egui::Ui) {
-        card(ui, |ui| {
+        stil::karte(ui, "ausgabe", Sym::Umwandeln, t("Ausgabe"), true, |ui| {
             let kind = self.entries[self.sel].kind;
             let name = self.entries[self.sel].name.clone();
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(t("AUSGABE")).size(11.0).strong().color(thema::muted()));
-                ui.add(egui::Label::new(egui::RichText::new(format!("· {name}")).weak()).truncate());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Label::new(egui::RichText::new(t("Für alle übernehmen")).color(vio()).size(12.0)).sense(egui::Sense::click())).clicked() {
+                ui.add(egui::Label::new(egui::RichText::new(name).weak()).truncate());
+                stil::rechts(ui, |ui| {
+                    if stil::leise(ui, true, Sym::Kopieren, t("Für alle übernehmen"), "").clicked() {
                         self.apply_to_all();
                     }
                 });
@@ -417,60 +393,37 @@ impl App {
     }
 
     fn action_card(&mut self, ui: &mut egui::Ui) {
-        card(ui, |ui| {
-            sub(ui, t("Zielordner"));
+        stil::karte(ui, "zielordner", Sym::Ordner, t("Zielordner"), true, |ui| {
             ui.horizontal(|ui| {
                 ui.add(egui::Label::new(egui::RichText::new(short_dir(&self.out_dir))).truncate());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(t("Wählen …")).clicked() {
+                stil::rechts(ui, |ui| {
+                    if stil::knopf(ui, Sym::OrdnerAuf, t("Wählen …")).clicked() {
                         if let Some(d) = rfd::FileDialog::new().pick_folder() {
                             self.out_dir = d.display().to_string();
                         }
                     }
                 });
             });
-            ui.add_space(12.0);
-            let n = self.entries.len();
-            let btn = egui::Button::new(
-                egui::RichText::new(tf("{n} Dateien umwandeln", &[("n", &n)])).color(egui::Color32::WHITE).size(15.0),
-            )
-            .fill(vio_fill())
-            .min_size(egui::vec2(ui.available_width(), 46.0));
-            if ui.add(btn).clicked() {
-                self.start_all();
-            }
         });
     }
 
     fn left_panel(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
-            card(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(t("DATEIEN")).size(11.0).strong().color(thema::muted()));
-                    ui.weak(format!("{}", self.entries.len()));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(t("Leeren")).clicked() {
-                            self.entries.clear();
-                        }
-                        if ui.add(egui::Button::new(egui::RichText::new(t("+ Hinzufügen")).color(egui::Color32::WHITE)).fill(vio_fill())).clicked() {
-                            self.pick_files();
-                        }
-                    });
-                });
-                ui.add_space(10.0);
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    let mut remove: Option<usize> = None;
-                    for i in 0..self.entries.len() {
-                        self.file_row(ui, i, &mut remove);
-                        ui.add_space(8.0);
-                    }
-                    if let Some(i) = remove {
-                        self.entries.remove(i);
-                    }
-                    ui.add_space(4.0);
-                    ui.weak(t("Dateien hierher ziehen – Ton, Bild oder Video gemischt."));
-                });
+        stil::mitte(ctx, |ui| {
+            if self.entries.is_empty() {
+                stil::leer(ui, Sym::Umwandeln, t("Noch keine Dateien"), t("Dateien hierher ziehen – Ton, Bild oder Video gemischt."));
+                return;
+            }
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                let mut remove: Option<usize> = None;
+                for i in 0..self.entries.len() {
+                    self.file_row(ui, i, &mut remove);
+                    ui.add_space(8.0);
+                }
+                if let Some(i) = remove {
+                    self.entries.remove(i);
+                }
+                ui.add_space(4.0);
+                stil::hinweis(ui, t("Dateien hierher ziehen – Ton, Bild oder Video gemischt."));
             });
         });
     }
@@ -490,9 +443,8 @@ impl App {
                     // Typ-Icon
                     let (ic, _) = ui.allocate_exact_size(egui::vec2(36.0, 36.0), egui::Sense::hover());
                     ui.painter().rect_filled(ic, 9.0, kind_color(e.kind));
-                    ui.painter().text(ic.center(), egui::Align2::CENTER_CENTER,
-                        match e.kind { MediaKind::Audio=>t("T"), MediaKind::Image=>t("B"), MediaKind::Video=>t("V") },
-                        egui::FontId::proportional(15.0), egui::Color32::WHITE);
+                    let s = match e.kind { MediaKind::Audio => Sym::Musik, MediaKind::Image => Sym::Bild, MediaKind::Video => Sym::Film };
+                    stil::sym(ui.painter(), egui::Rect::from_center_size(ic.center(), egui::vec2(20.0, 20.0)), s, egui::Color32::WHITE);
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.add(egui::Label::new(egui::RichText::new(e.name.as_str()).strong().size(13.5)).truncate());
@@ -504,7 +456,7 @@ impl App {
                         }
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(egui::Label::new(egui::RichText::new("×").size(16.0).weak()).sense(egui::Sense::click())).clicked() {
+                        if stil::leise(ui, true, Sym::Kreuz, "", t("Entfernen")).clicked() {
                             *remove = Some(i);
                         }
                         ui.add_space(6.0);
@@ -539,30 +491,6 @@ impl App {
 }
 
 // ---------- Bausteine ----------
-
-fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
-    egui::Frame::none()
-        .fill(thema::panel())
-        .rounding(14.0)
-        .stroke(egui::Stroke::new(1.0, thema::border()))
-        .inner_margin(egui::Margin::symmetric(16.0, 15.0))
-        .show(ui, |ui| {
-            body(ui);
-        });
-}
-
-/// Weisses Doppelpfeil-Symbol für das Logo (gezeichnet, ohne Schrift-Glyph).
-fn paint_convert_logo(p: &egui::Painter, c: egui::Pos2) {
-    let st = egui::Stroke::new(2.0, egui::Color32::WHITE);
-    // oberer Pfeil nach rechts
-    p.line_segment([egui::pos2(c.x - 6.0, c.y - 3.5), egui::pos2(c.x + 6.0, c.y - 3.5)], st);
-    p.line_segment([egui::pos2(c.x + 2.5, c.y - 7.0), egui::pos2(c.x + 6.0, c.y - 3.5)], st);
-    p.line_segment([egui::pos2(c.x + 2.5, c.y), egui::pos2(c.x + 6.0, c.y - 3.5)], st);
-    // unterer Pfeil nach links
-    p.line_segment([egui::pos2(c.x - 6.0, c.y + 3.5), egui::pos2(c.x + 6.0, c.y + 3.5)], st);
-    p.line_segment([egui::pos2(c.x - 6.0, c.y + 3.5), egui::pos2(c.x - 2.5, c.y)], st);
-    p.line_segment([egui::pos2(c.x - 6.0, c.y + 3.5), egui::pos2(c.x - 2.5, c.y + 7.0)], st);
-}
 
 fn sub(ui: &mut egui::Ui, text: &str) {
     ui.label(egui::RichText::new(text).size(12.0).color(thema::muted()));

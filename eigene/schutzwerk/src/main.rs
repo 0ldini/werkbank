@@ -5,6 +5,7 @@ mod netparse;
 mod pwcheck;
 mod recycle;
 mod sprache;
+mod stil;
 mod sys;
 mod thema;
 

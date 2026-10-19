@@ -4,6 +4,7 @@ mod app;
 mod datefmt;
 mod rename;
 mod sprache;
+mod stil;
 mod thema;
 
 fn main() -> eframe::Result<()> {

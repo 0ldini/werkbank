@@ -4,6 +4,7 @@ mod app;
 mod qr;
 mod save;
 mod sprache;
+mod stil;
 mod thema;
 
 use app::App;

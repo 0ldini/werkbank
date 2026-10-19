@@ -4,6 +4,7 @@ mod app;
 mod convert;
 mod model;
 mod sprache;
+mod stil;
 mod thema;
 
 fn main() -> eframe::Result<()> {

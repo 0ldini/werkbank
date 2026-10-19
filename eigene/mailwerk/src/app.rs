@@ -12,6 +12,7 @@ use crate::role::Role;
 use crate::save;
 use crate::sprache::{is_en, t, tf};
 use crate::status;
+use crate::stil::{self, Sym};
 use crate::store::Saved;
 use crate::thema;
 use crate::textutil;
@@ -142,6 +143,7 @@ impl App {
         cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x0B, 0x7A, 0x70]);
+        stil::init(&cc.egui_ctx, [0x0B, 0x7A, 0x70]);
         let saved = cc
             .storage
             .and_then(|s| s.get_string(STORAGE_KEY))
@@ -839,17 +841,7 @@ fn hint_box(ui: &mut egui::Ui, title: &str, text: &str) {
 
 impl App {
     fn ui_nav(&self, ui: &mut egui::Ui, acts: &mut Vec<Act>) {
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            ui.add_space(6.0);
-            ui.heading(RichText::new("Mailwerk").color(accent_text()));
-        });
-        ui.add_space(8.0);
-        let w = ui.available_width();
-        if ui.add_enabled(self.cur_acc().is_some(), egui::Button::new(RichText::new(t("Neue Nachricht")).color(Color32::WHITE)).fill(ACCENT).min_size(vec2(w, 34.0))).clicked() {
-            acts.push(Act::Compose(Mode::New));
-        }
-        ui.add_space(10.0);
+        ui.add_space(6.0);
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for a in &self.saved.accounts {
                 let sel = a.id == self.saved.selected;
@@ -864,14 +856,14 @@ impl App {
                             }
                         }
                     }
-                    if ui.small_button(t("Konto bearbeiten")).clicked() {
+                    if stil::leise(ui, true, Sym::Stift, t("Konto bearbeiten"), "").clicked() {
                         acts.push(Act::EditAccount(a.id));
                     }
                 }
                 ui.add_space(4.0);
             }
             ui.add_space(8.0);
-            if ui.button(t("Konto hinzufügen")).clicked() {
+            if stil::leise(ui, true, Sym::Plus, t("Konto hinzufügen"), "").clicked() {
                 acts.push(Act::AddAccount);
             }
         });
@@ -946,7 +938,7 @@ impl App {
             hint_box(ui, t("Keine Nachricht ausgewählt"), t("Wähle links eine Nachricht aus."));
             return;
         };
-        if narrow && ui.button(t("Zurück")).clicked() {
+        if narrow && stil::leise(ui, true, Sym::Rueckgaengig, t("Zurück"), "").clicked() {
             acts.push(Act::Back);
         }
         let Some(b) = self.open.as_ref().filter(|b| b.id == id) else {
@@ -957,38 +949,6 @@ impl App {
             });
             return;
         };
-        let row = self.cur_acc().and_then(|a| self.saved.cache(a.id)).and_then(|c| c.headers.iter().find(|h| h.id == id));
-        let flagged = row.map_or(false, |r| r.flagged);
-        let has_archive = self.folder_by_role(Role::Archive).is_some() && self.cur_role() != Role::Archive;
-
-        ui.add_space(6.0);
-        ui.horizontal_wrapped(|ui| {
-            if primary_button(ui, t("Antworten")).clicked() {
-                acts.push(Act::Compose(Mode::Reply(false)));
-            }
-            if ui.button(t("Allen antworten")).clicked() {
-                acts.push(Act::Compose(Mode::Reply(true)));
-            }
-            if ui.button(t("Weiterleiten")).clicked() {
-                acts.push(Act::Compose(Mode::Forward));
-            }
-            ui.separator();
-            if ui.button(if flagged { t("★ Markiert") } else { t("☆ Markieren") }).clicked() {
-                acts.push(Act::ToggleFlag);
-            }
-            if ui.button(t("Ungelesen")).clicked() {
-                acts.push(Act::MarkUnread);
-            }
-            if ui.add_enabled(has_archive, egui::Button::new(t("Archivieren"))).clicked() {
-                acts.push(Act::Archive);
-            }
-            let del = if self.cur_role() == Role::Trash { t("Endgültig löschen") } else { t("Löschen") };
-            if ui.button(del).clicked() {
-                acts.push(Act::Delete);
-            }
-        });
-        ui.separator();
-
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.add_space(4.0);
             ui.heading(if b.subject.trim().is_empty() { t("(ohne Betreff)") } else { b.subject.as_str() });
@@ -1017,7 +977,7 @@ impl App {
                 ui.horizontal_wrapped(|ui| {
                     for (i, a) in b.atts.iter().enumerate() {
                         let size = if a.size > 0 { format!(" ({})", textutil::human_size(a.size)) } else { String::new() };
-                        if ui.button(format!("{}{}", a.name, size)).on_hover_text(t("Speichern")).clicked() {
+                        if stil::knopf(ui, Sym::Download, &format!("{}{}", a.name, size)).on_hover_text(t("Speichern")).clicked() {
                             acts.push(Act::SaveAtt(i));
                         }
                     }
@@ -1038,15 +998,19 @@ impl App {
     fn ui_welcome(&self, ui: &mut egui::Ui, acts: &mut Vec<Act>) {
         ui.add_space(60.0);
         ui.vertical_centered(|ui| {
-            ui.heading(RichText::new("Mailwerk").color(accent_text()).size(32.0));
+            let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+            ui.painter().circle_filled(r.center(), 32.0, stil::toenung());
+            stil::sym(ui.painter(), egui::Rect::from_center_size(r.center(), vec2(34.0, 34.0)), Sym::Mail, stil::akzent());
+            ui.add_space(6.0);
+            ui.heading(RichText::new("Mailwerk").color(stil::akzent()).size(30.0));
             ui.add_space(6.0);
             ui.label(t("Dein eigenes Mailprogramm. Ohne Server, ohne Konto bei uns."));
             ui.add_space(24.0);
-            if primary_button(ui, t("Konto hinzufügen")).clicked() {
+            if stil::haupt(ui, true, Sym::Plus, t("Konto hinzufügen")).clicked() {
                 acts.push(Act::AddAccount);
             }
             ui.add_space(8.0);
-            if ui.button(t("Zuerst mit dem Beispielkonto ausprobieren")).clicked() {
+            if stil::knopf(ui, Sym::Mail, t("Zuerst mit dem Beispielkonto ausprobieren")).clicked() {
                 acts.push(Act::AddDemo);
             }
             ui.add_space(24.0);
@@ -1097,7 +1061,7 @@ impl App {
                     });
                     if s.acc.kind != Kind::Demo {
                         ui.add_space(4.0);
-                        if ui.button(t("Server aus der Adresse vorschlagen")).clicked() {
+                        if stil::knopf(ui, Sym::Suche, t("Server aus der Adresse vorschlagen")).clicked() {
                             acts.push(Act::SuggestServers);
                         }
                         if !s.hint.is_empty() {
@@ -1153,13 +1117,13 @@ impl App {
                 });
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if primary_button(ui, t("Speichern")).clicked() {
+                    if stil::haupt(ui, true, Sym::Speichern, t("Speichern")).clicked() {
                         acts.push(Act::SaveSetup);
                     }
-                    if ui.button(t("Abbrechen")).clicked() {
+                    if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                         acts.push(Act::CancelSetup);
                     }
-                    if !s.is_new && ui.button(RichText::new(t("Konto entfernen")).color(err_color())).clicked() {
+                    if !s.is_new && stil::gefahr(ui, true, Sym::Papierkorb, t("Konto entfernen")).clicked() {
                         acts.push(Act::AskDeleteAccount(s.acc.id));
                     }
                 });
@@ -1214,7 +1178,7 @@ impl App {
                 ui.add_space(4.0);
                 ui.horizontal_wrapped(|ui| {
                     for (i, (n, d)) in c.atts.iter().enumerate() {
-                        if ui.small_button(format!("{} ({})  ✕", n, textutil::human_size(d.len()))).on_hover_text(t("Entfernen")).clicked() {
+                        if stil::leise(ui, true, Sym::Kreuz, &format!("{} ({})", n, textutil::human_size(d.len())), t("Entfernen")).clicked() {
                             acts.push(Act::RemoveAttachment(i));
                         }
                     }
@@ -1226,13 +1190,13 @@ impl App {
             }
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.add_enabled(!c.sending, egui::Button::new(RichText::new(t("Senden")).color(Color32::WHITE)).fill(ACCENT).min_size(vec2(90.0, 30.0))).clicked() {
+                if stil::haupt(ui, !c.sending, Sym::Senden, t("Senden")).clicked() {
                     acts.push(Act::SendCompose);
                 }
-                if !cfg!(target_arch = "wasm32") && ui.add_enabled(!c.sending, egui::Button::new(t("Anhang …"))).clicked() {
+                if !cfg!(target_arch = "wasm32") && stil::knopf_an(ui, !c.sending, Sym::Plus, t("Anhang …")).clicked() {
                     acts.push(Act::PickAttachment);
                 }
-                if ui.add_enabled(!c.sending, egui::Button::new(t("Verwerfen"))).clicked() {
+                if stil::gefahr(ui, !c.sending, Sym::Papierkorb, t("Verwerfen")).clicked() {
                     acts.push(Act::CloseCompose);
                 }
                 if c.sending {
@@ -1251,10 +1215,10 @@ impl App {
             ui.label(tf("«{name}» wird aus Mailwerk entfernt. Die Nachrichten auf dem Server bleiben erhalten.", &[("name", &name)]));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.button(RichText::new(t("Entfernen")).color(err_color())).clicked() {
+                if stil::gefahr(ui, true, Sym::Papierkorb, t("Entfernen")).clicked() {
                     acts.push(Act::DeleteAccount(id));
                 }
-                if ui.button(t("Abbrechen")).clicked() {
+                if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                     acts.push(Act::CancelDelete);
                 }
             });
@@ -1270,17 +1234,6 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Farben: Hervorhebung in der Programmfarbe (einmal je Hell/Dunkel).
-        let dark = ctx.style().visuals.dark_mode;
-        if self.styled_dark != Some(dark) {
-            self.styled_dark = Some(dark);
-            ctx.style_mut(|s| {
-                s.visuals.selection.bg_fill = thema::pick(Color32::from_rgb(0xA8, 0xDD, 0xD6), Color32::from_rgb(0x1F, 0x6A, 0x62));
-                s.visuals.selection.stroke = egui::Stroke::new(1.0, accent_text());
-                s.visuals.hyperlink_color = accent_text();
-            });
-        }
-
         // Neue Ereignisse einlesen.
         let mut status_changed = false;
         for ev in self.backend.poll() {
@@ -1312,34 +1265,82 @@ impl eframe::App for App {
         let has_acc = self.cur_acc().is_some();
 
         if has_acc {
-            egui::TopBottomPanel::top("leiste").show(ctx, |ui| {
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    if narrow && ui.button(t("Menü")).clicked() {
-                        acts.push(Act::ToggleNav);
-                    }
-                    ui.add(egui::TextEdit::singleline(&mut self.search).hint_text(t("Suchen …")).desired_width(if narrow { 140.0 } else { 260.0 }));
-                    ui.checkbox(&mut self.only_unread, t("Ungelesen"));
-                    if ui.button(t("Aktualisieren")).clicked() {
+            // Angaben zur offenen Nachricht für die Knöpfe oben.
+            let open_id = self.sel_mail.clone().filter(|id| self.open.as_ref().is_some_and(|b| &b.id == id));
+            let has_mail = open_id.is_some();
+            let flagged = open_id
+                .as_deref()
+                .and_then(|id| self.cur_acc().and_then(|a| self.saved.cache(a.id)).and_then(|c| c.headers.iter().find(|h| h.id == id)))
+                .map_or(false, |r| r.flagged);
+            let has_archive = self.folder_by_role(Role::Archive).is_some() && self.cur_role() != Role::Archive;
+            let del = if self.cur_role() == Role::Trash { t("Endgültig löschen") } else { t("Löschen") };
+            let acc_id = self.saved.selected;
+            let pending = self.pending;
+            stil::kopfleiste(ctx, |ui| {
+                if narrow && stil::leise(ui, true, Sym::Ebenen, "", t("Menü")).clicked() {
+                    acts.push(Act::ToggleNav);
+                }
+                stil::titel(ui, "Mailwerk");
+                if stil::haupt(ui, true, Sym::Stift, t("Neue Nachricht")).clicked() {
+                    acts.push(Act::Compose(Mode::New));
+                }
+                stil::trenner(ui);
+                if stil::knopf_an(ui, has_mail, Sym::Rueckgaengig, t("Antworten")).clicked() {
+                    acts.push(Act::Compose(Mode::Reply(false)));
+                }
+                if !narrow && stil::knopf_an(ui, has_mail, Sym::Rueckgaengig, t("Allen antworten")).clicked() {
+                    acts.push(Act::Compose(Mode::Reply(true)));
+                }
+                if stil::knopf_an(ui, has_mail, Sym::Senden, t("Weiterleiten")).clicked() {
+                    acts.push(Act::Compose(Mode::Forward));
+                }
+                stil::trenner(ui);
+                if stil::leise(ui, has_mail, Sym::Stern, "", if flagged { t("★ Markiert") } else { t("☆ Markieren") }).clicked() {
+                    acts.push(Act::ToggleFlag);
+                }
+                if stil::leise(ui, has_mail, Sym::Mail, "", t("Ungelesen")).clicked() {
+                    acts.push(Act::MarkUnread);
+                }
+                if stil::leise(ui, has_mail && has_archive, Sym::Archiv, "", t("Archivieren")).clicked() {
+                    acts.push(Act::Archive);
+                }
+                if stil::gefahr(ui, has_mail, Sym::Papierkorb, if narrow { "" } else { del }).on_hover_text(del).clicked() {
+                    acts.push(Act::Delete);
+                }
+                stil::rechts(ui, |ui| {
+                    stil::menue(ui, true, Sym::Zahnrad, "", |ui| {
+                        if stil::eintrag(ui, true, Sym::Stift, t("Konto bearbeiten")).clicked() {
+                            acts.push(Act::EditAccount(acc_id));
+                        }
+                        if stil::eintrag(ui, true, Sym::Plus, t("Konto hinzufügen")).clicked() {
+                            acts.push(Act::AddAccount);
+                        }
+                    });
+                    if stil::leise(ui, true, Sym::Aktualisieren, "", t("Aktualisieren")).clicked() {
                         acts.push(Act::Refresh);
                     }
-                    if self.pending > 0 {
+                    if pending > 0 {
                         ui.spinner();
                     }
+                    ui.checkbox(&mut self.only_unread, t("Ungelesen"));
+                    ui.add(egui::TextEdit::singleline(&mut self.search).hint_text(t("Suchen …")).desired_width(if narrow { 120.0 } else { 220.0 }));
+                    stil::symbol(ui, Sym::Suche, 16.0, thema::muted());
                 });
-                ui.add_space(4.0);
             });
         }
 
         if self.status.is_some() {
-            egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
+            stil::fussleiste(ctx, |ui| {
                 if let Some((text, err)) = &self.status {
-                    ui.horizontal_wrapped(|ui| {
+                    ui.horizontal(|ui| {
+                        stil::symbol(ui, if *err { Sym::Warnung } else { Sym::Info }, 16.0, if *err { err_color() } else { stil::akzent() });
                         let r = RichText::new(text);
                         ui.label(if *err { r.color(err_color()) } else { r });
-                        if ui.small_button("OK").clicked() {
-                            acts.push(Act::ClearStatus);
-                        }
+                        stil::rechts(ui, |ui| {
+                            if stil::leise(ui, true, Sym::Kreuz, "", t("Ausblenden")).clicked() {
+                                acts.push(Act::ClearStatus);
+                            }
+                        });
                     });
                 }
             });
@@ -1358,7 +1359,11 @@ impl eframe::App for App {
                 }
             });
         } else {
-            egui::SidePanel::left("nav").resizable(false).exact_width(220.0).show(ctx, |ui| self.ui_nav(ui, &mut acts));
+            egui::SidePanel::left("nav")
+                .resizable(false)
+                .exact_width(220.0)
+                .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(8.0)).stroke(egui::Stroke::new(1.0, thema::border())))
+                .show(ctx, |ui| self.ui_nav(ui, &mut acts));
             egui::SidePanel::left("liste")
                 .resizable(true)
                 .default_width(380.0)

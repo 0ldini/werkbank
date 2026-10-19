@@ -16,33 +16,23 @@ use crate::lauf;
 use crate::motor::{self, Fortschritt, Stand, StandEintrag, Vorschau};
 use crate::plan;
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::store;
 use crate::thema;
 
 // ------------------------------------------------------------------ Farben
 
-fn rgb(r: u8, g: u8, b: u8) -> egui::Color32 {
-    egui::Color32::from_rgb(r, g, b)
-}
-/// Schrift-/Linienfarbe der Akzentfarbe (Petrol).
 fn akzent() -> egui::Color32 {
-    thema::pick(rgb(0x0f, 0x76, 0x6e), rgb(0x2d, 0xd4, 0xbf))
-}
-/// Füllung der Hauptschaltfläche (weisse Schrift darauf).
-fn akzent_fill() -> egui::Color32 {
-    rgb(0x0f, 0x76, 0x6e)
-}
-fn akzent_soft() -> egui::Color32 {
-    thema::pick(rgb(0xe6, 0xf4, 0xf2), rgb(0x16, 0x33, 0x31))
+    stil::akzent()
 }
 fn gruen() -> egui::Color32 {
-    thema::pick(rgb(0x15, 0x80, 0x3d), rgb(0x4a, 0xde, 0x80))
+    stil::gruen()
 }
 fn orange() -> egui::Color32 {
-    thema::pick(rgb(0xb4, 0x53, 0x09), rgb(0xfb, 0xbf, 0x24))
+    stil::orange()
 }
 fn rot() -> egui::Color32 {
-    thema::pick(rgb(0xb9, 0x1c, 0x1c), rgb(0xf8, 0x71, 0x71))
+    stil::rot()
 }
 
 fn ergebnis_farbe(e: Ergebnis) -> egui::Color32 {
@@ -57,18 +47,8 @@ fn karte() -> egui::Frame {
     egui::Frame::none()
         .fill(thema::panel())
         .stroke(egui::Stroke::new(1.0, thema::border()))
-        .rounding(8.0)
+        .rounding(12.0)
         .inner_margin(egui::Margin::symmetric(14.0, 12.0))
-}
-
-fn haupt_knopf(text: &str) -> egui::Button<'static> {
-    egui::Button::new(egui::RichText::new(text.to_string()).color(egui::Color32::WHITE).strong()).fill(akzent_fill())
-}
-
-fn ueberschrift(ui: &mut egui::Ui, text: &str) {
-    ui.add_space(4.0);
-    ui.label(egui::RichText::new(text).strong().size(15.0));
-    ui.add_space(2.0);
 }
 
 fn grau(ui: &mut egui::Ui, text: impl Into<String>) {
@@ -243,6 +223,7 @@ impl App {
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x3D, 0x5A, 0x80]);
+        stil::init(&cc.egui_ctx, [0x3D, 0x5A, 0x80]);
         let mut app = App {
             daten: Daten::default(),
             sel: None,
@@ -778,72 +759,140 @@ impl eframe::App for App {
             ctx.request_repaint_after(Duration::from_secs(5));
         }
 
-        self.kopf(ctx);
-        self.fuss(ctx);
+        let gesp = self.gespeichert().cloned();
+        stil::kopfleiste(ctx, |ui| self.kopf(ui, gesp.as_ref()));
+        if let Some(a) = gesp.as_ref() {
+            let n = self.wh.auswahl.len();
+            if self.tab == Tab::Wiederherstellen && self.wh.auftrag_id == Some(a.id) && n > 0 {
+                stil::auswahlleiste(ctx, &tf("{n} ausgewählt", &[("n", &n)]), |ui| self.auswahlzeile(ui, a));
+            }
+        }
+        stil::fussleiste(ctx, |ui| self.fuss(ui, gesp.as_ref()));
         self.liste(ctx);
-        egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::symmetric(18.0, 14.0)))
-            .show(ctx, |ui| self.mitte(ui));
+        stil::mitte(ctx, |ui| {
+            egui::Frame::none().inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| self.mitte(ui));
+        });
         self.fenster(ctx);
     }
 }
 
 impl App {
-    fn kopf(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("kopf")
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::panel())
-                    .stroke(egui::Stroke::new(1.0, thema::border()))
-                    .inner_margin(egui::Margin::symmetric(16.0, 10.0)),
-            )
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Sicherwerk").size(20.0).strong().color(akzent()));
-                    ui.add_space(8.0);
-                    ui.label(egui::RichText::new(t("Ordner regelmässig sichern")).color(thema::muted()));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let r = ui.add_enabled(self.job.is_none(), haupt_knopf(t("+ Neuer Auftrag")));
-                        if r.clicked() {
-                            if self.dirty() {
-                                self.wechsel = Some(None);
-                                // Nach dem Speichern/Verwerfen wird ein neuer Auftrag angelegt.
-                                self.neuer_nach_wechsel = true;
-                            } else {
-                                self.neuer_auftrag();
-                            }
-                        }
-                    });
-                });
-            });
+    /// Kann der Auftrag jetzt laufen? Sonst mit Grund.
+    fn bereit(&self, a: &Auftrag) -> (bool, &'static str) {
+        let frei = self.job.is_none() && !self.dirty();
+        let bereit = frei && !a.quellen.is_empty() && !a.ziel.trim().is_empty();
+        let warum = if self.job.is_some() {
+            t("Es läuft gerade etwas.")
+        } else if self.dirty() {
+            t("Zuerst die Änderungen speichern.")
+        } else {
+            t("Zuerst Quellordner und Ziel wählen.")
+        };
+        (bereit, warum)
     }
 
-    fn fuss(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("fuss")
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::panel())
-                    .stroke(egui::Stroke::new(1.0, thema::border()))
-                    .inner_margin(egui::Margin::symmetric(16.0, 7.0)),
-            )
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if let Some((text, ton)) = &self.meldung {
+    fn neu_klick(&mut self) {
+        if self.dirty() {
+            self.wechsel = Some(None);
+            // Nach dem Speichern/Verwerfen wird ein neuer Auftrag angelegt.
+            self.neuer_nach_wechsel = true;
+        } else {
+            self.neuer_auftrag();
+        }
+    }
+
+    /// Kopfleiste: Neuer Auftrag | Vorschau, Prüfen; rechts der Speicherort.
+    fn kopf(&mut self, ui: &mut egui::Ui, gesp: Option<&Auftrag>) {
+        stil::titel(ui, "Sicherwerk");
+        stil::trenner(ui);
+        if stil::knopf_an(ui, self.job.is_none(), Sym::Plus, t("Neuer Auftrag")).clicked() {
+            self.neu_klick();
+        }
+        if let Some(a) = gesp {
+            let (bereit, warum) = self.bereit(a);
+            stil::trenner(ui);
+            let r = stil::knopf_an(ui, bereit, Sym::Auge, t("Vorschau"));
+            let r = r.on_hover_text(if bereit { t("Zeigt, was beim Sichern passieren würde – ohne etwas zu verändern.") } else { warum });
+            if r.clicked() {
+                self.vorschau_starten(a.clone());
+            }
+            let r = stil::knopf_an(ui, bereit, Sym::Schild, t("Prüfen"));
+            let r = r.on_hover_text(if bereit {
+                t("Stichprobe: Dateien der Sicherung lesen und per Prüfsumme mit der Quelle vergleichen.")
+            } else {
+                warum
+            });
+            if r.clicked() {
+                self.pruefen_starten(a.clone());
+            }
+        }
+        stil::rechts(ui, |ui| {
+            if let Some(p) = store::datei() {
+                stil::leise(ui, true, Sym::Info, "", "")
+                    .on_hover_text(format!("{}\n{}", t("Hier speichert Sicherwerk Aufträge und Protokolle."), p.display()));
+            }
+            stil::grau(ui, t("Ordner regelmässig sichern"));
+        });
+    }
+
+    /// Auswahlleiste im Reiter Wiederherstellen.
+    fn auswahlzeile(&mut self, ui: &mut egui::Ui, a: &Auftrag) {
+        let r = stil::knopf_an(ui, self.job.is_none(), Sym::Upload, t("Wiederherstellen nach …"))
+            .on_hover_text(t("In einen frei gewählten Ordner. Vorhandene Dateien werden nie überschrieben – bei gleichem Namen heisst die neue «Name (2)»."));
+        if r.clicked() {
+            if let Some(ziel) = rfd::FileDialog::new().set_title(t("Wohin wiederherstellen?")).pick_folder() {
+                if let Some(s) = self.wh.gewaehlt.clone() {
+                    let auswahl: Vec<String> = self.wh.auswahl.iter().cloned().collect();
+                    self.wiederherstellen_starten(a.clone(), s, auswahl, ziel);
+                }
+            }
+        }
+        stil::rechts(ui, |ui| {
+            if stil::leise(ui, true, Sym::Kreuz, t("Auswahl leeren"), "").clicked() {
+                self.wh.auswahl.clear();
+            }
+        });
+    }
+
+    /// Fussleiste: links Meldung, rechts «Jetzt sichern» (beim Laufen: Abbrechen).
+    fn fuss(&mut self, ui: &mut egui::Ui, gesp: Option<&Auftrag>) {
+        ui.horizontal(|ui| {
+            stil::rechts(ui, |ui| {
+                if let Some(a) = gesp {
+                    let (bereit, warum) = self.bereit(a);
+                    let r = stil::haupt(ui, bereit, Sym::Speichern, t("Jetzt sichern"));
+                    let r = if bereit { r } else { r.on_hover_text(warum) };
+                    if r.clicked() {
+                        if a.vorschau_gesehen {
+                            self.sichern_starten(a.clone(), Ausloeser::Hand);
+                        } else {
+                            // Vor dem ersten Lauf (und nach Änderungen) zuerst zeigen, was passiert.
+                            self.vorschau_starten(a.clone());
+                        }
+                    }
+                }
+                if let Some(j) = &self.job {
+                    if !matches!(j.art, JobArt::Staende) && stil::knopf_an(ui, !j.fs.abgebrochen(), Sym::Stopp, t("Abbrechen")).clicked() {
+                        j.fs.abbrechen();
+                    }
+                    ui.spinner();
+                }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| match &self.meldung {
+                    Some((text, ton)) => {
                         let c = match ton {
                             Ton::Gut => gruen(),
                             Ton::Warnung => orange(),
                             Ton::Fehler => rot(),
                         };
-                        ui.label(egui::RichText::new(text).color(c));
+                        ui.add(egui::Label::new(egui::RichText::new(text).size(13.0).color(c)).truncate());
                     }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if let Some(p) = store::datei() {
-                            ui.label(egui::RichText::new(p.display().to_string()).small().color(thema::muted()))
-                                .on_hover_text(t("Hier speichert Sicherwerk Aufträge und Protokolle."));
-                        }
-                    });
+                    None => {
+                        let n = self.daten.auftraege.len();
+                        stil::grau(ui, &tf("{n} Aufträge", &[("n", &n)]));
+                    }
                 });
             });
+        });
     }
 
     fn liste(&mut self, ctx: &egui::Context) {
@@ -853,26 +902,29 @@ impl App {
             .min_width(220.0)
             .frame(
                 egui::Frame::none()
-                    .fill(thema::panel())
+                    .fill(thema::bg())
                     .stroke(egui::Stroke::new(1.0, thema::border()))
-                    .inner_margin(egui::Margin::symmetric(10.0, 12.0)),
+                    .inner_margin(egui::Margin::same(10.0)),
             )
             .show(ctx, |ui| {
-                ui.label(egui::RichText::new(t("Sicherungsaufträge")).strong());
+                ui.horizontal(|ui| {
+                    stil::symbol(ui, Sym::Schild, 16.0, akzent());
+                    ui.label(egui::RichText::new(t("Sicherungsaufträge")).size(14.0).strong());
+                });
                 ui.add_space(6.0);
                 if self.daten.auftraege.is_empty() {
-                    grau(ui, t("Noch keine Aufträge. Oben «+ Neuer Auftrag» wählen."));
+                    stil::hinweis(ui, t("Noch keine Aufträge. Oben «Neuer Auftrag» wählen."));
                 }
                 let mut klick: Option<u64> = None;
                 egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                     for a in &self.daten.auftraege {
                         let gewaehlt = self.sel == Some(a.id);
-                        let fill = if gewaehlt { akzent_soft() } else { thema::panel() };
-                        let rand = if gewaehlt { akzent() } else { thema::border() };
+                        let fill = if gewaehlt { stil::toenung() } else { thema::panel() };
+                        let rand = if gewaehlt { stil::mix(stil::farbe(), thema::border(), 0.5) } else { thema::border() };
                         let resp = egui::Frame::none()
                             .fill(fill)
                             .stroke(egui::Stroke::new(1.0, rand))
-                            .rounding(7.0)
+                            .rounding(10.0)
                             .inner_margin(egui::Margin::symmetric(10.0, 8.0))
                             .show(ui, |ui| {
                                 ui.set_width(ui.available_width());
@@ -883,19 +935,19 @@ impl App {
                                 };
                                 let zp = t(a.zeitplan.text());
                                 grau(ui, format!("{art} · {zp}"));
-                                match self.daten.letztes(a.id, Taetigkeit::Sichern) {
-                                    Some(p) => {
-                                        ui.label(
-                                            egui::RichText::new(format!("● {} · {}", p.start.get(..16).unwrap_or(&p.start), t(p.ergebnis.text())))
-                                                .small()
-                                                .color(ergebnis_farbe(p.ergebnis)),
-                                        );
+                                ui.horizontal(|ui| {
+                                    if self.job.as_ref().is_some_and(|j| j.auftrag_id == a.id) {
+                                        stil::marke(ui, t("läuft …"), stil::blau(), 0.0);
+                                    } else {
+                                        match self.daten.letztes(a.id, Taetigkeit::Sichern) {
+                                            Some(p) => {
+                                                stil::marke(ui, t(p.ergebnis.text()), ergebnis_farbe(p.ergebnis), 0.0);
+                                                grau(ui, p.start.get(..16).unwrap_or(&p.start).to_string());
+                                            }
+                                            None => grau(ui, t("Noch nie gesichert")),
+                                        }
                                     }
-                                    None => grau(ui, t("Noch nie gesichert")),
-                                }
-                                if self.job.as_ref().is_some_and(|j| j.auftrag_id == a.id) {
-                                    ui.label(egui::RichText::new(t("läuft …")).small().color(akzent()));
-                                }
+                                });
                             })
                             .response;
                         let resp = ui.interact(resp.rect, ui.id().with(("auftrag", a.id)), egui::Sense::click());
@@ -917,13 +969,15 @@ impl App {
 
     fn mitte(&mut self, ui: &mut egui::Ui) {
         let Some(gesp) = self.gespeichert().cloned() else {
-            ui.add_space(40.0);
+            stil::leer(
+                ui,
+                Sym::Schild,
+                t("Willkommen bei Sicherwerk"),
+                t("Lege einen Sicherungsauftrag an: welche Ordner, wohin (USB-Stick, zweite Festplatte, NAS) und wie."),
+            );
+            ui.add_space(12.0);
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new(t("Willkommen bei Sicherwerk")).size(20.0).strong());
-                ui.add_space(6.0);
-                ui.label(t("Lege einen Sicherungsauftrag an: welche Ordner, wohin (USB-Stick, zweite Festplatte, NAS) und wie."));
-                ui.add_space(12.0);
-                if ui.add(haupt_knopf(t("+ Neuer Auftrag"))).clicked() {
+                if stil::knopf(ui, Sym::Plus, t("Neuer Auftrag")).clicked() {
                     self.neuer_auftrag();
                 }
             });
@@ -931,21 +985,16 @@ impl App {
         };
         self.aktionen(ui, &gesp);
         ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            for (tab, text) in [
+        stil::wahl(
+            ui,
+            &mut self.tab,
+            &[
                 (Tab::Einstellungen, t("Einstellungen")),
                 (Tab::Zeitplan, t("Zeitplan")),
                 (Tab::Protokoll, t("Protokoll")),
                 (Tab::Wiederherstellen, t("Wiederherstellen")),
-            ] {
-                let an = self.tab == tab;
-                let rt = egui::RichText::new(text).strong();
-                let rt = if an { rt.color(akzent()) } else { rt.color(thema::muted()) };
-                if ui.add(egui::SelectableLabel::new(an, rt)).clicked() {
-                    self.tab = tab;
-                }
-            }
-        });
+            ],
+        );
         ui.add_space(6.0);
         match self.tab {
             Tab::Einstellungen => {
@@ -976,39 +1025,13 @@ impl App {
                         None => grau(ui, t("Noch keine Sicherung.")),
                     }
                 });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let frei = self.job.is_none() && !self.dirty();
-                    let bereit = frei && !a.quellen.is_empty() && !a.ziel.trim().is_empty();
-                    let warum = if self.job.is_some() {
-                        t("Es läuft gerade etwas.")
-                    } else if self.dirty() {
-                        t("Zuerst die Änderungen speichern.")
-                    } else {
-                        t("Zuerst Quellordner und Ziel wählen.")
-                    };
-                    let r = ui.add_enabled(bereit, egui::Button::new(t("Prüfen"))).on_hover_text(t("Stichprobe: Dateien der Sicherung lesen und per Prüfsumme mit der Quelle vergleichen.",
-                    ));
-                    let r = r.on_disabled_hover_text(warum);
-                    if r.clicked() {
-                        self.pruefen_starten(a.clone());
+                if let Some(j) = &self.job {
+                    if j.auftrag_id != a.id {
+                        stil::rechts(ui, |ui| {
+                            stil::marke(ui, &tf("läuft: {name}", &[("name", &j.name)]), stil::blau(), 0.0);
+                        });
                     }
-                    let r = ui.add_enabled(bereit, haupt_knopf(t("Jetzt sichern"))).on_disabled_hover_text(warum);
-                    if r.clicked() {
-                        if a.vorschau_gesehen {
-                            self.sichern_starten(a.clone(), Ausloeser::Hand);
-                        } else {
-                            // Vor dem ersten Lauf (und nach Änderungen) zuerst zeigen, was passiert.
-                            self.vorschau_starten(a.clone());
-                        }
-                    }
-                    let r = ui
-                        .add_enabled(bereit, egui::Button::new(t("Vorschau")))
-                        .on_hover_text(t("Zeigt, was beim Sichern passieren würde – ohne etwas zu verändern."))
-                        .on_disabled_hover_text(warum);
-                    if r.clicked() {
-                        self.vorschau_starten(a.clone());
-                    }
-                });
+                }
             });
             if let Some(j) = &self.job {
                 ui.add_space(8.0);
@@ -1021,18 +1044,11 @@ impl App {
                     JobArt::Wiederherstellen => tf("Wiederherstellen: {name}", &[("name", &j.name)]),
                     JobArt::Staende | JobArt::Inhalt => tf("Sicherung lesen: {name}", &[("name", &j.name)]),
                 };
-                let abbrechbar = !matches!(j.art, JobArt::Staende);
                 let vergangen = plan::dauer_text(j.start.elapsed().as_secs());
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(titel).strong());
                     ui.label(egui::RichText::new(t(fs_.phase().text())).color(thema::muted()));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if abbrechbar {
-                            let r = ui.add_enabled(!fs_.abgebrochen(), egui::Button::new(t("Abbrechen")));
-                            if r.clicked() {
-                                fs_.abbrechen();
-                            }
-                        }
+                    stil::rechts(ui, |ui| {
                         ui.label(egui::RichText::new(vergangen).color(thema::muted()));
                     });
                 });
@@ -1040,7 +1056,7 @@ impl App {
                     Some(f) => egui::ProgressBar::new(f).show_percentage(),
                     None => egui::ProgressBar::new(0.0).animate(true),
                 };
-                ui.add(bar);
+                ui.add(bar.fill(stil::farbe()));
                 use std::sync::atomic::Ordering::Relaxed;
                 let df = fs_.dateien_fertig.load(Relaxed);
                 let dg = fs_.dateien_gesamt.load(Relaxed);
@@ -1069,27 +1085,29 @@ impl App {
         let mut quelle_weg: Option<usize> = None;
         let mut quelle_dazu: Option<String> = None;
 
-        karte().show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ueberschrift(ui, t("Name"));
-            ui.add(egui::TextEdit::singleline(&mut e.name).desired_width(360.0).hint_text(t("z. B. Fotos auf USB-Stick")));
+        stil::karte(ui, "name", Sym::Stift, t("Name"), true, |ui| {
+            ui.add(egui::TextEdit::singleline(&mut e.name).desired_width(f32::INFINITY).hint_text(t("z. B. Fotos auf USB-Stick")));
+        });
 
-            ueberschrift(ui, t("Quellordner"));
-            grau(ui, t("Diese Ordner werden gesichert. Sicherwerk liest sie nur – es verändert und löscht darin nie etwas."));
+        stil::karte(ui, "quellen", Sym::Ordner, t("Quellordner"), true, |ui| {
+            stil::hinweis(ui, t("Diese Ordner werden gesichert. Sicherwerk liest sie nur – es verändert und löscht darin nie etwas."));
             if e.quellen.is_empty() {
                 ui.label(egui::RichText::new(t("Noch kein Ordner gewählt.")).color(orange()));
             }
             for (i, q) in e.quellen.iter().enumerate() {
                 ui.horizontal(|ui| {
-                    if ui.small_button("✖").on_hover_text(t("Aus dem Auftrag entfernen")).clicked() {
-                        quelle_weg = Some(i);
-                    }
+                    stil::symbol(ui, Sym::Ordner, 16.0, akzent());
                     ui.label(egui::RichText::new(&q.pfad).monospace());
                     grau(ui, tf("→ im Ziel: {name}", &[("name", &q.name)]));
+                    stil::rechts(ui, |ui| {
+                        if stil::leise(ui, true, Sym::Kreuz, "", t("Aus dem Auftrag entfernen")).clicked() {
+                            quelle_weg = Some(i);
+                        }
+                    });
                 });
             }
             ui.horizontal(|ui| {
-                if ui.button(t("+ Ordner wählen …")).clicked() {
+                if stil::knopf(ui, Sym::Plus, t("Ordner wählen …")).clicked() {
                     if let Some(p) = rfd::FileDialog::new().set_title(t("Quellordner wählen")).pick_folder() {
                         quelle_dazu = Some(p.display().to_string());
                     }
@@ -1099,17 +1117,18 @@ impl App {
                         .desired_width(300.0)
                         .hint_text(tf("oder Pfad eingeben, z. B. {beispiel}", &[("beispiel", &"\\\\nas\\daten")])),
                 );
-                if ui.add_enabled(!self.neuer_pfad.trim().is_empty(), egui::Button::new(t("Hinzufügen"))).clicked() {
+                if stil::knopf_text(ui, !self.neuer_pfad.trim().is_empty(), t("Hinzufügen")).clicked() {
                     quelle_dazu = Some(self.neuer_pfad.trim().to_string());
                     self.neuer_pfad.clear();
                 }
             });
+        });
 
-            ueberschrift(ui, t("Ziel"));
-            grau(ui, t("USB-Stick, zweite Festplatte oder Netzwerkpfad (NAS). Darin legt Sicherwerk einen Ordner mit dem Auftragsnamen an."));
+        stil::karte(ui, "ziel", Sym::Speichern, t("Ziel"), true, |ui| {
+            stil::hinweis(ui, t("USB-Stick, zweite Festplatte oder Netzwerkpfad (NAS). Darin legt Sicherwerk einen Ordner mit dem Auftragsnamen an."));
             ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut e.ziel).desired_width(420.0).hint_text(t("z. B. E:\\Sicherung oder /media/oli/USB")));
-                if ui.button(t("Wählen …")).clicked() {
+                ui.add(egui::TextEdit::singleline(&mut e.ziel).desired_width((ui.available_width() - 110.0).max(160.0)).hint_text(t("z. B. E:\\Sicherung oder /media/oli/USB")));
+                if stil::knopf(ui, Sym::OrdnerAuf, t("Wählen …")).clicked() {
                     if let Some(p) = rfd::FileDialog::new().set_title(t("Ziel wählen")).pick_folder() {
                         e.ziel = p.display().to_string();
                     }
@@ -1129,33 +1148,31 @@ impl App {
                     ui.label(egui::RichText::new(t("Das Ziel liegt in einem Quellordner – so kann nicht gesichert werden.")).color(rot()));
                 }
             }
+        });
 
-            ueberschrift(ui, t("Art der Sicherung"));
-            ui.radio_value(&mut e.art, Art::Spiegeln, t("Spiegeln – nur Neues und Geändertes kopieren"));
-            ui.radio_value(&mut e.art, Art::Versionen, t("Versionen – bei jedem Lauf ein eigener, datierter Stand"));
-            ui.add_space(4.0);
-            ui.indent("art", |ui| match e.art {
+        stil::karte(ui, "art", Sym::Kopieren, t("Art der Sicherung"), true, |ui| {
+            stil::wahl(ui, &mut e.art, &[(Art::Spiegeln, t("Spiegeln")), (Art::Versionen, t("Versionen"))]);
+            match e.art {
                 Art::Spiegeln => {
-                    grau(ui, t("Verglichen wird nach Grösse und Änderungszeit. Das Ziel ist danach ein genaues Abbild der Quelle."));
-                    ui.horizontal(|ui| {
-                        ui.label(t("Im Ziel nicht mehr vorhandene Dateien:"));
-                        let text = |x: Entfernte| match x {
-                            Entfernte::Verschieben => t("nach _entfernt/<Datum> verschieben"),
-                            Entfernte::Loeschen => t("im Ziel löschen"),
-                            Entfernte::Behalten => t("im Ziel behalten"),
-                        };
-                        egui::ComboBox::from_id_salt("entfernte").selected_text(text(e.entfernte)).show_ui(ui, |ui| {
-                            for x in [Entfernte::Verschieben, Entfernte::Loeschen, Entfernte::Behalten] {
-                                ui.selectable_value(&mut e.entfernte, x, text(x));
-                            }
-                        });
+                    stil::hinweis(ui, t("Spiegeln – nur Neues und Geändertes kopieren"));
+                    stil::hinweis(ui, t("Verglichen wird nach Grösse und Änderungszeit. Das Ziel ist danach ein genaues Abbild der Quelle."));
+                    stil::feld(ui, t("Im Ziel nicht mehr vorhandene Dateien:"), |ui| {
+                        stil::liste(
+                            ui,
+                            "entfernte",
+                            &mut e.entfernte,
+                            &[
+                                (Entfernte::Verschieben, t("nach _entfernt/<Datum> verschieben")),
+                                (Entfernte::Loeschen, t("im Ziel löschen")),
+                                (Entfernte::Behalten, t("im Ziel behalten")),
+                            ],
+                        );
                     });
                 }
                 Art::Versionen => {
-                    ui.horizontal(|ui| {
-                        ui.label(t("Form:"));
-                        ui.radio_value(&mut e.form, VersionForm::Ordner, t("Ordner"));
-                        ui.radio_value(&mut e.form, VersionForm::Zip, t("ZIP-Datei"));
+                    stil::hinweis(ui, t("Versionen – bei jedem Lauf ein eigener, datierter Stand"));
+                    stil::feld(ui, t("Form:"), |ui| {
+                        stil::wahl(ui, &mut e.form, &[(VersionForm::Ordner, t("Ordner")), (VersionForm::Zip, t("ZIP-Datei"))]);
                     });
                     ui.horizontal(|ui| {
                         ui.label(t("Aufbewahren: die letzten"));
@@ -1163,18 +1180,18 @@ impl App {
                         ui.label(t("Versionen"));
                     });
                     if e.form == VersionForm::Ordner {
-                        ui.checkbox(&mut e.verknuepfen, t("Unveränderte Dateien nicht doppelt speichern (harte Verknüpfung)"))
-                            .on_hover_text(t("Jede Version sieht vollständig aus, belegt aber nur Platz für Geändertes. Geht auf NTFS und Linux-Dateisystemen, nicht auf FAT/exFAT – dann wird kopiert.",
-                            ));
+                        stil::schalter(ui, &mut e.verknuepfen, t("Unveränderte Dateien nicht doppelt speichern (harte Verknüpfung)"));
+                        stil::hinweis(ui, t("Jede Version sieht vollständig aus, belegt aber nur Platz für Geändertes. Geht auf NTFS und Linux-Dateisystemen, nicht auf FAT/exFAT – dann wird kopiert."));
                     } else {
-                        grau(ui, t("ZIP ohne Kompression: schnell, und jede Datei lässt sich mit jedem Entpacker öffnen."));
+                        stil::hinweis(ui, t("ZIP ohne Kompression: schnell, und jede Datei lässt sich mit jedem Entpacker öffnen."));
                     }
                 }
-            });
+            }
+        });
 
-            ueberschrift(ui, t("Ausschlüsse"));
-            grau(ui, t("Ein Muster pro Zeile. Ohne / gilt es für Datei- und Ordnernamen überall (*.tmp, node_modules, Cache), mit / für Pfade ab dem Quellordner (Projekte/*/build). ** steht für beliebig viele Ordner."));
-            ui.add(egui::TextEdit::multiline(&mut self.ausschluss_text).desired_rows(5).desired_width(420.0).font(egui::TextStyle::Monospace));
+        stil::karte(ui, "ausschluesse", Sym::Kreuz, t("Ausschlüsse"), true, |ui| {
+            stil::hinweis(ui, t("Ein Muster pro Zeile. Ohne / gilt es für Datei- und Ordnernamen überall (*.tmp, node_modules, Cache), mit / für Pfade ab dem Quellordner (Projekte/*/build). ** steht für beliebig viele Ordner."));
+            ui.add(egui::TextEdit::multiline(&mut self.ausschluss_text).desired_rows(5).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace));
             ui.horizontal_wrapped(|ui| {
                 grau(ui, t("Schnell dazu:"));
                 for v in AUSSCHLUSS_VORSCHLAEGE {
@@ -1189,8 +1206,9 @@ impl App {
             });
             e.ausschluesse =
                 self.ausschluss_text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect();
+        });
 
-            ueberschrift(ui, t("Prüfen"));
+        stil::karte(ui, "pruefen", Sym::Schild, t("Prüfen"), false, |ui| {
             ui.horizontal(|ui| {
                 ui.label(t("Stichprobe:"));
                 ui.add(egui::DragValue::new(&mut e.stichprobe).range(1..=100_000));
@@ -1226,12 +1244,12 @@ impl App {
         ui.add_space(10.0);
         let dirty = self.dirty_mit(&e);
         ui.horizontal(|ui| {
-            if ui.add_enabled(dirty, haupt_knopf(t("Speichern"))).clicked() {
+            if stil::knopf_an(ui, dirty, Sym::Speichern, t("Speichern")).clicked() {
                 self.entwurf = Some(e.clone());
                 self.speichern();
                 e = self.entwurf.clone().unwrap_or(e.clone());
             }
-            if ui.add_enabled(dirty, egui::Button::new(t("Verwerfen"))).clicked() {
+            if stil::knopf_text(ui, dirty, t("Verwerfen")).clicked() {
                 if let Some(a) = self.gespeichert().cloned() {
                     self.ausschluss_text = a.ausschluesse.join("\n");
                     e = a;
@@ -1241,7 +1259,7 @@ impl App {
                 ui.label(egui::RichText::new(t("Ungespeicherte Änderungen")).color(orange()));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let r = ui.add_enabled(self.job.is_none(), egui::Button::new(egui::RichText::new(t("Auftrag löschen …")).color(rot())));
+                let r = stil::gefahr(ui, self.job.is_none(), Sym::Papierkorb, t("Auftrag löschen …"));
                 if r.clicked() {
                     self.loeschen_frage = Some(e.id);
                 }
@@ -1258,12 +1276,9 @@ impl App {
 
     fn zeitplan_tab(&mut self, ui: &mut egui::Ui, gesp: &Auftrag) {
         let Some(mut e) = self.entwurf.take() else { return };
-        karte().show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ueberschrift(ui, t("Wann sichern?"));
-            for z in Zeitplan::ALLE {
-                ui.radio_value(&mut e.zeitplan, z, t(z.text()));
-            }
+        stil::karte(ui, "wann", Sym::Kalender, t("Wann sichern?"), true, |ui| {
+            let wahl: Vec<(Zeitplan, &str)> = Zeitplan::ALLE.iter().map(|z| (*z, t(z.text()))).collect();
+            stil::liste(ui, "zeitplan", &mut e.zeitplan, &wahl);
             ui.add_space(6.0);
             match e.zeitplan {
                 Zeitplan::Taeglich | Zeitplan::Woechentlich => {
@@ -1294,12 +1309,12 @@ impl App {
         ui.add_space(8.0);
         let dirty = self.dirty_mit(&e);
         ui.horizontal(|ui| {
-            if ui.add_enabled(dirty, haupt_knopf(t("Speichern"))).clicked() {
+            if stil::knopf_an(ui, dirty, Sym::Speichern, t("Speichern")).clicked() {
                 self.entwurf = Some(e.clone());
                 self.speichern();
                 e = self.entwurf.clone().unwrap_or(e.clone());
             }
-            if ui.add_enabled(dirty, egui::Button::new(t("Verwerfen"))).clicked() {
+            if stil::knopf_text(ui, dirty, t("Verwerfen")).clicked() {
                 e.zeitplan = gesp.zeitplan;
                 e.stunde = gesp.stunde;
                 e.minute = gesp.minute;
@@ -1320,13 +1335,14 @@ impl App {
     }
 
     fn windows_aufgabe(&mut self, ui: &mut egui::Ui, a: &Auftrag, dirty: bool) {
-        karte().show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ueberschrift(ui, t("Windows-Aufgabenplanung"));
+        stil::karte(ui, "aufgabe", Sym::Uhr, t("Windows-Aufgabenplanung"), true, |ui| {
             grau(ui, t("Damit gesichert wird, auch wenn Sicherwerk nicht offen ist, trägt Sicherwerk eine Aufgabe ein. Sie startet «sicherwerk --auftrag» ohne Fenster; das Ergebnis steht danach im Protokoll."));
             ui.add_space(4.0);
             if a.aufgabe_eingerichtet {
-                ui.label(egui::RichText::new(t("✔ In der Aufgabenplanung eingetragen")).color(gruen()));
+                ui.horizontal(|ui| {
+                    stil::symbol(ui, Sym::Haken, 16.0, gruen());
+                    ui.label(egui::RichText::new(t("In der Aufgabenplanung eingetragen")).color(gruen()));
+                });
             } else {
                 ui.label(egui::RichText::new(t("Nicht in der Aufgabenplanung eingetragen")).color(orange()));
             }
@@ -1339,8 +1355,8 @@ impl App {
             };
             ui.horizontal(|ui| {
                 let darf = !dirty && a.vorschau_gesehen;
-                let r = ui.add_enabled(darf, haupt_knopf(if a.aufgabe_eingerichtet { t("Neu eintragen") } else { t("Eintragen") }));
-                let r = if warum.is_empty() { r } else { r.on_disabled_hover_text(warum) };
+                let r = stil::knopf_an(ui, darf, Sym::Kalender, if a.aufgabe_eingerichtet { t("Neu eintragen") } else { t("Eintragen") });
+                let r = if warum.is_empty() || darf { r } else { r.on_hover_text(warum) };
                 if r.clicked() {
                     let ergebnis = aufgabe::einrichten(a);
                     let ok = ergebnis.is_ok();
@@ -1358,7 +1374,7 @@ impl App {
                         Err(x) => self.melden(&format!("{} {x}", t("Aufgabenplanung:")), Ton::Fehler),
                     }
                 }
-                if a.aufgabe_eingerichtet && ui.button(t("Austragen")).clicked() {
+                if a.aufgabe_eingerichtet && stil::gefahr(ui, true, Sym::Kreuz, t("Austragen")).clicked() {
                     let mut r = aufgabe::entfernen(&a.name);
                     if a.zeitplan == Zeitplan::BeimAnschliessen {
                         r = r.and(aufgabe::anschluss_aufraeumen(&self.daten.auftraege, a.id));
@@ -1386,16 +1402,14 @@ impl App {
     fn linux_anleitung(&mut self, ui: &mut egui::Ui, a: &Auftrag) {
         let Some(tx) = aufgabe::linux_texte(a) else { return };
         let mut kopiert: Option<String> = None;
-        karte().show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ueberschrift(ui, t("Unter Linux selbst einrichten"));
+        stil::karte(ui, "linux", Sym::Uhr, t("Unter Linux selbst einrichten"), true, |ui| {
             grau(ui, t("Sicherwerk richtet unter Linux nichts automatisch ein. Wähle eine der beiden Möglichkeiten. Der Auftrag läuft dann ohne Fenster, das Ergebnis steht im Protokoll."));
             ui.add_space(6.0);
             ui.label(egui::RichText::new(t("Möglichkeit 1: cron")).strong());
             grau(ui, t("«crontab -e» öffnen und diese Zeile anfügen:"));
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut tx.cron.as_str()).font(egui::TextStyle::Monospace).desired_width(ui.available_width() - 90.0));
-                if ui.button(t("Kopieren")).clicked() {
+                if stil::leise(ui, true, Sym::Kopieren, t("Kopieren"), "").clicked() {
                     kopiert = Some(tx.cron.clone());
                 }
             });
@@ -1406,7 +1420,7 @@ impl App {
             for (pfad, inhalt, id) in [(&d_pfad, &tx.dienst, "dienst"), (&t_pfad, &tx.timer, "timer")] {
                 ui.horizontal(|ui| {
                     grau(ui, tf("Datei {pfad}:", &[("pfad", pfad)]));
-                    if ui.small_button(t("Kopieren")).clicked() {
+                    if stil::leise(ui, true, Sym::Kopieren, t("Kopieren"), "").clicked() {
                         kopiert = Some(inhalt.clone());
                     }
                 });
@@ -1423,7 +1437,7 @@ impl App {
             grau(ui, t("Danach im Terminal:"));
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut befehl.as_str()).font(egui::TextStyle::Monospace).desired_width(ui.available_width() - 90.0));
-                if ui.button(t("Kopieren")).clicked() {
+                if stil::leise(ui, true, Sym::Kopieren, t("Kopieren"), "").clicked() {
                     kopiert = Some(befehl.clone());
                 }
             });
@@ -1544,7 +1558,7 @@ impl App {
                     self.inhalt_laden(a.clone(), s);
                 }
             }
-            if ui.add_enabled(self.job.is_none(), egui::Button::new(t("Aktualisieren"))).clicked() {
+            if stil::leise(ui, self.job.is_none(), Sym::Aktualisieren, "", t("Aktualisieren")).clicked() {
                 self.staende_laden(a.clone());
             }
             if laeuft {
@@ -1621,11 +1635,13 @@ impl App {
                             umschalten = Some(k.rel.clone());
                         }
                         if k.ordner {
-                            let txt = egui::RichText::new(format!("📁 {}", k.name)).color(akzent());
+                            stil::symbol(ui, Sym::Ordner, 15.0, akzent());
+                            let txt = egui::RichText::new(&k.name).color(akzent());
                             if ui.add(egui::Label::new(txt).sense(egui::Sense::click())).on_hover_text(t("Öffnen")).clicked() {
                                 oeffnen = Some(k.rel.clone());
                             }
                         } else {
+                            stil::symbol(ui, Sym::Datei, 15.0, thema::muted());
                             ui.label(&k.name);
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 if k.zeit != 0 {
@@ -1645,25 +1661,10 @@ impl App {
             self.wh.pfad = r;
             self.wh.filter.clear();
         }
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
-            let n = self.wh.auswahl.len();
-            ui.label(tf("{n} ausgewählt", &[("n", &n)]));
-            if ui.add_enabled(n > 0, egui::Button::new(t("Auswahl leeren"))).clicked() {
-                self.wh.auswahl.clear();
-            }
-            let r = ui
-                .add_enabled(n > 0 && self.job.is_none(), haupt_knopf(t("Wiederherstellen nach …")))
-                .on_hover_text(t("In einen frei gewählten Ordner. Vorhandene Dateien werden nie überschrieben – bei gleichem Namen heisst die neue «Name (2)»."));
-            if r.clicked() {
-                if let Some(ziel) = rfd::FileDialog::new().set_title(t("Wohin wiederherstellen?")).pick_folder() {
-                    if let Some(s) = self.wh.gewaehlt.clone() {
-                        let auswahl: Vec<String> = self.wh.auswahl.iter().cloned().collect();
-                        self.wiederherstellen_starten(a.clone(), s, auswahl, ziel);
-                    }
-                }
-            }
-        });
+        if self.wh.auswahl.is_empty() {
+            ui.add_space(6.0);
+            stil::hinweis(ui, t("Häkchen setzen, um Dateien oder Ordner wiederherzustellen."));
+        }
     }
 
     // -------------------------------------------------------------- Fenster (Dialoge)
@@ -1681,17 +1682,17 @@ impl App {
                     ui.label(t("Der Auftrag hat ungespeicherte Änderungen."));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.add(haupt_knopf(t("Speichern"))).clicked() {
+                        if stil::haupt(ui, true, Sym::Speichern, t("Speichern")).clicked() {
                             if self.speichern() {
                                 self.nach_wechsel(ziel);
                             }
                             zu = true;
                         }
-                        if ui.button(t("Verwerfen")).clicked() {
+                        if stil::gefahr(ui, true, Sym::Papierkorb, t("Verwerfen")).clicked() {
                             self.nach_wechsel(ziel);
                             zu = true;
                         }
-                        if ui.button(t("Abbrechen")).clicked() {
+                        if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                             self.neuer_nach_wechsel = false;
                             zu = true;
                         }
@@ -1714,11 +1715,11 @@ impl App {
                     ui.label(t("Die Sicherungen im Ziel bleiben erhalten; das Protokoll bleibt ebenfalls."));
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.add(egui::Button::new(egui::RichText::new(t("Löschen")).color(egui::Color32::WHITE)).fill(rgb(0xb9, 0x1c, 0x1c))).clicked() {
+                        if stil::gefahr(ui, true, Sym::Papierkorb, t("Löschen")).clicked() {
                             self.auftrag_loeschen(id);
                             zu = true;
                         }
-                        if ui.button(t("Abbrechen")).clicked() {
+                        if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                             zu = true;
                         }
                     });
@@ -1745,7 +1746,10 @@ impl App {
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
                         let text = if laeuft { t("Abbrechen und schliessen") } else { t("Ohne Speichern schliessen") };
-                        if ui.button(text).clicked() {
+                        if stil::haupt(ui, true, Sym::Pfeil, t("Weiterarbeiten")).clicked() {
+                            zu = true;
+                        }
+                        if stil::gefahr(ui, true, Sym::Kreuz, text).clicked() {
                             if let Some(j) = &self.job {
                                 j.fs.abbrechen();
                                 self.schliessen_nach_job = true;
@@ -1753,9 +1757,6 @@ impl App {
                                 self.darf_schliessen = true;
                                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                             }
-                            zu = true;
-                        }
-                        if ui.add(haupt_knopf(t("Weiterarbeiten"))).clicked() {
                             zu = true;
                         }
                     });
@@ -1878,10 +1879,10 @@ impl App {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     let darf = !v.fatal && !v.abgebrochen && job_frei && a.is_some();
-                    if ui.add_enabled(darf, haupt_knopf(t("Sichern starten"))).clicked() {
+                    if stil::haupt(ui, darf, Sym::Speichern, t("Sichern starten")).clicked() {
                         starten = true;
                     }
-                    if ui.button(t("Schliessen")).clicked() {
+                    if stil::knopf_text(ui, true, t("Schliessen")).clicked() {
                         zu = true;
                     }
                 });

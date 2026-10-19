@@ -9,25 +9,27 @@ use std::time::{Duration, Instant};
 use egui::{Align, Color32, Layout, RichText};
 
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 use crate::{ItemView, Snapshot, J};
 
-// Schrift- und Linienfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
+// Farben aus dem gemeinsamen Stil (Logofarbe, Signalfarben).
 fn accent() -> Color32 {
-    thema::pick(Color32::from_rgb(0xA8, 0x55, 0x0C), Color32::from_rgb(0xF5, 0xA5, 0x24))
-}
-/// Füllung der Hauptschaltflächen (weisse Schrift darauf) – in beiden Designs gleich.
-fn accent_fill() -> Color32 {
-    Color32::from_rgb(0xC9, 0x6A, 0x12)
+    stil::akzent()
 }
 fn green() -> Color32 {
-    thema::pick(Color32::from_rgb(0x15, 0x80, 0x3D), Color32::from_rgb(0x4A, 0xDE, 0x80))
+    stil::gruen()
 }
 fn red() -> Color32 {
-    thema::pick(Color32::from_rgb(0xB9, 0x1C, 0x1C), Color32::from_rgb(0xF8, 0x71, 0x71))
+    stil::rot()
 }
 fn blue() -> Color32 {
-    thema::pick(Color32::from_rgb(0x25, 0x63, 0xEB), Color32::from_rgb(0x60, 0xA5, 0xFA))
+    stil::blau()
+}
+
+/// Gerahmte Fläche im Stil der Karten.
+fn rahmen() -> egui::Frame {
+    egui::Frame::none().fill(thema::bg()).stroke(egui::Stroke::new(1.0, thema::border())).rounding(12.0).inner_margin(egui::Margin::symmetric(12.0, 10.0))
 }
 
 fn size(n: Option<u64>) -> String {
@@ -115,6 +117,7 @@ impl Gui {
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
         thema::titelleiste(cc, [0x0E, 0x74, 0x90]);
+        stil::init(&cc.egui_ctx, [0x0E, 0x74, 0x90]);
         Gui {
             tab: None,
             links: String::new(),
@@ -237,65 +240,142 @@ impl Gui {
         self.extractor.0.clone()
     }
 
-    /* ----- Kopfzeile ----- */
+    /* ----- Kopfleiste ----- */
     fn top(&mut self, ui: &mut egui::Ui, s: &Snapshot) {
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Ladewerk").size(20.0).strong().color(accent()));
-            ui.add_space(10.0);
-            let (txt, col) = if s.active { (t("Läuft – anhalten"), green()) } else { (t("Angehalten – starten"), accent()) };
-            if ui.add(egui::Button::new(RichText::new(txt).color(col).strong())).clicked() {
-                crate::set_active(!s.active);
+        stil::titel(ui, "Ladewerk");
+        stil::trenner(ui);
+        let n_grab = s.items.iter().filter(|i| i.stage == "grab").count();
+        let n_dl = s.items.iter().filter(|i| i.stage == "queue").count();
+        let l_grab = format!("{} ({})", t("Linksammler"), n_grab);
+        let l_dl = format!("{} ({})", t("Downloads"), n_dl);
+        let mut tab = self.tab.unwrap_or(Tab::Grab);
+        ui.allocate_ui(egui::vec2(300.0, 28.0), |ui| {
+            stil::wahl(ui, &mut tab, &[(Tab::Grab, l_grab.as_str()), (Tab::Downloads, l_dl.as_str())]);
+        });
+        self.tab = Some(tab);
+        stil::trenner(ui);
+        if stil::knopf(ui, Sym::OrdnerAuf, t("Ordner öffnen")).clicked() {
+            crate::open_download_dir();
+        }
+        match tab {
+            Tab::Grab => {
+                if stil::leise(ui, true, Sym::Papierkorb, t("Nicht erreichbare entfernen"), "").clicked() {
+                    crate::clear_items(false);
+                }
             }
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button(t("Einstellungen")).clicked() {
-                    self.open_settings(s);
+            Tab::Downloads => {
+                if stil::leise(ui, true, Sym::Auge, t("Fertige ausblenden"), "").clicked() {
+                    crate::clear_items(true);
                 }
-                if ui.button(t("Ordner öffnen")).clicked() {
-                    crate::open_download_dir();
+            }
+        }
+        stil::rechts(ui, |ui| {
+            if stil::knopf(ui, Sym::Zahnrad, t("Einstellungen")).clicked() {
+                self.open_settings(s);
+            }
+            if s.speed > 0 {
+                ui.label(RichText::new(format!("{}/s", size(Some(s.speed)))).monospace());
+            }
+        });
+    }
+
+    /// IDs der markierten Einträge im aktuellen Reiter.
+    fn chosen(&self, s: &Snapshot) -> Vec<String> {
+        let stage = if self.tab == Some(Tab::Downloads) { "queue" } else { "grab" };
+        s.items.iter().filter(|i| i.stage == stage && self.sel.contains(&i.id)).map(|i| i.id.clone()).collect()
+    }
+
+    /* ----- Auswahlleiste ----- */
+    fn sel_bar(&mut self, ui: &mut egui::Ui, ids: Vec<String>) {
+        if self.tab == Some(Tab::Downloads) {
+            if stil::knopf(ui, Sym::Pause, t("Pausieren")).clicked() {
+                self.act("pause", ids.clone());
+            }
+            if stil::knopf(ui, Sym::Play, t("Fortsetzen")).clicked() {
+                self.act("resume", ids.clone());
+            }
+        }
+        if stil::gefahr(ui, true, Sym::Papierkorb, t("Entfernen")).clicked() {
+            self.act("remove", ids);
+        }
+        stil::rechts(ui, |ui| {
+            if stil::leise(ui, true, Sym::Kreuz, t("Auswahl aufheben"), "").clicked() {
+                self.sel.clear();
+            }
+        });
+    }
+
+    /* ----- Fussleiste ----- */
+    fn foot(&mut self, ui: &mut egui::Ui, s: &Snapshot) {
+        let tab = self.tab.unwrap_or(Tab::Grab);
+        ui.horizontal(|ui| {
+            stil::rechts(ui, |ui| {
+                if tab == Tab::Grab {
+                    let items: Vec<&ItemView> = s.items.iter().filter(|i| i.stage == "grab").collect();
+                    let mut ids: Vec<String> = items.iter().filter(|i| self.sel.contains(&i.id)).map(|i| i.id.clone()).collect();
+                    let text = if ids.is_empty() { t("Alle bereiten herunterladen") } else { t("Auswahl herunterladen") };
+                    if ids.is_empty() {
+                        ids = items.iter().filter(|i| i.status == "ready").map(|i| i.id.clone()).collect();
+                    }
+                    if stil::haupt(ui, !ids.is_empty(), Sym::Download, text).on_hover_text(t("Ohne Auswahl: alle bereiten Links")).clicked() {
+                        self.act("confirm", ids);
+                        self.tab = Some(Tab::Downloads);
+                    }
                 }
-                if s.speed > 0 {
-                    ui.label(RichText::new(format!("{}/s", size(Some(s.speed)))).monospace());
+                let (txt, sym) = if s.active { (t("Läuft – anhalten"), Sym::Pause) } else { (t("Angehalten – starten"), Sym::Play) };
+                let r = if tab == Tab::Downloads && !s.active { stil::haupt(ui, true, sym, txt) } else { stil::knopf(ui, sym, txt) };
+                if r.clicked() {
+                    crate::set_active(!s.active);
                 }
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    match &self.toast {
+                        Some((m, at)) if at.elapsed() < Duration::from_secs(5) => {
+                            ui.add(egui::Label::new(RichText::new(m.as_str()).size(13.0).color(thema::text())).truncate());
+                        }
+                        _ => {
+                            let stage = if tab == Tab::Grab { "grab" } else { "queue" };
+                            let items: Vec<&ItemView> = s.items.iter().filter(|i| i.stage == stage).collect();
+                            if !items.is_empty() {
+                                let zahl = if tab == Tab::Grab {
+                                    let ready = items.iter().filter(|i| i.status == "ready").count();
+                                    tf("{a} von {b} bereit", &[("a", &ready), ("b", &items.len())])
+                                } else {
+                                    let done = items.iter().filter(|i| i.status == "done").count();
+                                    tf("{a} von {b} fertig", &[("a", &done), ("b", &items.len())])
+                                };
+                                ui.label(RichText::new(zahl).size(13.0).strong().color(thema::text()));
+                                ui.label(RichText::new("·").color(thema::muted()));
+                            }
+                            let running = s.items.iter().filter(|i| i.status == "running").count();
+                            let waiting = s.items.iter().filter(|i| i.status == "queued").count();
+                            let txt = tf("{a} laufen · {b} warten · Ziel: {d}", &[("a", &running), ("b", &waiting), ("d", &s.settings.dir)]);
+                            ui.add(egui::Label::new(RichText::new(txt).size(13.0).color(thema::muted())).truncate());
+                        }
+                    }
+                });
             });
         });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            let n_grab = s.items.iter().filter(|i| i.stage == "grab").count();
-            let n_dl = s.items.iter().filter(|i| i.stage == "queue").count();
-            let tab = self.tab.unwrap_or(Tab::Grab);
-            if ui.selectable_label(tab == Tab::Grab, format!("{} ({})", t("Linksammler"), n_grab)).clicked() {
-                self.tab = Some(Tab::Grab);
-            }
-            if ui.selectable_label(tab == Tab::Downloads, format!("{} ({})", t("Downloads"), n_dl)).clicked() {
-                self.tab = Some(Tab::Downloads);
-            }
-        });
-        ui.add_space(4.0);
     }
 
     /* ----- Linksammler ----- */
     fn grab_tab(&mut self, ui: &mut egui::Ui, s: &Snapshot) {
         let ctx = ui.ctx().clone();
-        egui::Frame::group(ui.style()).show(ui, |ui| {
+        rahmen().show(ui, |ui| {
+            ui.set_width(ui.available_width());
             ui.add(
                 egui::TextEdit::multiline(&mut self.links)
                     .desired_rows(4)
                     .desired_width(f32::INFINITY)
                     .hint_text(t("Links hier einfügen – beliebiger Text, die Adressen werden automatisch herausgesucht.")),
             );
+            ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut self.pkg).desired_width(240.0).hint_text(t("Paketname (optional, wird Unterordner)")));
                 let busy = self.grabbing.load(Ordering::SeqCst);
-                let primary = egui::Button::new(RichText::new(t("Links prüfen")).color(Color32::WHITE).strong()).fill(accent_fill());
-                if ui.add_enabled(!busy, primary).clicked() {
+                if stil::knopf_an(ui, !busy, Sym::Suche, t("Links prüfen")).clicked() {
                     self.grab(false, &ctx);
                 }
-                if ui
-                    .add_enabled(!busy, egui::Button::new(t("Seiten nach Dateien durchsuchen")))
-                    .on_hover_text(t("Lädt die angegebenen Seiten und sammelt alle darin verlinkten Dateien"))
-                    .clicked()
-                {
+                if stil::leise(ui, !busy, Sym::Link, t("Seiten nach Dateien durchsuchen"), t("Lädt die angegebenen Seiten und sammelt alle darin verlinkten Dateien")).clicked() {
                     self.grab(true, &ctx);
                 }
                 if busy {
@@ -303,40 +383,15 @@ impl Gui {
                 }
             });
         });
-        ui.add_space(6.0);
+        ui.add_space(8.0);
         let items: Vec<&ItemView> = s.items.iter().filter(|i| i.stage == "grab").collect();
-        ui.horizontal(|ui| {
-            let primary = egui::Button::new(RichText::new(t("Auswahl herunterladen")).color(Color32::WHITE).strong()).fill(accent_fill());
-            if ui.add(primary).on_hover_text(t("Ohne Auswahl: alle bereiten Links")).clicked() {
-                let mut ids: Vec<String> = items.iter().filter(|i| self.sel.contains(&i.id)).map(|i| i.id.clone()).collect();
-                if ids.is_empty() {
-                    ids = items.iter().filter(|i| i.status == "ready").map(|i| i.id.clone()).collect();
-                }
-                if ids.is_empty() {
-                    self.say(t("Nichts ausgewählt."));
-                } else {
-                    self.act("confirm", ids);
-                    self.tab = Some(Tab::Downloads);
-                }
-            }
-            if ui.button(t("Auswahl entfernen")).clicked() {
-                let ids: Vec<String> = items.iter().filter(|i| self.sel.contains(&i.id)).map(|i| i.id.clone()).collect();
-                self.act("remove", ids);
-            }
-            if ui.button(t("Nicht erreichbare entfernen")).clicked() {
-                crate::clear_items(false);
-            }
-            if !items.is_empty() {
-                let ready = items.iter().filter(|i| i.status == "ready").count();
-                ui.weak(tf("{a} von {b} bereit", &[("a", &ready), ("b", &items.len())]));
-            }
-        });
-        ui.add_space(4.0);
         if items.is_empty() {
-            ui.add_space(40.0);
-            ui.vertical_centered(|ui| {
-                ui.weak(t("Noch keine Links im Linksammler. Oben einfügen und «Links prüfen» drücken – oder Links kopieren bzw. Click'n'Load auf einer Webseite nutzen."));
-            });
+            stil::leer(
+                ui,
+                Sym::Link,
+                t("Linksammler"),
+                t("Noch keine Links im Linksammler. Oben einfügen und «Links prüfen» drücken – oder Links kopieren bzw. Click'n'Load auf einer Webseite nutzen."),
+            );
             return;
         }
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -347,32 +402,8 @@ impl Gui {
     /* ----- Downloads ----- */
     fn dl_tab(&mut self, ui: &mut egui::Ui, s: &Snapshot) {
         let items: Vec<&ItemView> = s.items.iter().filter(|i| i.stage == "queue").collect();
-        let chosen = |sel: &HashSet<String>| -> Vec<String> { items.iter().filter(|i| sel.contains(&i.id)).map(|i| i.id.clone()).collect() };
-        ui.horizontal(|ui| {
-            for (label, action) in [(t("Auswahl pausieren"), "pause"), (t("Auswahl fortsetzen"), "resume"), (t("Auswahl entfernen"), "remove")] {
-                if ui.button(label).clicked() {
-                    let ids = chosen(&self.sel);
-                    if ids.is_empty() {
-                        self.say(t("Nichts ausgewählt."));
-                    } else {
-                        self.act(action, ids);
-                    }
-                }
-            }
-            if ui.button(t("Fertige ausblenden")).clicked() {
-                crate::clear_items(true);
-            }
-            if !items.is_empty() {
-                let done = items.iter().filter(|i| i.status == "done").count();
-                ui.weak(tf("{a} von {b} fertig", &[("a", &done), ("b", &items.len())]));
-            }
-        });
-        ui.add_space(4.0);
         if items.is_empty() {
-            ui.add_space(40.0);
-            ui.vertical_centered(|ui| {
-                ui.weak(t("Keine Downloads in der Liste."));
-            });
+            stil::leer(ui, Sym::Download, t("Downloads"), t("Keine Downloads in der Liste."));
             return;
         }
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -392,7 +423,7 @@ impl Gui {
             groups.entry((pos, it.pkg.clone())).or_default().push(it);
         }
         for ((_, pkg), list) in groups {
-            egui::Frame::group(ui.style()).show(ui, |ui| {
+            rahmen().show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
                     let all = list.iter().all(|i| self.sel.contains(&i.id));
@@ -407,6 +438,7 @@ impl Gui {
                         }
                     }
                     let name = if pkg.is_empty() { t("Ohne Paket").to_string() } else { pkg.clone() };
+                    stil::symbol(ui, Sym::Ordner, 16.0, accent());
                     ui.label(RichText::new(name).strong());
                     let total: u64 = list.iter().filter_map(|i| i.size).sum();
                     let done: u64 = list.iter().map(|i| i.done).sum();
@@ -416,8 +448,8 @@ impl Gui {
                     ui.weak(format!("{} · {}{}", files, sizes, if unknown { " +?" } else { "" }));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let n = pkg_pw.get(&pkg).map(|v| v.len()).unwrap_or(0);
-                        let txt = if n > 0 { format!("🔑 {}", n) } else { "🔑".to_string() };
-                        if ui.small_button(txt).on_hover_text(t("Passwörter für dieses Paket")).clicked() {
+                        let txt = if n > 0 { n.to_string() } else { String::new() };
+                        if stil::leise(ui, true, Sym::Schluessel, &txt, t("Passwörter für dieses Paket")).clicked() {
                             let cur = pkg_pw.get(&pkg).map(|v| v.join("\n")).unwrap_or_default();
                             self.pkg_edit = Some((pkg.clone(), cur));
                         }
@@ -449,7 +481,7 @@ impl Gui {
             "done" | "ready" => green(),
             "error" | "offline" => red(),
             "running" => blue(),
-            _ => ui.visuals().text_color(),
+            _ => thema::muted(),
         };
         let mut err = it.error.clone();
         if it.status == "running" {
@@ -505,33 +537,33 @@ impl Gui {
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 // rechts beginnend: Knöpfe, Status, Restzeit, Tempo, Grösse
-                if ui.small_button("🗑").on_hover_text(t("Entfernen")).clicked() {
+                if stil::gefahr(ui, true, Sym::Papierkorb, "").on_hover_text(t("Entfernen")).clicked() {
                     self.act("remove", vec![it.id.clone()]);
                 }
                 if grab {
-                    if it.status == "ready" && ui.small_button("⬇").on_hover_text(t("Herunterladen")).clicked() {
+                    if it.status == "ready" && stil::leise(ui, true, Sym::Download, "", t("Herunterladen")).clicked() {
                         self.act("confirm", vec![it.id.clone()]);
                     }
-                    if it.status == "offline" && ui.small_button("↻").on_hover_text(t("Erneut prüfen")).clicked() {
+                    if it.status == "offline" && stil::leise(ui, true, Sym::Aktualisieren, "", t("Erneut prüfen")).clicked() {
                         self.act("recheck", vec![it.id.clone()]);
                     }
                 } else {
-                    if (it.status == "running" || it.status == "queued") && ui.small_button("⏸").on_hover_text(t("Pausieren")).clicked() {
+                    if (it.status == "running" || it.status == "queued") && stil::leise(ui, true, Sym::Pause, "", t("Pausieren")).clicked() {
                         self.act("pause", vec![it.id.clone()]);
                     }
-                    if it.status == "paused" && ui.small_button("▶").on_hover_text(t("Fortsetzen")).clicked() {
+                    if it.status == "paused" && stil::leise(ui, true, Sym::Play, "", t("Fortsetzen")).clicked() {
                         self.act("resume", vec![it.id.clone()]);
                     }
-                    if it.status == "error" && ui.small_button("↻").on_hover_text(t("Erneut versuchen")).clicked() {
+                    if it.status == "error" && stil::leise(ui, true, Sym::Aktualisieren, "", t("Erneut versuchen")).clicked() {
                         self.act("resume", vec![it.id.clone()]);
                     }
                     let can_extract = it.status == "done" && it.archive && it.extract != "wait" && it.extract != "running";
-                    if can_extract && ui.small_button("📦").on_hover_text(t("Entpacken")).clicked() {
+                    if can_extract && stil::leise(ui, true, Sym::Archiv, "", t("Entpacken")).clicked() {
                         self.act("extract", vec![it.id.clone()]);
                         self.say(t("Wird entpackt, sobald alle Teile fertig sind."));
                     }
                 }
-                ui.add_sized([150.0, 18.0], egui::Label::new(RichText::new(label).color(color)).truncate());
+                stil::marke(ui, &label, color, 150.0);
                 if !grab {
                     let e = if it.status == "running" && it.speed > 0 { it.size.map(|s| eta(s.saturating_sub(it.done) as f64 / it.speed as f64)).unwrap_or_default() } else { String::new() };
                     ui.add_sized([70.0, 18.0], egui::Label::new(RichText::new(e).weak()));
@@ -570,144 +602,136 @@ impl Gui {
             .default_height(620.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().auto_shrink([false, true]).show(ui, |ui| {
-                    ui.label(t("Download-Ordner"));
-                    ui.horizontal(|ui| {
-                        ui.add(egui::TextEdit::singleline(&mut self.form.dir).desired_width(ui.available_width() - 90.0));
-                        if ui.button(t("Wählen …")).clicked() {
-                            if let Some(d) = rfd::FileDialog::new().set_directory(&self.form.dir).pick_folder() {
-                                self.form.dir = d.to_string_lossy().to_string();
-                            }
-                        }
-                    });
-                    ui.add_space(6.0);
-                    egui::Grid::new("zahlen").num_columns(2).spacing([16.0, 6.0]).show(ui, |ui| {
-                        ui.label(t("Gleichzeitige Downloads"));
-                        ui.add(egui::DragValue::new(&mut self.form.max_parallel).range(1..=10));
-                        ui.end_row();
-                        ui.label(t("Verbindungen pro Datei"));
-                        ui.add(egui::DragValue::new(&mut self.form.chunks).range(1..=8));
-                        ui.end_row();
-                        ui.label(t("Tempolimit in KB/s (0 = aus)"));
-                        ui.add(egui::DragValue::new(&mut self.form.limit_kb).range(0..=10_000_000).speed(50.0));
-                        ui.end_row();
-                        ui.label(t("Wiederholungen bei Fehler"));
-                        ui.add(egui::DragValue::new(&mut self.form.retries).range(0..=10));
-                        ui.end_row();
-                    });
-                    ui.add_space(6.0);
-                    ui.horizontal(|ui| {
-                        ui.label(t("Proxy"));
-                        ui.add(egui::TextEdit::singleline(&mut self.form.proxy).desired_width(280.0).hint_text("http://host:port, socks5://host:port"));
-                    });
-                    ui.weak(t("Leer: Proxy aus der Umgebung (HTTPS_PROXY, ALL_PROXY), sonst direkt."));
-                    ui.add_space(6.0);
-                    ui.checkbox(&mut self.form.clipboard, t("Zwischenablage beobachten (kopierte Datei- und Hoster-Links landen im Linksammler)"));
-                    ui.checkbox(&mut self.form.clicknload, t("Click'n'Load annehmen (Links von Webseiten mit Click'n'Load-Knopf)"));
-                    if s.settings.clicknload && !s.cnl.is_empty() {
+                    ui.spacing_mut().item_spacing.y = 8.0;
+                    stil::karte(ui, "ordner", Sym::Ordner, t("Download-Ordner"), true, |ui| {
                         ui.horizontal(|ui| {
-                            ui.add_space(28.0);
-                            ui.weak(format!("{}: {}", t("Status"), t_dyn(&s.cnl)));
-                        });
-                    }
-
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.label(RichText::new(t("Entpacken")).strong().color(accent()));
-                    ui.checkbox(&mut self.form.extract, t("Archive nach dem Download automatisch entpacken"));
-                    ui.checkbox(&mut self.form.delete_archives, t("Archivdateien nach erfolgreichem Entpacken löschen"));
-                    ui.label(t("Passwörter für Archive (eines pro Zeile, werden der Reihe nach probiert)"));
-                    ui.add(egui::TextEdit::multiline(&mut self.form.passwords).desired_rows(3).desired_width(f32::INFINITY));
-                    let ex = self.extractor_label();
-                    if ex.is_empty() {
-                        ui.colored_label(red(), t("Kein Entpacker gefunden – bitte 7-Zip installieren (7-zip.org)."));
-                    } else {
-                        ui.weak(format!("{}: {}", t("Entpacker"), t_dyn(&ex)));
-                    }
-
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.label(RichText::new(t("Konten")).strong().color(accent()));
-                    if s.accounts.is_empty() {
-                        ui.weak(t("Noch kein Konto eingetragen."));
-                    }
-                    for a in &s.accounts {
-                        egui::Frame::group(ui.style()).show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            ui.horizontal(|ui| {
-                                ui.vertical(|ui| {
-                                    ui.label(RichText::new(format!("{} · {}", a.host, a.user)).strong());
-                                    let (txt, col) = match a.ok {
-                                        Some(true) => (t_dyn(&a.info), green()),
-                                        Some(false) => (t_dyn(&a.info), red()),
-                                        None => (t("Noch nicht geprüft").to_string(), ui.visuals().weak_text_color()),
-                                    };
-                                    ui.label(RichText::new(txt).small().color(col));
-                                });
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    if ui.small_button("🗑").on_hover_text(t("Konto entfernen")).clicked() {
-                                        crate::account_remove(&a.host);
-                                    }
-                                    let busy = self.acc_busy.load(Ordering::SeqCst);
-                                    if ui.add_enabled(!busy, egui::Button::new(t("Prüfen")).small()).clicked() {
-                                        let b = self.acc_busy.clone();
-                                        b.store(true, Ordering::SeqCst);
-                                        std::thread::spawn(move || {
-                                            let _ = crate::rg_token(true);
-                                            b.store(false, Ordering::SeqCst);
-                                        });
-                                    }
-                                });
-                            });
-                        });
-                    }
-                    ui.add_space(4.0);
-                    egui::Grid::new("konto").num_columns(2).spacing([16.0, 6.0]).show(ui, |ui| {
-                        ui.label(t("Hoster"));
-                        ui.horizontal(|ui| {
-                            for h in crate::HOSTERS {
-                                ui.radio_value(&mut self.acc_host, h.to_string(), *h);
-                            }
-                        });
-                        ui.end_row();
-                        ui.label(t("Benutzername / E-Mail"));
-                        ui.add(egui::TextEdit::singleline(&mut self.acc_user).desired_width(260.0));
-                        ui.end_row();
-                        ui.label(t("Passwort"));
-                        ui.add(egui::TextEdit::singleline(&mut self.acc_pw).password(true).desired_width(260.0));
-                        ui.end_row();
-                    });
-                    ui.horizontal(|ui| {
-                        let busy = self.acc_busy.load(Ordering::SeqCst);
-                        if ui.add_enabled(!busy, egui::Button::new(t("Konto speichern und prüfen"))).clicked() {
-                            let (h, u, p) = (self.acc_host.clone(), self.acc_user.clone(), std::mem::take(&mut self.acc_pw));
-                            let (b, msgs) = (self.acc_busy.clone(), self.msgs.clone());
-                            b.store(true, Ordering::SeqCst);
-                            std::thread::spawn(move || {
-                                let m = match crate::account_save(&h, &u, &p) {
-                                    Ok(()) => t("Konto gespeichert.").to_string(),
-                                    Err(e) => t_dyn(&e),
-                                };
-                                if let Ok(mut q) = msgs.lock() {
-                                    q.push(m);
+                            ui.add(egui::TextEdit::singleline(&mut self.form.dir).desired_width(ui.available_width() - 100.0));
+                            if stil::knopf(ui, Sym::OrdnerAuf, t("Wählen …")).clicked() {
+                                if let Some(d) = rfd::FileDialog::new().set_directory(&self.form.dir).pick_folder() {
+                                    self.form.dir = d.to_string_lossy().to_string();
                                 }
-                                b.store(false, Ordering::SeqCst);
-                            });
-                            self.acc_user.clear();
-                        }
-                        if busy {
-                            ui.spinner();
+                            }
+                        });
+                    });
+                    stil::karte(ui, "verbindung", Sym::Download, t("Downloads"), true, |ui| {
+                        egui::Grid::new("zahlen").num_columns(2).spacing([16.0, 6.0]).show(ui, |ui| {
+                            ui.label(t("Gleichzeitige Downloads"));
+                            ui.add(egui::DragValue::new(&mut self.form.max_parallel).range(1..=10));
+                            ui.end_row();
+                            ui.label(t("Verbindungen pro Datei"));
+                            ui.add(egui::DragValue::new(&mut self.form.chunks).range(1..=8));
+                            ui.end_row();
+                            ui.label(t("Tempolimit in KB/s (0 = aus)"));
+                            ui.add(egui::DragValue::new(&mut self.form.limit_kb).range(0..=10_000_000).speed(50.0));
+                            ui.end_row();
+                            ui.label(t("Wiederholungen bei Fehler"));
+                            ui.add(egui::DragValue::new(&mut self.form.retries).range(0..=10));
+                            ui.end_row();
+                        });
+                        stil::feld(ui, t("Proxy"), |ui| {
+                            ui.add(egui::TextEdit::singleline(&mut self.form.proxy).desired_width(f32::INFINITY).hint_text("http://host:port, socks5://host:port"));
+                        });
+                        stil::hinweis(ui, t("Leer: Proxy aus der Umgebung (HTTPS_PROXY, ALL_PROXY), sonst direkt."));
+                    });
+                    stil::karte(ui, "links", Sym::Link, t("Links annehmen"), true, |ui| {
+                        stil::schalter(ui, &mut self.form.clipboard, t("Zwischenablage beobachten (kopierte Datei- und Hoster-Links landen im Linksammler)"));
+                        stil::schalter(ui, &mut self.form.clicknload, t("Click'n'Load annehmen (Links von Webseiten mit Click'n'Load-Knopf)"));
+                        if s.settings.clicknload && !s.cnl.is_empty() {
+                            stil::hinweis(ui, &format!("{}: {}", t("Status"), t_dyn(&s.cnl)));
                         }
                     });
-                    ui.weak(t("Das Passwort wird verschlüsselt auf diesem Computer abgelegt und nur an den Hoster gesendet."));
+                    stil::karte(ui, "entpacken", Sym::Archiv, t("Entpacken"), true, |ui| {
+                        stil::schalter(ui, &mut self.form.extract, t("Archive nach dem Download automatisch entpacken"));
+                        stil::schalter(ui, &mut self.form.delete_archives, t("Archivdateien nach erfolgreichem Entpacken löschen"));
+                        stil::feld(ui, t("Passwörter für Archive (eines pro Zeile, werden der Reihe nach probiert)"), |ui| {
+                            ui.add(egui::TextEdit::multiline(&mut self.form.passwords).desired_rows(3).desired_width(f32::INFINITY));
+                        });
+                        let ex = self.extractor_label();
+                        if ex.is_empty() {
+                            ui.colored_label(red(), t("Kein Entpacker gefunden – bitte 7-Zip installieren (7-zip.org)."));
+                        } else {
+                            stil::hinweis(ui, &format!("{}: {}", t("Entpacker"), t_dyn(&ex)));
+                        }
+                    });
+                    stil::karte(ui, "konten", Sym::Schluessel, t("Konten"), true, |ui| {
+                        if s.accounts.is_empty() {
+                            stil::hinweis(ui, t("Noch kein Konto eingetragen."));
+                        }
+                        for a in &s.accounts {
+                            rahmen().show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new(format!("{} · {}", a.host, a.user)).strong());
+                                        let (txt, col) = match a.ok {
+                                            Some(true) => (t_dyn(&a.info), green()),
+                                            Some(false) => (t_dyn(&a.info), red()),
+                                            None => (t("Noch nicht geprüft").to_string(), thema::muted()),
+                                        };
+                                        ui.label(RichText::new(txt).small().color(col));
+                                    });
+                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                        if stil::gefahr(ui, true, Sym::Papierkorb, "").on_hover_text(t("Konto entfernen")).clicked() {
+                                            crate::account_remove(&a.host);
+                                        }
+                                        let busy = self.acc_busy.load(Ordering::SeqCst);
+                                        if stil::knopf_an(ui, !busy, Sym::Schild, t("Prüfen")).clicked() {
+                                            let b = self.acc_busy.clone();
+                                            b.store(true, Ordering::SeqCst);
+                                            std::thread::spawn(move || {
+                                                let _ = crate::rg_token(true);
+                                                b.store(false, Ordering::SeqCst);
+                                            });
+                                        }
+                                    });
+                                });
+                            });
+                        }
+                        stil::feld(ui, t("Hoster"), |ui| {
+                            let mut h: &'static str = crate::HOSTERS.iter().copied().find(|x| *x == self.acc_host).or_else(|| crate::HOSTERS.first().copied()).unwrap_or("");
+                            let wahl: Vec<(&'static str, &str)> = crate::HOSTERS.iter().map(|x| (*x, *x)).collect();
+                            if stil::liste(ui, "hoster", &mut h, &wahl) {
+                                self.acc_host = h.to_string();
+                            }
+                        });
+                        stil::feld(ui, t("Benutzername / E-Mail"), |ui| {
+                            ui.add(egui::TextEdit::singleline(&mut self.acc_user).desired_width(f32::INFINITY));
+                        });
+                        stil::feld(ui, t("Passwort"), |ui| {
+                            ui.add(egui::TextEdit::singleline(&mut self.acc_pw).password(true).desired_width(f32::INFINITY));
+                        });
+                        ui.horizontal(|ui| {
+                            let busy = self.acc_busy.load(Ordering::SeqCst);
+                            if stil::knopf_an(ui, !busy, Sym::Speichern, t("Konto speichern und prüfen")).clicked() {
+                                let (h, u, p) = (self.acc_host.clone(), self.acc_user.clone(), std::mem::take(&mut self.acc_pw));
+                                let (b, msgs) = (self.acc_busy.clone(), self.msgs.clone());
+                                b.store(true, Ordering::SeqCst);
+                                std::thread::spawn(move || {
+                                    let m = match crate::account_save(&h, &u, &p) {
+                                        Ok(()) => t("Konto gespeichert.").to_string(),
+                                        Err(e) => t_dyn(&e),
+                                    };
+                                    if let Ok(mut q) = msgs.lock() {
+                                        q.push(m);
+                                    }
+                                    b.store(false, Ordering::SeqCst);
+                                });
+                                self.acc_user.clear();
+                            }
+                            if busy {
+                                ui.spinner();
+                            }
+                        });
+                        stil::hinweis(ui, t("Das Passwort wird verschlüsselt auf diesem Computer abgelegt und nur an den Hoster gesendet."));
+                    });
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let primary = egui::Button::new(RichText::new(t("Speichern")).color(Color32::WHITE).strong()).fill(accent_fill());
-                        if ui.add(primary).clicked() && self.save_settings() {
+                        if stil::haupt(ui, true, Sym::Speichern, t("Speichern")).clicked() && self.save_settings() {
                             close = true;
                         }
-                        if ui.button(t("Schliessen")).clicked() {
+                        if stil::knopf_text(ui, true, t("Schliessen")).clicked() {
                             close = true;
                         }
                     });
@@ -795,7 +819,7 @@ impl Gui {
                     ui.horizontal(|ui| {
                         if let Some((_, h)) = self.details.as_mut() {
                             ui.add(egui::TextEdit::singleline(h).desired_width(430.0).font(egui::TextStyle::Monospace).hint_text(t("optional, 64 Zeichen")));
-                            if ui.button(t("Übernehmen")).clicked() {
+                            if stil::knopf(ui, Sym::Haken, t("Übernehmen")).clicked() {
                                 msg = Some(match crate::set_hash(&id, h) {
                                     Ok(()) => t("Prüfsumme übernommen.").to_string(),
                                     Err(e) => t_dyn(&e),
@@ -819,7 +843,7 @@ impl Gui {
                 if it.status == "done" && it.stage == "queue" {
                     ui.add_space(6.0);
                     let busy = it.sha_state == "running";
-                    if ui.add_enabled(!busy, egui::Button::new(t("Jetzt prüfen"))).on_hover_text(t("Berechnet die SHA-256-Prüfsumme der Datei")).clicked() {
+                    if stil::knopf_an(ui, !busy, Sym::Schild, t("Jetzt prüfen")).on_hover_text(t("Berechnet die SHA-256-Prüfsumme der Datei")).clicked() {
                         let _ = crate::do_action("verify", &crate::ids_json(&[id.clone()]));
                     }
                 }
@@ -842,11 +866,11 @@ impl Gui {
             if let Some((_, text)) = self.pkg_edit.as_mut() {
                 ui.add(egui::TextEdit::multiline(text).desired_rows(4).desired_width(f32::INFINITY));
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new(RichText::new(t("Speichern")).color(Color32::WHITE).strong()).fill(accent_fill())).clicked() {
+                    if stil::haupt(ui, true, Sym::Speichern, t("Speichern")).clicked() {
                         crate::set_pkg_passwords(&pkg, text);
                         done = true;
                     }
-                    if ui.button(t("Schliessen")).clicked() {
+                    if stil::knopf_text(ui, true, t("Schliessen")).clicked() {
                         done = true;
                     }
                 });
@@ -884,22 +908,14 @@ impl eframe::App for Gui {
             self.ask_quit = true;
         }
 
-        egui::TopBottomPanel::top("kopf").show(ctx, |ui| self.top(ui, &s));
-        egui::TopBottomPanel::bottom("fuss").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                match &self.toast {
-                    Some((m, at)) if at.elapsed() < Duration::from_secs(5) => {
-                        ui.label(m);
-                    }
-                    _ => {
-                        let running = s.items.iter().filter(|i| i.status == "running").count();
-                        let waiting = s.items.iter().filter(|i| i.status == "queued").count();
-                        ui.weak(tf("{a} laufen · {b} warten · Ziel: {d}", &[("a", &running), ("b", &waiting), ("d", &s.settings.dir)]));
-                    }
-                }
-            });
-        });
-        egui::CentralPanel::default().show(ctx, |ui| match self.tab.unwrap_or(Tab::Grab) {
+        stil::kopfleiste(ctx, |ui| self.top(ui, &s));
+        let gewaehlt = self.chosen(&s);
+        if !gewaehlt.is_empty() {
+            let n = gewaehlt.len();
+            stil::auswahlleiste(ctx, &tf("{n} gewählt", &[("n", &n)]), |ui| self.sel_bar(ui, gewaehlt));
+        }
+        stil::fussleiste(ctx, |ui| self.foot(ui, &s));
+        stil::mitte(ctx, |ui| match self.tab.unwrap_or(Tab::Grab) {
             Tab::Grab => self.grab_tab(ui, &s),
             Tab::Downloads => self.dl_tab(ui, &s),
         });
@@ -926,14 +942,15 @@ impl eframe::App for Gui {
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                 .show(ctx, |ui| {
                     ui.label(t("Es laufen noch Downloads. Sie werden angehalten und beim nächsten Start fortgesetzt."));
+                    ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        if ui.button(t("Beenden")).clicked() {
+                        if stil::haupt(ui, true, Sym::Play, t("Weiterladen")).clicked() {
+                            self.ask_quit = false;
+                        }
+                        if stil::gefahr(ui, true, Sym::Kreuz, t("Beenden")).clicked() {
                             self.quit_ok = true;
                             self.ask_quit = false;
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                        if ui.button(t("Weiterladen")).clicked() {
-                            self.ask_quit = false;
                         }
                     });
                 });

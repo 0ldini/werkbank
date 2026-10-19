@@ -10,6 +10,7 @@
 
 mod app;
 mod sprache;
+mod stil;
 mod thema;
 
 use std::collections::HashMap;

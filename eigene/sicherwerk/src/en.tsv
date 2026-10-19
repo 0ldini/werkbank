@@ -262,3 +262,9 @@ ZIP-Inhaltsverzeichnis ausserhalb der Datei	ZIP directory outside the file
 ZIP-Inhaltsverzeichnis beschädigt	ZIP directory damaged
 ZIP-Eintrag beschädigt	ZIP entry damaged
 ZIP-Eintrag ist komprimiert (nur ungepackte Einträge von Sicherwerk werden unterstützt)	ZIP entry is compressed (only uncompressed entries from Sicherwerk are supported)
+Noch keine Aufträge. Oben «Neuer Auftrag» wählen.	No jobs yet. Choose «New job» above.
+Ordner wählen …	Choose folder …
+In der Aufgabenplanung eingetragen	Added to Task Scheduler
+Häkchen setzen, um Dateien oder Ordner wiederherzustellen.	Tick files or folders to restore them.
+{n} Aufträge	{n} jobs
+läuft: {name}	running: {name}

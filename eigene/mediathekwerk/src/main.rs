@@ -3,6 +3,7 @@
 mod app;
 mod model;
 mod sprache;
+mod stil;
 mod store;
 mod thema;
 mod tmdb;
