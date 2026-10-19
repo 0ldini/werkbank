@@ -436,6 +436,46 @@ def swiss_spelling():
     print(f"  {n} × ß → ss in {len(files)} Dateien")
 
 
+def titlebar():
+    """Titelleiste in der Logofarbe (Windows): Kiste werk/titel nach crates/werk-titel,
+    als Abhängigkeit des Programms eintragen und am Anfang von main() starten."""
+    tools = (pathlib.Path(__file__).resolve().parent / "tools" / "make_icons.py").read_bytes().decode("utf-8")
+    m = re.search(rf'"{re.escape(APP)}":\s*\("[^"]*",\s*"#([0-9A-Fa-f]{{6}})"', tools)
+    if not m:
+        problems.append(f"Titelleiste: keine Logofarbe für {APP} in tools/make_icons.py")
+        return
+    rgb = ", ".join(f"0x{m.group(1)[i:i + 2].upper()}" for i in (0, 2, 4))
+    app_dir = ROOT / "apps" / APP
+    cargo, main_rs = app_dir / "Cargo.toml", app_dir / "src" / "main.rs"
+    if not cargo.is_file() or not main_rs.is_file():
+        problems.append(f"Titelleiste: apps/{APP}/Cargo.toml oder src/main.rs fehlt")
+        return
+    text = read(cargo)
+    nl = "\r\n" if "\r\n" in text else "\n"
+    rows = text.split(nl)
+    hits = [i for i, r in enumerate(rows) if r.strip() == "[dependencies]"]
+    if len(hits) != 1:
+        problems.append(f"Titelleiste: [dependencies] {len(hits)}× in apps/{APP}/Cargo.toml")
+        return
+    rows.insert(hits[0] + 1, 'werk-titel = { path = "../../crates/werk-titel" }')
+    code = read(main_rs)
+    mains = list(re.finditer(r"(?m)^(\s*)(?:pub )?fn main\([^)]*\)[^{;]*\{[ \t]*$", code))
+    if len(mains) != 1:
+        problems.append(f"Titelleiste: fn main() {len(mains)}× statt 1× in apps/{APP}/src/main.rs")
+        return
+    at = mains[0].end()
+    ind = mains[0].group(1) + "    "
+    code = code[:at] + f"\n{ind}werk_titel::start([{rgb}]); // Werkbank: Titelleiste in der Logofarbe" + code[at:]
+    if not CHECK:
+        cargo.write_bytes(nl.join(rows).encode("utf-8"))
+        main_rs.write_bytes(code.encode("utf-8"))
+        dst = ROOT / "crates" / "werk-titel"
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(pathlib.Path(__file__).resolve().parent / "titel", dst, ignore=shutil.ignore_patterns("target", "Cargo.lock"))
+    print(f"  Titelleiste #{m.group(1)}")
+
+
 def main():
     print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}")
     # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
@@ -449,6 +489,8 @@ def main():
     print("Bilder:")
     replace_images()
     extend_notice()
+    print("Titelleiste:")
+    titlebar()
     if problems:
         print("\nABBRUCH, das Original hat sich geändert:", file=sys.stderr)
         for p in problems:
