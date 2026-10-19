@@ -171,3 +171,15 @@ jobs:
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
               --title "${NAME^} $VERSION" --notes "Eigenes Programm ${NAME^} $VERSION für Windows, Linux und den Browser."
           fi
+
+  setup:
+    name: Offline-Setup neu bauen
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run offline-setup.yml --repo "$GITHUB_REPOSITORY" --ref main

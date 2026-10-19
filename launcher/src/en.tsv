@@ -238,3 +238,12 @@ Eingeklappt	Collapsed
 Ausgeklappt	Expanded
 Diese Widgets stehen auf der Startseite. Grösse und Reihenfolge änderst du mit «Widgets anordnen».	These widgets are on the start page. Change size and order with “Arrange widgets”.
 Widgets	Widgets
+Neue Werkbank {v} wird geladen … {p} %	Loading new Werkbank {v} … {p} %
+Werkbank {v} ist installiert und gilt nach einem Neustart.	Werkbank {v} is installed and takes effect after a restart.
+Jetzt neu starten	Restart now
+Nach neuer Werkbank suchen	Check for a new Werkbank
+Suche …	Searching …
+Diese Werkbank ist aktuell.	This Werkbank is up to date.
+Werkbank {v} gilt nach einem Neustart.	Werkbank {v} takes effect after a restart.
+Selbst-Update fehlgeschlagen: {fehler}	Self-update failed: {fehler}
+Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.	Werkbank checks for a new version at startup and installs it by itself.

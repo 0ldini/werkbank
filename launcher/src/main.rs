@@ -13,6 +13,7 @@ use crate::core::{fmt_version, App, Kind, Manifest, Version};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    core::launcher_startup();
     core::init_token();
     gui::init_theme();
     // Erhöhte Instanz (siehe core::create_dir_elevated): nur den Ordner anlegen, dann beenden.

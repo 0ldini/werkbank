@@ -262,3 +262,15 @@ jobs:
               --title "$NAME $VERSION" \
               --notes "$NAME $VERSION, gebaut aus https://github.com/$UPSTREAM (Version $VERSION). Installation und Updates über den Werkbank-Launcher."
           fi
+
+  setup:
+    name: Offline-Setup neu bauen
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.plan.outputs.count != '0' && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run offline-setup.yml --repo "$GITHUB_REPOSITORY" --ref main

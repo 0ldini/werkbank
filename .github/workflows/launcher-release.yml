@@ -117,3 +117,15 @@ jobs:
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" $kind \
               --title "Werkbank $VERSION" --notes "Werkbank-Launcher $VERSION für Windows und Linux."
           fi
+
+  setup:
+    name: Offline-Setup neu bauen
+    needs: [build, release]
+    if: ${{ needs.build.outputs.version != '' && !contains(needs.build.outputs.version, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run offline-setup.yml --repo "$GITHUB_REPOSITORY" --ref main

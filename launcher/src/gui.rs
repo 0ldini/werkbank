@@ -131,6 +131,19 @@ fn category(app: &App) -> Chip {
     }
 }
 
+/// Stand des Selbst-Updates des Launchers.
+#[derive(Default, Clone)]
+enum SelfUpdate {
+    #[default]
+    Idle,
+    Checking,
+    Loading(Version, f32),
+    /// Neue Version eingesetzt, wirkt nach dem Neustart.
+    Ready(Version),
+    Current,
+    Failed(String),
+}
+
 #[derive(Default)]
 struct Sky {
     data: Option<Weather>,
@@ -176,6 +189,8 @@ pub struct Gui {
     mail: Option<widgets::MailStatus>,
     mail_at: Option<Instant>,
     timer: widgets::TimerState,
+    /// Selbst-Update des Launchers.
+    self_update: Arc<Mutex<SelfUpdate>>,
     /// Schnellzugriff bearbeiten (× auf den Symbolen).
     quick_edit: bool,
     /// «Alle Programme» unter dem Schnellzugriff offen, mit Suchtext.
@@ -234,6 +249,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 mail_at: None,
                 timer: Default::default(),
                 quick_edit: false,
+                self_update: Default::default(),
                 show_all: false,
                 all_query: String::new(),
                 all_focus: false,
@@ -882,12 +898,79 @@ impl Gui {
         self.manifest = manifest;
         self.refresh(ctx);
         self.fetch_weather(ctx);
+        if online {
+            self.check_self_update(ctx, true);
+        }
         if let Some(dir) = bundle {
             self.start_bundle(ctx, dir, online);
         }
         // Schritt 2 der Ersteinrichtung: Dateitypen (nur, wo das System es kann).
         if assoc::supported() && !self.cfg.types_asked {
             self.types = Some(Types { choice: assoc::all(&self.manifest), message: None, first_run: true });
+        }
+    }
+
+    /// Nach einer neueren Werkbank suchen; mit `install` gleich laden und einsetzen.
+    fn check_self_update(&mut self, ctx: &egui::Context, install: bool) {
+        let state = self.self_update.clone();
+        if let Ok(mut s) = state.lock() {
+            if matches!(*s, SelfUpdate::Checking | SelfUpdate::Loading(..) | SelfUpdate::Ready(_)) {
+                return;
+            }
+            *s = SelfUpdate::Checking;
+        }
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let set = |v: SelfUpdate| {
+                if let Ok(mut s) = state.lock() {
+                    *s = v;
+                }
+                ctx.request_repaint();
+            };
+            match core::launcher_update_available() {
+                Ok(None) => set(SelfUpdate::Current),
+                Ok(Some(v)) if install => {
+                    set(SelfUpdate::Loading(v, 0.0));
+                    let progress = |_: &str, f: f32| {
+                        if let Ok(mut s) = state.lock() {
+                            *s = SelfUpdate::Loading(v, f);
+                        }
+                        ctx.request_repaint();
+                    };
+                    match core::update_launcher(v, &progress) {
+                        Ok(()) => set(SelfUpdate::Ready(v)),
+                        Err(e) => set(SelfUpdate::Failed(format!("{e:#}"))),
+                    }
+                }
+                Ok(Some(v)) => set(SelfUpdate::Loading(v, 0.0)),
+                Err(e) => set(SelfUpdate::Failed(format!("{e:#}"))),
+            }
+        });
+    }
+
+    /// Hinweis in der Kopfzeile, solange ein Update lädt oder bereitsteht.
+    fn self_update_bar(&mut self, ui: &mut egui::Ui) {
+        let state = self.self_update.lock().map(|s| s.clone()).unwrap_or_default();
+        match state {
+            SelfUpdate::Loading(v, f) => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(egui::RichText::new(tf("Neue Werkbank {v} wird geladen … {p} %", &[("v", &fmt_version(v)), ("p", &format!("{:.0}", f * 100.0))])).color(soft()));
+                });
+            }
+            SelfUpdate::Ready(v) => {
+                ui.horizontal(|ui| {
+                    let (r, _) = ui.allocate_exact_size(Vec2::splat(20.0), Sense::hover());
+                    glyph(ui.painter(), r, Glyph::Update, vivid(rgb(0xE39B0B)));
+                    ui.label(egui::RichText::new(tf("Werkbank {v} ist installiert und gilt nach einem Neustart.", &[("v", &fmt_version(v))])).color(text()));
+                    if button(ui, t("Jetzt neu starten"), Look::Accent).clicked() {
+                        if let Err(e) = core::restart_launcher() {
+                            self.notice = Some(format!("{e:#}"));
+                        }
+                    }
+                });
+            }
+            _ => {}
         }
     }
 
@@ -1423,6 +1506,7 @@ impl Gui {
                     }
                 });
             });
+            self.self_update_bar(ui);
             let mut clear = false;
             if let Some(n) = &self.notice {
                 ui.horizontal_wrapped(|ui| {
@@ -2034,14 +2118,40 @@ impl Gui {
                     self.open_types();
                 }
                 let mut about = false;
+                let mut check = false;
+                let upd = self.self_update.lock().map(|s| s.clone()).unwrap_or_default();
                 section(ui, t("Über"), &mut |ui| {
                     ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).color(soft()));
+                    ui.horizontal(|ui| {
+                        if button(ui, t("Nach neuer Werkbank suchen"), Look::Outline).clicked() {
+                            check = true;
+                        }
+                        let msg = match &upd {
+                            SelfUpdate::Checking => Some((t("Suche …").to_string(), muted())),
+                            SelfUpdate::Current => Some((t("Diese Werkbank ist aktuell.").to_string(), muted())),
+                            SelfUpdate::Ready(v) => Some((tf("Werkbank {v} gilt nach einem Neustart.", &[("v", &fmt_version(*v))]), accent_text())),
+                            SelfUpdate::Failed(e) => Some((tf("Selbst-Update fehlgeschlagen: {fehler}", &[("fehler", e)]), warn())),
+                            _ => None,
+                        };
+                        if let Some((m, c)) = msg {
+                            ui.label(egui::RichText::new(m).size(13.0).color(c));
+                        }
+                    });
+                    ui.label(egui::RichText::new(t("Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.")).size(12.5).color(muted()));
                     ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(muted()));
                     if link(ui, t("Mehr …")).clicked() {
                         about = true;
                     }
                 });
                 self.about |= about;
+                if check {
+                    if let Ok(mut s) = self.self_update.lock() {
+                        if matches!(*s, SelfUpdate::Current | SelfUpdate::Failed(_)) {
+                            *s = SelfUpdate::Idle;
+                        }
+                    }
+                    self.check_self_update(ctx, true);
+                }
             });
         });
         if search {

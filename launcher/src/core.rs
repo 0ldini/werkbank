@@ -759,6 +759,109 @@ pub fn install(app: &App, kind: Kind, progress: Progress) -> Result<Version> {
     result.map(|_| v)
 }
 
+// ---------------------------------------------------------------------------------------------
+// Der Launcher selbst
+
+/// Der Launcher als «Programm»: Releases `werkbank-vX.Y.Z` im Werkbank-Repository.
+fn launcher_app() -> Result<App> {
+    toml::from_str("id = \"werkbank\"\nname = \"Werkbank\"\nrepo = \"https://github.com/0ldini/werkbank\"\ntag = \"werkbank-v\"")
+        .context("Launcher-Eintrag")
+}
+
+/// Eigene Version (bei Probe-Builds ohne Nummer: None, dann gibt es kein Selbst-Update).
+pub fn own_version() -> Option<Version> {
+    parse_version(env!("CARGO_PKG_VERSION"))
+}
+
+/// Pfad der eigenen Programmdatei, beim Start festgehalten (nach dem Umbenennen beim Update
+/// meldet das System sonst den neuen Namen der alten Datei).
+static OWN_EXE: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+
+fn own_exe() -> Option<PathBuf> {
+    OWN_EXE.get_or_init(|| std::env::current_exe().ok()).clone()
+}
+
+/// Beim Start: Pfad merken und die alte Programmdatei eines Updates wegräumen.
+pub fn launcher_startup() {
+    if let Some(me) = own_exe() {
+        let _ = fs::remove_file(me.with_extension("old"));
+    }
+}
+
+/// Neuere veröffentlichte Werkbank-Version, falls es eine gibt.
+pub fn launcher_update_available() -> Result<Option<Version>> {
+    let Some(own) = own_version() else { return Ok(None) };
+    let latest = latest_version(&launcher_app()?)?;
+    Ok((latest > own).then_some(latest))
+}
+
+fn launcher_asset() -> &'static str {
+    if cfg!(windows) {
+        "werkbank-windows-x64.zip"
+    } else {
+        "werkbank-linux-x86_64.tar.gz"
+    }
+}
+
+/// Prüfsumme einer Datei aus SHA256SUMS.txt.
+fn expected_sum(sums: &str, file: &str) -> Option<String> {
+    sums.lines().find_map(|l| {
+        let (sum, name) = l.split_once(char::is_whitespace)?;
+        (name.trim().trim_start_matches('*') == file).then(|| sum.to_lowercase())
+    })
+}
+
+/// Lädt Werkbank `v`, prüft die Prüfsumme und tauscht die eigene Programmdatei aus. Die
+/// laufende Datei wird zu «.old» umbenannt (das erlaubt auch Windows) und beim nächsten Start
+/// gelöscht. Geht etwas schief, bleibt die bisherige Datei an ihrem Platz.
+pub fn update_launcher(v: Version, progress: Progress) -> Result<()> {
+    let app = launcher_app()?;
+    let file = launcher_asset();
+    let sums = release_text(&app, v, "SHA256SUMS.txt")?;
+    let expected = expected_sum(&sums, file).ok_or_else(|| anyhow!("{file} fehlt im Release werkbank-v{}", fmt_version(v)))?;
+    let work = data_dir().join("werkbank-update");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work)?;
+    let archive = work.join(file);
+    let actual = download(release_file(&app, v, file)?, &archive, progress)?;
+    if actual != expected {
+        let _ = fs::remove_dir_all(&work);
+        bail!("Prüfsumme von {file} stimmt nicht; Download verworfen");
+    }
+    progress(crate::sprache::t("Entpacke …"), 1.0);
+    let out = work.join("neu");
+    extract(&archive, &out)?;
+    let name = if cfg!(windows) { "werkbank.exe" } else { "werkbank" };
+    let new_exe = [out.join("werkbank").join(name), out.join(name)]
+        .into_iter()
+        .find(|p| p.is_file())
+        .ok_or_else(|| anyhow!("{name} fehlt im Archiv"))?;
+    let me = own_exe().ok_or_else(|| anyhow!("eigene Programmdatei nicht gefunden"))?;
+    let staged = me.with_extension("neu");
+    fs::copy(&new_exe, &staged).with_context(|| format!("{} schreiben", staged.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&staged, fs::Permissions::from_mode(0o755))?;
+    }
+    let old = me.with_extension("old");
+    let _ = fs::remove_file(&old);
+    fs::rename(&me, &old).with_context(|| format!("{} umbenennen", me.display()))?;
+    if let Err(e) = fs::rename(&staged, &me) {
+        let _ = fs::rename(&old, &me);
+        return Err(e).context("neue Programmdatei einsetzen");
+    }
+    let _ = fs::remove_dir_all(&work);
+    Ok(())
+}
+
+/// Startet die (neue) Programmdatei und beendet diesen Launcher.
+pub fn restart_launcher() -> Result<()> {
+    let me = own_exe().ok_or_else(|| anyhow!("eigene Programmdatei nicht gefunden"))?;
+    std::process::Command::new(&me).spawn().with_context(|| format!("{} starten", me.display()))?;
+    std::process::exit(0);
+}
+
 /// Installiert ein selbst gebautes Archiv (z. B. deine angepasste Version) ohne Download.
 /// Die Version wird aus dem Dateinamen gelesen, etwa `pdfcraft-0.7.2-linux-x86_64.tar.gz`.
 pub fn install_file(app: &App, archive: &Path, progress: Progress) -> Result<(Kind, Version)> {

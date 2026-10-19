@@ -2,13 +2,18 @@ name: Offline-Setup
 
 # Packt Launcher und alle veröffentlichten Programme (Windows + Browser) in ein Setup-Programm
 # für Windows und veröffentlicht es als Release setup-v<Datum>.
-# Start: Reiter «Actions» → «Offline-Setup» → «Run workflow».
+# Start: Reiter «Actions» → «Offline-Setup» → «Run workflow». Läuft auch von selbst nach jeder
+# Veröffentlichung des Launchers oder eines Programms (dann gewinnt der neueste Lauf).
 
 on:
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: offline-setup
+  cancel-in-progress: true
 
 jobs:
   setup:
