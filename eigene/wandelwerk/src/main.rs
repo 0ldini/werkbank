@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod convert;
 mod model;
@@ -14,6 +15,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Wandelwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Wandelwerk");
+    }
     eframe::run_native(
         "Wandelwerk",
         options,

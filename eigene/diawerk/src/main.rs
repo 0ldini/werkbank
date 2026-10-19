@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod frames;
 mod model;
@@ -17,6 +18,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Diawerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Diawerk");
+    }
     eframe::run_native(
         "Diawerk",
         options,

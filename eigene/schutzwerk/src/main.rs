@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod netparse;
 mod pwcheck;
@@ -16,6 +17,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Schutzwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Schutzwerk");
+    }
     eframe::run_native(
         "Schutzwerk",
         options,

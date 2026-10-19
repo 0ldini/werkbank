@@ -492,6 +492,29 @@ pub fn http_text(url: &str, limit: u64) -> Result<String> {
     Ok(String::from_utf8_lossy(&buf).into_owned())
 }
 
+/// JSON an eine Adresse schicken und die Antwort als Text lesen (für den Lizenzserver).
+/// Weiterleitungen (z. B. auf www.) werden bis zu dreimal mit derselben Anfrage befolgt.
+pub fn post_json(url: &str, body: &str) -> Result<String> {
+    let mut url = url.to_string();
+    for _ in 0..4 {
+        let mut resp = agent().post(&url).header("Content-Type", "application/json").send(body)?;
+        if resp.status().is_redirection() {
+            let next = resp.headers().get("location").and_then(|h| h.to_str().ok()).ok_or_else(|| anyhow!("Weiterleitung ohne Ziel"))?;
+            url = if next.starts_with("http") {
+                next.to_string()
+            } else {
+                let base: String = url.splitn(4, '/').take(3).collect::<Vec<_>>().join("/");
+                format!("{base}{next}")
+            };
+            continue;
+        }
+        let mut buf = Vec::new();
+        resp.body_mut().as_reader().take(1 << 20).read_to_end(&mut buf)?;
+        return Ok(String::from_utf8_lossy(&buf).into_owned());
+    }
+    bail!("zu viele Weiterleitungen")
+}
+
 /// Alle Versions-Tags (`vX.Y.Z`) eines Repositories, neueste zuerst.
 /// Liest die Git-Referenzen direkt, braucht also kein Konto und kennt kein API-Limit.
 pub fn remote_versions(app: &App) -> Result<Vec<Version>> {
@@ -952,6 +975,9 @@ pub fn run(app: &App) -> Result<()> {
 
 /// Startet das Programm, optional mit einer zu öffnenden Datei.
 pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
+    if !crate::lizenz::gueltig() {
+        bail!("{}", crate::sprache::t("Die Werkbank ist nicht freigeschaltet. Bitte im Launcher den Code eingeben."));
+    }
     let exe = exe_path(app).ok_or_else(|| anyhow!("{} ist nicht installiert", app.name))?;
     let file = file.map(|f| std::path::absolute(f).unwrap_or_else(|_| f.to_path_buf()));
     if let Some(f) = &file {

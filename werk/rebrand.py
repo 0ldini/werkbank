@@ -202,6 +202,12 @@ WB = (
     '.map(|v| v.trim().to_ascii_lowercase()).filter(|v| v == "de" || v == "en"))'
 )
 
+# Die Werkbank-Anpassungen (Sprache, Hell/Dunkel) gelten nur mit gültiger Lizenz der Werkbank:
+# lizenz.txt im Einstellungsordner, Ablauf (4. Feld der ersten Zeile) noch nicht erreicht.
+# Rust-Ausdruck vom Typ bool. Die Unterschrift prüfen Launcher und eigene Programme.
+LIC = '(|| -> Option<bool> { let base = (if cfg!(windows) { std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Werkbank").join("config") } else if cfg!(target_os = "macos") { std::path::PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/Werkbank") } else { std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from).filter(|p| p.is_absolute()).or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))?.join("werkbank") }); let t = std::fs::read_to_string(base.join("lizenz.txt")).ok()?; let ablauf: u64 = t.lines().next()?.split(\'|\').nth(3)?.trim().parse().ok()?; Some(ablauf > std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok()?.as_secs()) })().unwrap_or(false)'
+WB = f"(if {LIC} {{ {WB} }} else {{ None }})"
+
 _FROM_PREF = (
     "after",
     "pub fn from_pref(pref: &str) -> Lang {",

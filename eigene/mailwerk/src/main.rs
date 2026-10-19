@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
+mod lizenz;
 mod app;
 mod b64;
 mod backend;
@@ -37,6 +38,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Mailwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Mailwerk");
+    }
     eframe::run_native("Mailwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
 }
 

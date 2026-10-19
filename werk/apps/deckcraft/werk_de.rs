@@ -14,7 +14,15 @@ use std::sync::OnceLock;
 const TABLE: &str = include_str!("werk_de.tsv");
 
 /// Die Sprache, die der Werkbank-Launcher vorgibt: «de», «en» oder None.
+/// Gilt nur mit gültiger Lizenz der Werkbank (lizenz.txt, Ablauf nicht erreicht).
+fn werkbank_lizenz() -> bool {
+    (|| -> Option<bool> { let base = (if cfg!(windows) { std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("Werkbank").join("config") } else if cfg!(target_os = "macos") { std::path::PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/Werkbank") } else { std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from).filter(|p| p.is_absolute()).or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))?.join("werkbank") }); let t = std::fs::read_to_string(base.join("lizenz.txt")).ok()?; let ablauf: u64 = t.lines().next()?.split('|').nth(3)?.trim().parse().ok()?; Some(ablauf > std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok()?.as_secs()) })().unwrap_or(false)
+}
+
 fn werkbank_lang() -> Option<String> {
+    if !werkbank_lizenz() {
+        return None;
+    }
     std::env::var("WERKBANK_LANG")
         .ok()
         .or_else(|| {

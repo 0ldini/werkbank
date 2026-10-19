@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod model;
 mod sprache;
@@ -15,6 +16,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Mediathekwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Mediathekwerk");
+    }
     eframe::run_native(
         "Mediathekwerk",
         options,

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
+mod lizenz;
 mod app;
 mod json;
 mod model;
@@ -21,6 +22,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Organiwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Organiwerk");
+    }
     eframe::run_native("Organiwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
 }
 

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod datefmt;
 mod rename;
@@ -14,6 +15,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Umbenennwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Umbenennwerk");
+    }
     eframe::run_native(
         "Umbenennwerk",
         options,

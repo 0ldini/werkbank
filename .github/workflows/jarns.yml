@@ -1,0 +1,77 @@
+name: jarns.ch
+
+# Lädt den Lizenzserver (server/werkbank → <Ordner>/werkbank) und den neuesten Launcher
+# (→ <Ordner>/software) per FTP auf jarns.ch. Läuft bei Änderungen am Server, nach jeder
+# Veröffentlichung des Launchers und von Hand («Run workflow»).
+#
+# Einmal einrichten unter Settings → Secrets and variables → Actions:
+#   Secrets:   FTP_SERVER (z. B. ftp.jarns.ch), FTP_USER, FTP_PASSWORD
+#   Variablen: FTP_ORDNER  – Webordner auf dem FTP-Server, z. B. «httpdocs» oder «public_html»
+#                            (leer = oberster Ordner)
+#              FTP_TLS     – «nein», falls der Server kein verschlüsseltes FTP kann
+# Nie hochgeladen und nie gelöscht: geheim.php und die Daten in data/.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["server/**", ".github/workflows/jarns.yml"]
+  workflow_run:
+    workflows: [Launcher-Release]
+    types: [completed]
+
+concurrency:
+  group: jarns
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  hochladen:
+    name: Hochladen
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USER: ${{ secrets.FTP_USER }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_ORDNER: ${{ vars.FTP_ORDNER }}
+      FTP_TLS: ${{ vars.FTP_TLS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zugang prüfen
+        id: zugang
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::warning::FTP_SERVER, FTP_USER oder FTP_PASSWORD fehlt (Settings → Secrets) – nichts hochgeladen."
+            echo "ok=nein" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=ja" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Neuesten Launcher holen
+        if: steps.zugang.outputs.ok == 'ja'
+        run: |
+          set -euo pipefail
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=50" --jq '[.[] | select(.tag_name | startswith("werkbank-v")) | select(.prerelease | not)][0].tag_name')
+          echo "Launcher: $tag"
+          mkdir -p software
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir software --pattern 'werkbank-*' --pattern 'SHA256SUMS.txt'
+          echo "${tag#werkbank-v}" > software/werkbank-version.txt
+          ls -l software
+      - name: Hochladen
+        if: steps.zugang.outputs.ok == 'ja'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp >/dev/null
+          root="${FTP_ORDNER:-.}"
+          tls="set ftp:ssl-allow yes; set ftp:ssl-force yes; set ssl:verify-certificate yes"
+          [ "$FTP_TLS" = "nein" ] && tls="set ftp:ssl-allow no"
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_SERVER" -e "
+            set net:max-retries 3; set net:timeout 30; $tls;
+            mkdir -p -f $root/werkbank/data; mkdir -p -f $root/software;
+            mirror -R --verbose --no-perms --exclude-glob geheim.php --exclude-glob .gitignore --exclude-glob LIESMICH.md --exclude-glob 'data/*.json' --exclude-glob 'data/.sperre' server/werkbank $root/werkbank;
+            mirror -R --verbose --no-perms software $root/software;
+            quit"
+          echo "Fertig: Lizenzserver unter /werkbank, Launcher unter /software."

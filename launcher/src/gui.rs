@@ -131,6 +131,15 @@ fn category(app: &App) -> Chip {
     }
 }
 
+/// Freischalten bzw. Melden beim Lizenzserver (läuft im Hintergrund).
+#[derive(Default)]
+struct LizenzLauf {
+    busy: bool,
+    antwort: Option<crate::lizenz::Antwort>,
+    /// Der Server hat die Lizenz entzogen (gesperrt oder neuer Code).
+    entzogen: bool,
+}
+
 /// Stand des Selbst-Updates des Launchers.
 #[derive(Default, Clone)]
 enum SelfUpdate {
@@ -191,6 +200,12 @@ pub struct Gui {
     timer: widgets::TimerState,
     /// Selbst-Update des Launchers.
     self_update: Arc<Mutex<SelfUpdate>>,
+    /// Freischaltung: gültige Lizenz vorhanden, Eingabefeld, Lauf zum Server.
+    lizenz_ok: bool,
+    lizenz_input: String,
+    lizenz: Arc<Mutex<LizenzLauf>>,
+    /// Offline-Paket, das erst nach dem Freischalten eingerichtet wird.
+    pending_bundle: Option<(std::path::PathBuf, bool)>,
     /// Schnellzugriff bearbeiten (× auf den Symbolen).
     quick_edit: bool,
     /// «Alle Programme» unter dem Schnellzugriff offen, mit Suchtext.
@@ -250,6 +265,10 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 timer: Default::default(),
                 quick_edit: false,
                 self_update: Default::default(),
+                lizenz_ok: crate::lizenz::gueltig(),
+                lizenz_input: String::new(),
+                lizenz: Default::default(),
+                pending_bundle: None,
                 show_all: false,
                 all_query: String::new(),
                 all_focus: false,
@@ -900,13 +919,120 @@ impl Gui {
         self.fetch_weather(ctx);
         if online {
             self.check_self_update(ctx, true);
+            self.lizenz_melden(ctx);
         }
         if let Some(dir) = bundle {
-            self.start_bundle(ctx, dir, online);
+            if self.lizenz_ok {
+                self.start_bundle(ctx, dir, online);
+            } else {
+                self.pending_bundle = Some((dir, online));
+            }
         }
         // Schritt 2 der Ersteinrichtung: Dateitypen (nur, wo das System es kann).
         if assoc::supported() && !self.cfg.types_asked {
             self.types = Some(Types { choice: assoc::all(&self.manifest), message: None, first_run: true });
+        }
+    }
+
+    /// Kennungen der installierten Programme (für die Übersicht auf dem Lizenzserver).
+    fn installed_ids(&self) -> Vec<String> {
+        self.manifest
+            .app
+            .iter()
+            .filter(|a| core::installed_version(a, Kind::Native).is_some() || core::installed_version(a, Kind::Web).is_some())
+            .map(|a| a.id.clone())
+            .collect()
+    }
+
+    /// Beim Start dem Server melden; erneuert die Lizenz oder entzieht sie.
+    fn lizenz_melden(&mut self, ctx: &egui::Context) {
+        if !self.lizenz_ok {
+            return;
+        }
+        let (state, ids, ctx) = (self.lizenz.clone(), self.installed_ids(), ctx.clone());
+        std::thread::spawn(move || {
+            let a = crate::lizenz::melden(&ids);
+            if let Ok(mut s) = state.lock() {
+                s.entzogen = matches!(a, crate::lizenz::Antwort::Gesperrt | crate::lizenz::Antwort::Neu);
+                s.antwort = Some(a);
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    fn lizenz_aktivieren(&mut self, ctx: &egui::Context) {
+        let code = self.lizenz_input.trim().to_string();
+        if code.is_empty() {
+            return;
+        }
+        if let Ok(mut s) = self.lizenz.lock() {
+            if s.busy {
+                return;
+            }
+            s.busy = true;
+            s.antwort = None;
+        }
+        let (state, ids, ctx) = (self.lizenz.clone(), self.installed_ids(), ctx.clone());
+        std::thread::spawn(move || {
+            let a = crate::lizenz::aktivieren(&code, &ids);
+            if let Ok(mut s) = state.lock() {
+                s.busy = false;
+                s.antwort = Some(a);
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    /// Ohne Lizenz: nur das Freischalten.
+    fn lizenz_screen(&mut self, ctx: &egui::Context) {
+        use crate::lizenz::Antwort;
+        let (busy, antwort) = self.lizenz.lock().map(|s| (s.busy, s.antwort.clone())).unwrap_or((false, None));
+        let mut go = false;
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin::symmetric(48, 60))).show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.set_max_width(520.0);
+                logo(ui, &mut self.textures, 64.0);
+                ui.add_space(14.0);
+                ui.label(egui::RichText::new(t("Werkbank freischalten")).size(24.0).strong());
+                ui.add_space(6.0);
+                ui.label(egui::RichText::new(t("Gib den Code ein, den du mit der Werkbank bekommen hast. Dafür braucht es einmal Internet; danach läuft die Werkbank auch ohne.")).size(14.0).color(soft()));
+                ui.add_space(18.0);
+                let r = ui.add(
+                    egui::TextEdit::singleline(&mut self.lizenz_input)
+                        .hint_text("WERK-XXXX-XXXX-XXXX")
+                        .font(egui::FontId::monospace(18.0))
+                        .horizontal_align(egui::Align::Center)
+                        .desired_width(340.0)
+                        .margin(egui::vec2(12.0, 10.0)),
+                );
+                if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    go = true;
+                }
+                ui.add_space(12.0);
+                if busy {
+                    ui.horizontal(|ui| {
+                        ui.add_space((ui.available_width() - 160.0).max(0.0) / 2.0);
+                        ui.spinner();
+                        ui.label(egui::RichText::new(t("Wird geprüft …")).color(muted()));
+                    });
+                } else if ui.add_enabled(!self.lizenz_input.trim().is_empty(), egui::Button::new(egui::RichText::new(t("Freischalten")).size(15.0).strong().color(INK)).fill(ACCENT).corner_radius(10u8).min_size(egui::vec2(180.0, 40.0))).clicked() {
+                    go = true;
+                }
+                ui.add_space(12.0);
+                let msg = match &antwort {
+                    Some(Antwort::Code) => Some((t("Der Code stimmt nicht.").to_string(), warn())),
+                    Some(Antwort::Gesperrt) => Some((t("Dieses Gerät ist gesperrt.").to_string(), warn())),
+                    Some(Antwort::Neu) => Some((t("Der Code wurde geändert. Bitte den neuen Code eingeben.").to_string(), accent_text())),
+                    Some(Antwort::Fehler(e)) => Some((tf("Keine Verbindung zum Lizenzserver: {fehler}", &[("fehler", e)]), warn())),
+                    _ => None,
+                };
+                if let Some((m, c)) = msg {
+                    ui.label(egui::RichText::new(m).size(13.5).color(c));
+                }
+            });
+        });
+        if go && !busy {
+            self.lizenz_aktivieren(ctx);
         }
     }
 
@@ -2138,6 +2264,12 @@ impl Gui {
                         }
                     });
                     ui.label(egui::RichText::new(t("Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.")).size(12.5).color(muted()));
+                    if let Some(ab) = crate::lizenz::ablauf() {
+                        let datum = chrono::DateTime::from_timestamp(ab as i64, 0)
+                            .map(|d| d.with_timezone(&chrono::Local).format(if sprache::is_en() { "%Y-%m-%d" } else { "%d.%m.%Y" }).to_string())
+                            .unwrap_or_default();
+                        ui.label(egui::RichText::new(tf("Freigeschaltet bis {datum}; verlängert sich bei jedem Start mit Internet.", &[("datum", &datum)])).size(12.5).color(muted()));
+                    }
                     ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(muted()));
                     if link(ui, t("Mehr …")).clicked() {
                         about = true;
@@ -2199,6 +2331,27 @@ impl eframe::App for Gui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.setup.is_some() {
             self.setup_screen(ctx);
+            return;
+        }
+        let (entzogen, aktiviert) = self
+            .lizenz
+            .lock()
+            .map(|mut s| {
+                let e = std::mem::take(&mut s.entzogen);
+                (e, !s.busy && s.antwort == Some(crate::lizenz::Antwort::Ok))
+            })
+            .unwrap_or((false, false));
+        if entzogen {
+            self.lizenz_ok = false;
+        } else if aktiviert && !self.lizenz_ok && crate::lizenz::gueltig() {
+            self.lizenz_ok = true;
+            self.lizenz_input.clear();
+            if let Some((dir, online)) = self.pending_bundle.take() {
+                self.start_bundle(ctx, dir, online);
+            }
+        }
+        if !self.lizenz_ok {
+            self.lizenz_screen(ctx);
             return;
         }
         if self.types.is_some() {

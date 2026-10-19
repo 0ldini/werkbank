@@ -247,3 +247,15 @@ Diese Werkbank ist aktuell.	This Werkbank is up to date.
 Werkbank {v} gilt nach einem Neustart.	Werkbank {v} takes effect after a restart.
 Selbst-Update fehlgeschlagen: {fehler}	Self-update failed: {fehler}
 Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.	Werkbank checks for a new version at startup and installs it by itself.
+Die Werkbank ist nicht freigeschaltet. Bitte im Launcher den Code eingeben.	Werkbank is not activated. Please enter the code in the launcher.
+Unerwartete Antwort vom Lizenzserver	Unexpected answer from the licence server
+Die Lizenz vom Server ist ungültig	The licence from the server is invalid
+Werkbank freischalten	Activate Werkbank
+Gib den Code ein, den du mit der Werkbank bekommen hast. Dafür braucht es einmal Internet; danach läuft die Werkbank auch ohne.	Enter the code you received with Werkbank. This needs the internet once; after that Werkbank also runs without it.
+Wird geprüft …	Checking …
+Freischalten	Activate
+Der Code stimmt nicht.	The code is not correct.
+Dieses Gerät ist gesperrt.	This device is blocked.
+Der Code wurde geändert. Bitte den neuen Code eingeben.	The code has changed. Please enter the new code.
+Keine Verbindung zum Lizenzserver: {fehler}	No connection to the licence server: {fehler}
+Freigeschaltet bis {datum}; verlängert sich bei jedem Start mit Internet.	Activated until {datum}; renews at every start with internet.

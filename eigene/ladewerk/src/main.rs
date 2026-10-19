@@ -8,6 +8,7 @@
 //! Optionen: `--browser`, `--no-open` (nur mit --browser), `--port=9000`
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod sprache;
 mod thema;
@@ -3307,6 +3308,10 @@ fn main() {
             .with_title("Ladewerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        let _ = lizenz::sperre("Ladewerk");
+        return;
+    }
     let res = eframe::run_native("Ladewerk", options, Box::new(|cc| Ok(Box::new(app::Gui::new(cc)))));
     if let Err(e) = res {
         eprintln!("Fenster-Fehler: {}", e);

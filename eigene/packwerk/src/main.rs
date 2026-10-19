@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod anzeige;
 mod app;
 mod archiv;
@@ -19,6 +20,9 @@ fn main() -> eframe::Result<()> {
             .with_title("Packwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Packwerk");
+    }
     eframe::run_native(
         "Packwerk",
         options,

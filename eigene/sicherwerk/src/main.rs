@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod lizenz;
 mod app;
 mod aufgabe;
 mod auftrag;
@@ -146,5 +147,8 @@ fn main() -> eframe::Result<()> {
             .with_title("Sicherwerk"),
         ..Default::default()
     };
+    if !lizenz::ok() {
+        return lizenz::sperre("Sicherwerk");
+    }
     eframe::run_native("Sicherwerk", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

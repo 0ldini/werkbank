@@ -1,0 +1,5 @@
+# Werkbank-Lizenzserver
+Options -Indexes
+<FilesMatch "^(lib|geheim)\.php$">
+  Require all denied
+</FilesMatch>
