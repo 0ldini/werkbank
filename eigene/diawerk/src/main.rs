@@ -6,6 +6,7 @@ mod model;
 mod render;
 mod sicht;
 mod sprache;
+mod stil;
 mod thema;
 mod tool;
 

@@ -40,9 +40,13 @@ jobs:
             apps="${{ inputs.app }}"
             [ "$apps" = "all" ] && apps=$(ls -d eigene/*/ | xargs -n1 basename)
           elif [ "$GITHUB_REF" = "refs/heads/probe" ]; then
-            # Probelauf: «[probe eigene]» in der Commit-Meldung baut alle, ohne zu veröffentlichen.
+            # Probelauf: «[probe eigene]» baut alle, «[probe eigene diawerk codewerk]» nur diese –
+            # ohne zu veröffentlichen.
             apps=""
-            git log -1 --format=%s | grep -q '\[probe eigene\]' && apps=$(ls -d eigene/*/ | xargs -n1 basename)
+            nur=$(git log -1 --format=%s | sed -n 's/.*\[probe eigene\( [a-z ]*\)\{0,1\}\].*/\1/p' | xargs)
+            if git log -1 --format=%s | grep -q '\[probe eigene\( [a-z ]*\)\{0,1\}\]'; then
+              if [ -n "$nur" ]; then apps="$nur"; else apps=$(ls -d eigene/*/ | xargs -n1 basename); fi
+            fi
           else
             apps=$(git diff --name-only HEAD~1 HEAD -- eigene | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi

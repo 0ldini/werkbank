@@ -955,10 +955,8 @@ impl Gui {
         self.fetch_weather(ctx);
         if online {
             self.check_self_update(ctx, true);
-            if !self.cfg.nicht_melden {
-                let ids = self.installed_ids();
-                std::thread::spawn(move || crate::meldung::melden(&ids));
-            }
+            crate::meldung::AN.store(!self.cfg.nicht_melden, std::sync::atomic::Ordering::Relaxed);
+            crate::meldung::starten(self.installed_versions());
         }
         if let Some(dir) = bundle {
             self.start_bundle(ctx, dir, online);
@@ -969,13 +967,15 @@ impl Gui {
         }
     }
 
-    /// Kennungen der installierten Programme (für das Zählen).
-    fn installed_ids(&self) -> Vec<String> {
+    /// Installierte Programme mit Version (für das Zählen).
+    fn installed_versions(&self) -> Vec<(String, String)> {
         self.manifest
             .app
             .iter()
-            .filter(|a| core::installed_version(a, Kind::Native).is_some() || core::installed_version(a, Kind::Web).is_some())
-            .map(|a| a.id.clone())
+            .filter_map(|a| {
+                let v = core::installed_version(a, Kind::Native).or_else(|| core::installed_version(a, Kind::Web))?;
+                Some((a.id.clone(), fmt_version(v)))
+            })
             .collect()
     }
 
@@ -2219,7 +2219,7 @@ impl Gui {
                     if ui.checkbox(&mut zaehlen, t("Nutzung zählen lassen")).changed() {
                         zaehlen_neu = Some(!zaehlen);
                     }
-                    ui.label(egui::RichText::new(t("Beim Start meldet die Werkbank einmal Computername, Benutzer, System, Version und installierte Programme, damit sichtbar ist, wie viele sie nutzen.")).size(12.5).color(muted()));
+                    ui.label(egui::RichText::new(t("Die Werkbank meldet beim Start Computername, Benutzer, System und die installierten Programme mit Version, solange sie offen ist alle 5 Minuten ein kurzes Lebenszeichen. So ist sichtbar, wie viele sie nutzen.")).size(12.5).color(muted()));
                     if let Some(url) = self.manifest.spenden.clone().filter(|u| u.starts_with("https://")) {
                         ui.add_space(6.0);
                         ui.horizontal(|ui| {
@@ -2242,6 +2242,7 @@ impl Gui {
                     cfg.nicht_melden = v;
                     let _ = core::save_config(&cfg);
                     self.cfg.nicht_melden = v;
+                    crate::meldung::AN.store(!v, std::sync::atomic::Ordering::Relaxed);
                 }
                 if check {
                     if let Ok(mut s) = self.self_update.lock() {

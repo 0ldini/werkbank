@@ -249,5 +249,5 @@ Selbst-Update fehlgeschlagen: {fehler}	Self-update failed: {fehler}
 Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.	Werkbank checks for a new version at startup and installs it by itself.
 Einen Kaffee spendieren	Buy me a coffee
 Nutzung zählen lassen	Allow usage counting
-Beim Start meldet die Werkbank einmal Computername, Benutzer, System, Version und installierte Programme, damit sichtbar ist, wie viele sie nutzen.	At startup Werkbank reports computer name, user, system, version and installed programs once, so it is visible how many people use it.
 Die Werkbank ist frei. Wer sie mag, kann mit einem Kaffee danke sagen.	Werkbank is free. If you like it, you can say thanks with a coffee.
+Die Werkbank meldet beim Start Computername, Benutzer, System und die installierten Programme mit Version, solange sie offen ist alle 5 Minuten ein kurzes Lebenszeichen. So ist sichtbar, wie viele sie nutzen.	At startup Werkbank reports computer name, user, system and the installed programs with their versions, and while open a short sign of life every 5 minutes. This shows how many people use it.
