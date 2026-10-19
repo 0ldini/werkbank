@@ -459,13 +459,16 @@ def titlebar():
         return
     rows.insert(hits[0] + 1, 'werk-titel = { path = "../../crates/werk-titel" }')
     code = read(main_rs)
-    mains = list(re.finditer(r"(?m)^(\s*)(?:pub )?fn main\([^)]*\)[^{;]*\{[ \t]*$", code))
+    # Unter Windows kommt der Code mit \r\n; die Zeile endet dann mit «{\r».
+    mains = list(re.finditer(r"(?m)^([ \t]*)(?:pub )?fn main\([^)]*\)[^{;\n]*\{(?=[ \t]*\r?$)", code))
     if len(mains) != 1:
         problems.append(f"Titelleiste: fn main() {len(mains)}× statt 1× in apps/{APP}/src/main.rs")
         return
-    at = mains[0].end()
+    eol = code.find("\n", mains[0].end())
+    at = len(code) if eol < 0 else eol + 1
     ind = mains[0].group(1) + "    "
-    code = code[:at] + f"\n{ind}werk_titel::start([{rgb}]); // Werkbank: Titelleiste in der Logofarbe" + code[at:]
+    code_nl = "\r\n" if "\r\n" in code else "\n"
+    code = code[:at] + f"{ind}werk_titel::start([{rgb}]); // Werkbank: Titelleiste in der Logofarbe{code_nl}" + code[at:]
     if not CHECK:
         cargo.write_bytes(nl.join(rows).encode("utf-8"))
         main_rs.write_bytes(code.encode("utf-8"))
