@@ -198,6 +198,12 @@ pub struct Home {
     /// Widgets in ihrer Reihenfolge; leer = Vorgabe.
     #[serde(default)]
     pub widgets: Vec<WidgetCfg>,
+    /// Widget-Leiste ausgeklappt (sonst nur die schmale Zeile).
+    #[serde(default)]
+    pub bar_open: bool,
+    /// Programme im Schnellzugriff in ihrer Reihenfolge; None = Vorgabe.
+    #[serde(default)]
+    pub quick: Option<Vec<String>>,
 }
 
 fn yes() -> bool {
@@ -206,7 +212,7 @@ fn yes() -> bool {
 
 impl Default for Home {
     fn default() -> Self {
-        Home { clock: true, weather: true, recent: true, grouped: true, widgets: Vec::new() }
+        Home { clock: true, weather: true, recent: true, grouped: true, widgets: Vec::new(), bar_open: false, quick: None }
     }
 }
 

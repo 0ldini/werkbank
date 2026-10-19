@@ -10,7 +10,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod start;
 mod widgets;
+
+use start::{accent_round, color_button, vivid};
 
 #[derive(Default, Clone)]
 struct Status {
@@ -173,6 +176,12 @@ pub struct Gui {
     mail: Option<widgets::MailStatus>,
     mail_at: Option<Instant>,
     timer: widgets::TimerState,
+    /// Schnellzugriff bearbeiten (× auf den Symbolen).
+    quick_edit: bool,
+    /// «Alle Programme» unter dem Schnellzugriff offen, mit Suchtext.
+    show_all: bool,
+    all_query: String,
+    all_focus: bool,
     /// Eingabefelder der Einstellungen.
     token_input: String,
     cal_input: String,
@@ -224,6 +233,10 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 mail: None,
                 mail_at: None,
                 timer: Default::default(),
+                quick_edit: false,
+                show_all: false,
+                all_query: String::new(),
+                all_focus: false,
                 token_input: String::new(),
                 cal_input: String::new(),
                 news_input: String::new(),
@@ -450,6 +463,35 @@ enum Glyph {
     Gear,
     Sun,
     Moon,
+    Search,
+    Plus,
+    Down,
+    Up,
+    Clock,
+    Cloud,
+    Mail,
+    Calendar,
+    Timer,
+    Cpu,
+    Ram,
+    Battery,
+    News,
+    Note,
+    History,
+    Play,
+    Pause,
+    Stop,
+    Star,
+    Pencil,
+    Pin,
+    Link,
+    External,
+    FolderOpen,
+    Rss,
+    Layout,
+    Layers,
+    Apps,
+    Check,
 }
 
 /// Kleine Strichsymbole, gezeichnet statt aus der Schrift (die nicht alle Zeichen kennt).
@@ -530,6 +572,175 @@ fn glyph(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
                 p.line_segment([c + egui::vec2(a.cos(), a.sin()) * 6.0 * u, c + egui::vec2(a.cos(), a.sin()) * 9.5 * u], s);
             }
         }
+        _ => glyph_more(p, r, g, color),
+    }
+}
+
+/// Bogen um (cx, cy) mit Radius r von Winkel a0 bis a1 (Grad, im Uhrzeigersinn, 0° = rechts).
+fn arc(p: &egui::Painter, r: Rect, cx: f32, cy: f32, rad: f32, a0: f32, a1: f32, s: Stroke) {
+    let u = r.width() / 24.0;
+    let n = (((a1 - a0).abs() / 12.0).ceil() as usize).max(2);
+    let pts: Vec<Pos2> = (0..=n)
+        .map(|i| {
+            let a = (a0 + (a1 - a0) * i as f32 / n as f32).to_radians();
+            Pos2::new(r.left() + (cx + rad * a.cos()) * u, r.top() + (cy + rad * a.sin()) * u)
+        })
+        .collect();
+    p.add(egui::Shape::line(pts, s));
+}
+
+/// Weitere Symbole für Widgets und Knöpfe (Raster 24 × 24 wie die Strichsymbole oben).
+fn glyph_more(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
+    let s = Stroke::new(1.8, color);
+    let u = r.width() / 24.0;
+    let at = |x: f32, y: f32| Pos2::new(r.left() + x * u, r.top() + y * u);
+    let line = |pts: &[(f32, f32)]| {
+        p.add(egui::Shape::line(pts.iter().map(|&(x, y)| at(x, y)).collect(), s));
+    };
+    let rect = |x0: f32, y0: f32, x1: f32, y1: f32, round: f32| {
+        p.rect_stroke(Rect::from_min_max(at(x0, y0), at(x1, y1)), round * u, s, egui::StrokeKind::Middle);
+    };
+    match g {
+        Glyph::Search => {
+            p.circle_stroke(at(11.0, 11.0), 6.0 * u, s);
+            line(&[(15.5, 15.5), (20.0, 20.0)]);
+        }
+        Glyph::Plus => {
+            line(&[(12.0, 5.0), (12.0, 19.0)]);
+            line(&[(5.0, 12.0), (19.0, 12.0)]);
+        }
+        Glyph::Down => line(&[(6.0, 9.0), (12.0, 15.0), (18.0, 9.0)]),
+        Glyph::Up => line(&[(6.0, 15.0), (12.0, 9.0), (18.0, 15.0)]),
+        Glyph::Clock => {
+            p.circle_stroke(at(12.0, 12.0), 8.5 * u, s);
+            line(&[(12.0, 7.5), (12.0, 12.0), (15.0, 14.0)]);
+        }
+        Glyph::Cloud => {
+            arc(p, r, 7.0, 15.0, 3.0, 90.0, 270.0, s);
+            arc(p, r, 11.5, 12.5, 5.0, 190.0, 330.0, s);
+            arc(p, r, 17.0, 14.5, 3.5, 250.0, 450.0, s);
+            line(&[(17.0, 18.0), (7.0, 18.0)]);
+        }
+        Glyph::Mail => {
+            rect(3.5, 5.5, 20.5, 18.5, 2.0);
+            line(&[(4.0, 7.0), (12.0, 13.0), (20.0, 7.0)]);
+        }
+        Glyph::Calendar => {
+            rect(4.0, 5.0, 20.0, 20.0, 2.0);
+            line(&[(4.0, 10.0), (20.0, 10.0)]);
+            line(&[(8.0, 3.0), (8.0, 7.0)]);
+            line(&[(16.0, 3.0), (16.0, 7.0)]);
+        }
+        Glyph::Timer => {
+            p.circle_stroke(at(12.0, 13.0), 7.5 * u, s);
+            line(&[(12.0, 9.5), (12.0, 13.0), (14.5, 14.5)]);
+            line(&[(10.0, 3.0), (14.0, 3.0)]);
+        }
+        Glyph::Cpu => {
+            rect(7.0, 7.0, 17.0, 17.0, 1.5);
+            for v in [10.0, 14.0] {
+                line(&[(v, 3.0), (v, 7.0)]);
+                line(&[(v, 17.0), (v, 21.0)]);
+                line(&[(3.0, v), (7.0, v)]);
+                line(&[(17.0, v), (21.0, v)]);
+            }
+        }
+        Glyph::Ram => {
+            rect(3.0, 7.0, 21.0, 17.0, 1.5);
+            for x in [7.0, 11.0, 15.0] {
+                line(&[(x, 10.0), (x, 14.0)]);
+                line(&[(x, 17.0), (x, 19.5)]);
+            }
+        }
+        Glyph::Battery => {
+            rect(3.0, 8.0, 19.0, 17.0, 2.0);
+            line(&[(21.0, 11.0), (21.0, 14.0)]);
+            p.rect_filled(Rect::from_min_max(at(5.5, 10.5), at(12.0, 14.5)), 1.0, color);
+        }
+        Glyph::News => {
+            rect(4.0, 5.0, 17.0, 19.0, 1.5);
+            line(&[(17.0, 9.0), (20.0, 9.0), (20.0, 17.5), (18.5, 19.0), (17.0, 19.0)]);
+            line(&[(7.5, 9.0), (13.5, 9.0)]);
+            line(&[(7.5, 12.5), (13.5, 12.5)]);
+            line(&[(7.5, 16.0), (11.5, 16.0)]);
+        }
+        Glyph::Note => {
+            line(&[(5.0, 4.0), (15.0, 4.0), (19.0, 8.0), (19.0, 20.0), (5.0, 20.0), (5.0, 4.0)]);
+            line(&[(15.0, 4.0), (15.0, 8.0), (19.0, 8.0)]);
+            line(&[(8.5, 12.0), (15.5, 12.0)]);
+            line(&[(8.5, 15.5), (13.5, 15.5)]);
+        }
+        Glyph::History => {
+            arc(p, r, 12.0, 12.0, 8.0, 200.0, 520.0, s);
+            line(&[(3.0, 5.5), (4.6, 9.3), (8.4, 7.8)]);
+            line(&[(12.0, 8.0), (12.0, 12.0), (15.0, 14.0)]);
+        }
+        Glyph::Play => {
+            p.add(egui::Shape::convex_polygon(vec![at(8.0, 5.5), at(18.5, 12.0), at(8.0, 18.5)], color, Stroke::NONE));
+        }
+        Glyph::Pause => {
+            p.rect_filled(Rect::from_min_max(at(7.0, 5.5), at(10.5, 18.5)), 1.0, color);
+            p.rect_filled(Rect::from_min_max(at(13.5, 5.5), at(17.0, 18.5)), 1.0, color);
+        }
+        Glyph::Stop => {
+            p.rect_filled(Rect::from_min_max(at(6.5, 6.5), at(17.5, 17.5)), 2.0 * u, color);
+        }
+        Glyph::Star => {
+            let pts: Vec<(f32, f32)> = (0..=10)
+                .map(|i| {
+                    let a = (-90.0 + i as f32 * 36.0_f32).to_radians();
+                    let rad = if i % 2 == 0 { 8.5 } else { 3.8 };
+                    (12.0 + rad * a.cos(), 12.6 + rad * a.sin())
+                })
+                .collect();
+            line(&pts);
+        }
+        Glyph::Pencil => {
+            line(&[(4.0, 20.0), (8.0, 20.0), (19.0, 9.0), (15.0, 5.0), (4.0, 16.0), (4.0, 20.0)]);
+            line(&[(13.5, 6.5), (17.5, 10.5)]);
+        }
+        Glyph::Pin => {
+            arc(p, r, 12.0, 10.0, 6.0, 145.0, 395.0, s);
+            line(&[(16.9, 13.4), (12.0, 21.0), (7.1, 13.4)]);
+            p.circle_stroke(at(12.0, 10.0), 2.0 * u, s);
+        }
+        Glyph::Link => {
+            arc(p, r, 8.5, 15.5, 4.0, 15.0, 255.0, s);
+            arc(p, r, 15.5, 8.5, 4.0, 195.0, 435.0, s);
+            line(&[(10.0, 14.0), (14.0, 10.0)]);
+        }
+        Glyph::External => {
+            line(&[(14.0, 4.0), (20.0, 4.0), (20.0, 10.0)]);
+            line(&[(20.0, 4.0), (11.0, 13.0)]);
+            line(&[(18.0, 14.0), (18.0, 20.0), (4.0, 20.0), (4.0, 6.0), (10.0, 6.0)]);
+        }
+        Glyph::FolderOpen => {
+            line(&[(3.0, 19.0), (3.0, 6.0), (9.0, 6.0), (11.0, 8.0), (19.0, 8.0), (19.0, 11.0)]);
+            line(&[(3.0, 19.0), (6.0, 11.0), (22.0, 11.0), (19.0, 19.0), (3.0, 19.0)]);
+        }
+        Glyph::Rss => {
+            arc(p, r, 5.0, 19.0, 7.0, 270.0, 360.0, s);
+            arc(p, r, 5.0, 19.0, 13.0, 270.0, 360.0, s);
+            p.circle_filled(at(6.0, 18.0), 1.6 * u, color);
+        }
+        Glyph::Layout => {
+            rect(3.5, 4.0, 10.5, 11.0, 1.5);
+            rect(13.5, 4.0, 20.5, 8.0, 1.5);
+            rect(13.5, 11.0, 20.5, 20.0, 1.5);
+            rect(3.5, 14.0, 10.5, 20.0, 1.5);
+        }
+        Glyph::Layers => {
+            line(&[(12.0, 4.0), (20.0, 8.0), (12.0, 12.0), (4.0, 8.0), (12.0, 4.0)]);
+            line(&[(4.0, 12.0), (12.0, 16.0), (20.0, 12.0)]);
+            line(&[(4.0, 16.0), (12.0, 20.0), (20.0, 16.0)]);
+        }
+        Glyph::Apps => {
+            for (x, y) in [(4.0, 4.0), (14.0, 4.0), (4.0, 14.0), (14.0, 14.0)] {
+                rect(x, y, x + 6.0, y + 6.0, 1.5);
+            }
+        }
+        Glyph::Check => line(&[(5.0, 12.5), (10.0, 17.5), (19.0, 7.0)]),
+        _ => {}
     }
 }
 
@@ -622,6 +833,7 @@ fn weekday_short(de: &str) -> String {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn greeting(hour: u32) -> &'static str {
     t(match hour {
         5..=10 => "Guten Morgen",
@@ -1184,8 +1396,7 @@ impl Gui {
                         if glyph_button(ui, Glyph::Menu, t("Menü")).clicked() {
                             self.menu = !self.menu;
                         }
-                        logo(ui, &mut self.textures, 32.0);
-                        ui.label(egui::RichText::new(&self.manifest.title).size(21.0).strong());
+                        logo(ui, &mut self.textures, 34.0);
                     }
                     Some(title) => {
                         if glyph_button(ui, Glyph::Back, t("Zur Startseite")).clicked() {
@@ -1195,15 +1406,20 @@ impl Gui {
                     }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if self.view == View::Home && button(ui, t("+  Programme hinzufügen"), Look::Accent).clicked() {
+                    ui.spacing_mut().item_spacing.x = 10.0;
+                    if self.view == View::Home && accent_round(ui, Glyph::Plus, t("Programme hinzufügen")).clicked() {
                         self.open_catalog(Chip::All);
                     }
                     if self.view != View::Home && glyph_button(ui, Glyph::Menu, t("Menü")).clicked() {
                         self.menu = !self.menu;
                     }
-                    let (g, hint) = if dark() { (Glyph::Sun, t("Helles Design")) } else { (Glyph::Moon, t("Dunkles Design")) };
-                    if glyph_button(ui, g, hint).clicked() {
+                    let (g, hint, c) = if dark() { (Glyph::Sun, t("Helles Design"), rgb(0xE39B0B)) } else { (Glyph::Moon, t("Dunkles Design"), rgb(0x7B4FD6)) };
+                    if color_button(ui, g, hint, c, 42.0, false).clicked() {
                         toggle_dark = true;
+                    }
+                    if self.view == View::Home && color_button(ui, Glyph::Search, t("Programm suchen"), rgb(0x2F6FDE), 42.0, false).clicked() {
+                        self.show_all = true;
+                        self.all_focus = true;
                     }
                 });
             });
@@ -1249,13 +1465,13 @@ impl Gui {
                     });
                 });
                 ui.add_space(12.0);
-                let mut item = |ui: &mut egui::Ui, g: Glyph, label: &str, badge: Option<(usize, bool)>, active: bool| -> bool {
+                let mut item = |ui: &mut egui::Ui, g: Glyph, color: u32, label: &str, badge: Option<(usize, bool)>, active: bool| -> bool {
                     let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 48.0), Sense::click());
                     if active || resp.hovered() {
                         ui.painter().rect_filled(rect, 10.0, hover());
                     }
                     let gr = Rect::from_center_size(Pos2::new(rect.left() + 26.0, rect.center().y), Vec2::splat(22.0));
-                    glyph(ui.painter(), gr, g, if active { accent_text() } else { muted() });
+                    glyph(ui.painter(), gr, g, vivid(rgb(color)));
                     ui.painter().text(
                         Pos2::new(rect.left() + 52.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
@@ -1271,38 +1487,39 @@ impl Gui {
                     }
                     resp.clicked()
                 };
-                if item(ui, Glyph::Home, t("Startseite"), None, self.view == View::Home) {
+                if item(ui, Glyph::Home, 0x2F6FDE, t("Startseite"), None, self.view == View::Home) {
                     self.go(View::Home);
                 }
-                if item(ui, Glyph::Grid, t("Programme entdecken"), Some((total - installed, false)), self.view == View::Catalog && self.chip != Chip::Updates) {
+                if item(ui, Glyph::Grid, 0xD9622B, t("Programme entdecken"), Some((total - installed, false)), self.view == View::Catalog && self.chip != Chip::Updates) {
                     self.open_catalog(Chip::All);
                 }
-                if item(ui, Glyph::Update, t("Updates"), Some((updates, true)), self.view == View::Catalog && self.chip == Chip::Updates) {
+                if item(ui, Glyph::Update, 0xE39B0B, t("Updates"), Some((updates, true)), self.view == View::Catalog && self.chip == Chip::Updates) {
                     self.open_catalog(Chip::Updates);
                 }
-                if assoc::supported() && item(ui, Glyph::File, t("Dateitypen"), None, false) {
+                if assoc::supported() && item(ui, Glyph::File, 0x7B4FD6, t("Dateitypen"), None, false) {
                     self.open_types();
                 }
-                if item(ui, Glyph::Folder, t("Datenordner öffnen"), None, false) {
+                if item(ui, Glyph::Folder, 0xB7791F, t("Datenordner öffnen"), None, false) {
                     let _ = open::that(core::data_dir());
                 }
-                if item(ui, Glyph::Globe, t("Browser-Übersicht"), None, false) {
+                if item(ui, Glyph::Globe, 0x0F8B8D, t("Browser-Übersicht"), None, false) {
                     if let Some(a) = self.web_addr() {
                         let _ = open::that(a);
                     }
                 }
-                if item(ui, Glyph::Gear, t("Einstellungen"), None, self.view == View::Prefs) {
+                if item(ui, Glyph::Gear, 0x5B616E, t("Einstellungen"), None, self.view == View::Prefs) {
                     self.go(View::Prefs);
                 }
                 ui.add_space(6.0);
                 ui.separator();
                 ui.add_space(4.0);
-                if item(ui, Glyph::Grid, t("Widgets anordnen"), None, self.arrange) {
+                if item(ui, Glyph::Layout, 0x0F8B8D, t("Widgets anordnen"), None, self.arrange) {
                     self.arrange = true;
+                    self.cfg.home.bar_open = true;
                     self.go(View::Home);
                 }
                 let (g, label) = if dark() { (Glyph::Sun, t("Helles Design")) } else { (Glyph::Moon, t("Dunkles Design")) };
-                if item(ui, g, label, None, false) {
+                if item(ui, g, if dark() { 0xE39B0B } else { 0x7B4FD6 }, label, None, false) {
                     toggle_dark = true;
                 }
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
@@ -1364,54 +1581,18 @@ impl Gui {
 
     fn home(&mut self, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let mine: Vec<App> = self.manifest.app.iter().filter(|a| snapshot.get(&a.id).is_some_and(|s| s.installed() || s.busy.is_some())).cloned().collect();
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 10, bottom: 18 })).show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(bg()).inner_margin(egui::Margin { left: 24, right: 24, top: 14, bottom: 18 })).show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let (label, look) = if self.arrange { (t("Fertig"), Look::Accent) } else { (t("Widgets anordnen"), Look::Outline) };
-                    if ui
-                        .add(egui::Button::new(egui::RichText::new(label).size(13.0).color(if self.arrange { INK } else { soft() })).fill(if look == Look::Accent { ACCENT } else { Color32::TRANSPARENT }).stroke(Stroke::new(1.0, if self.arrange { ACCENT } else { border() })).corner_radius(10u8).min_size(egui::vec2(0.0, 30.0)))
-                        .clicked()
-                    {
-                        self.arrange = !self.arrange;
-                    }
-                    if self.arrange {
-                        ui.label(egui::RichText::new(t("Pfeile verschieben, Zahlen ändern die Grösse – Lücken füllen sich selbst.")).size(12.5).color(muted()));
-                    }
-                });
-                ui.add_space(4.0);
-                self.dashboard(ui, ctx, snapshot);
+                self.widget_bar(ui, ctx, snapshot);
                 ui.add_space(18.0);
-                let updates: usize = mine.iter().filter(|a| snapshot.get(&a.id).is_some_and(Status::update)).count();
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(t("Meine Programme")).size(18.0).strong());
-                    ui.label(egui::RichText::new(mine.len().to_string()).size(14.0).color(muted()));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if let Some(g) = segmented(ui, self.cfg.home.grouped, t("Kategorien"), t("Alle")) {
-                            self.cfg.home.grouped = g;
-                            self.save_cfg();
-                        }
-                        if updates > 0 {
-                            ui.add_space(8.0);
-                            if button(ui, t("Aktualisieren"), Look::Outline).clicked() {
-                                self.update_all(ctx, snapshot);
-                            }
-                            ui.label(egui::RichText::new(if updates == 1 { t("1 Update bereit").to_string() } else { tf("{n} Updates bereit", &[("n", &updates)]) }).color(accent_text()));
-                            let (r, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
-                            ui.painter().circle_filled(r.center(), 4.0, ACCENT);
-                        }
-                    });
-                });
-                ui.add_space(8.0);
                 if mine.is_empty() {
                     self.empty_home(ui);
                     return;
                 }
-                if self.cfg.home.grouped {
-                    self.category_tiles(ui, ctx, snapshot, &mine);
-                } else {
-                    let mut items: Vec<Option<&App>> = mine.iter().map(Some).collect();
-                    items.push(None);
-                    self.tile_grid(ui, ctx, snapshot, &items);
+                self.quick_access(ui, ctx, snapshot, &mine);
+                if self.show_all {
+                    ui.add_space(14.0);
+                    self.all_programs(ui, ctx, snapshot, &mine);
                 }
             });
         });
@@ -1454,7 +1635,7 @@ impl Gui {
                 });
             });
             ui.add_space(6.0);
-            let cell = 92.0;
+            let cell = 84.0;
             let per_row = ((ui.available_width() + 4.0) / cell).floor().max(1.0) as usize;
             let cw = ui.available_width() / per_row as f32;
             for chunk in apps.chunks(per_row) {
@@ -1473,17 +1654,19 @@ impl Gui {
     /// Icon mit Namen; Klick startet, Rechtsklick zeigt das Menü des Programms.
     fn icon_button(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
         let update = st.update();
-        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 94.0), Sense::click());
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 80.0), Sense::click());
         if resp.hovered() {
-            ui.painter().rect_filled(rect.shrink(2.0), 12.0, hover());
+            ui.painter().rect_filled(rect.shrink(4.0), 14.0, hover());
         }
-        let ir = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 34.0), Vec2::splat(52.0));
+        let ir = Rect::from_center_size(rect.center(), Vec2::splat(56.0));
         paint_icon(ui, &mut self.textures, app, ir);
+        let quick = self.in_quick(&app.id);
         let p = ui.painter();
-        let mut job = egui::text::LayoutJob::simple_singleline(app.name.clone(), egui::FontId::proportional(12.5), soft());
-        job.wrap = egui::text::TextWrapping::truncate_at_width(w - 6.0);
-        let galley = p.layout_job(job);
-        p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 66.0), galley, soft());
+        if quick {
+            let c = Pos2::new(ir.right() - 1.0, ir.bottom() - 1.0);
+            p.circle_filled(c, 9.0, ACCENT);
+            glyph(p, Rect::from_center_size(c, Vec2::splat(13.0)), Glyph::Star, INK);
+        }
         if update {
             p.circle_filled(Pos2::new(ir.right() - 2.0, ir.top() + 2.0), 6.0, ACCENT);
             p.circle_stroke(Pos2::new(ir.right() - 2.0, ir.top() + 2.0), 6.0, Stroke::new(2.0, panel()));
@@ -1494,7 +1677,7 @@ impl Gui {
             p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 4.0)), 2.0, ACCENT);
             ctx.request_repaint_after(Duration::from_millis(200));
         }
-        let mut hint = app.about_text().to_string();
+        let mut hint = format!("{}\n{}", app.name, app.about_text());
         if let Some(v) = st.current() {
             hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
         }
@@ -1519,32 +1702,15 @@ impl Gui {
                 ui.close_menu();
             }
             ui.separator();
+            if ui.button(if quick { t("Aus dem Schnellzugriff") } else { t("In den Schnellzugriff") }).clicked() {
+                self.toggle_quick(&app.id);
+                ui.close_menu();
+            }
             if ui.button(t("Entfernen")).clicked() {
                 self.remove(app);
                 ui.close_menu();
             }
         });
-    }
-
-    /// Kacheln im Raster; `None` ist die Kachel «Hinzufügen».
-    fn tile_grid(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>, items: &[Option<&App>]) {
-        let gap = 12.0;
-        let (cols, w) = grid(ui.available_width(), 124.0, gap, 12);
-        for row in items.chunks(cols) {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = gap;
-                for item in row {
-                    match item {
-                        Some(app) => {
-                            let st = snapshot.get(&app.id).cloned().unwrap_or_default();
-                            self.app_tile(ui, ctx, app, &st, w);
-                        }
-                        None => self.add_tile(ui, w),
-                    }
-                }
-            });
-            ui.add_space(gap - 8.0);
-        }
     }
 
     fn empty_home(&mut self, ui: &mut egui::Ui) {
@@ -1559,82 +1725,6 @@ impl Gui {
                 }
             });
         });
-    }
-
-    fn app_tile(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
-        let update = st.update();
-        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 136.0), Sense::click());
-        let p = ui.painter();
-        p.rect(rect, 16.0, if resp.hovered() { hover() } else { panel() }, Stroke::new(if update { 1.5 } else { 1.0 }, if update { ACCENT } else { border() }), egui::StrokeKind::Inside);
-        let ir = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 50.0), Vec2::splat(64.0));
-        paint_icon(ui, &mut self.textures, app, ir);
-        let p = ui.painter();
-        let galley = p.layout(app.name.clone(), egui::FontId::proportional(14.0), text(), w - 16.0);
-        p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.top() + 94.0), galley, text());
-        if update {
-            let b = Rect::from_min_size(Pos2::new(rect.right() - 62.0, rect.top() + 8.0), egui::vec2(54.0, 20.0));
-            p.rect_filled(b, 10.0, ACCENT);
-            p.text(b.center(), egui::Align2::CENTER_CENTER, t("Update"), egui::FontId::proportional(11.5), INK);
-        }
-        if let Some((_, frac)) = &st.busy {
-            let bar = Rect::from_min_size(Pos2::new(rect.left() + 14.0, rect.bottom() - 14.0), egui::vec2(w - 28.0, 5.0));
-            p.rect_filled(bar, 3.0, border());
-            p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 5.0)), 3.0, ACCENT);
-            ctx.request_repaint_after(Duration::from_millis(200));
-        }
-        let mut hint = app.about_text().to_string();
-        if let Some(v) = st.current() {
-            hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
-        }
-        if let (true, Some(l)) = (update, st.latest) {
-            hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
-        }
-        if let Some((m, _)) = &st.busy {
-            hint += &format!("\n{m}");
-        }
-        if let Some(e) = &st.error {
-            hint += &format!("\n{e}");
-        }
-        let resp = resp.on_hover_text(hint);
-        if resp.clicked() && st.busy.is_none() {
-            self.launch(ctx, app, st);
-        }
-        resp.context_menu(|ui| {
-            if st.native.is_some() && !app.web_only && ui.button(t("Starten")).clicked() {
-                self.launch(ctx, app, st);
-                ui.close_menu();
-            }
-            if !app.no_web && ui.button(t("Im Browser öffnen")).clicked() {
-                self.open_web(ctx, app);
-                ui.close_menu();
-            }
-            if update && ui.button(tf("Aktualisieren auf {v}", &[("v", &st.latest.map(fmt_version).unwrap_or_default())])).clicked() {
-                self.install(ctx, app, st.update_kind(), None);
-                ui.close_menu();
-            }
-            ui.separator();
-            if ui.button(t("Entfernen")).clicked() {
-                self.remove(app);
-                ui.close_menu();
-            }
-        });
-    }
-
-    fn add_tile(&mut self, ui: &mut egui::Ui, w: f32) {
-        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 136.0), Sense::click());
-        let p = ui.painter();
-        let r = rect.shrink(1.0);
-        let color = if resp.hovered() { ACCENT } else { outline() };
-        let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
-        p.extend(egui::Shape::dashed_line(&corners, Stroke::new(1.5, color), 6.0, 5.0));
-        let c = Pos2::new(rect.center().x, rect.top() + 50.0);
-        p.circle_stroke(c, 22.0, Stroke::new(1.5, color));
-        p.line_segment([c - egui::vec2(9.0, 0.0), c + egui::vec2(9.0, 0.0)], Stroke::new(2.0, color));
-        p.line_segment([c - egui::vec2(0.0, 9.0), c + egui::vec2(0.0, 9.0)], Stroke::new(2.0, color));
-        p.text(Pos2::new(rect.center().x, rect.top() + 102.0), egui::Align2::CENTER_CENTER, t("Hinzufügen"), egui::FontId::proportional(14.0), muted());
-        if resp.on_hover_text(t("Weitere Programme installieren")).clicked() {
-            self.open_catalog(Chip::All);
-        }
     }
 
     // -----------------------------------------------------------------------------------------

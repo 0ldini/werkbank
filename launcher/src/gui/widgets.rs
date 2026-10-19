@@ -2,6 +2,7 @@
 //! Lücken (wie das PoolBuddy-Dashboard), Modus «Widgets anordnen».
 
 use super::*;
+use super::start::{color_button, icon_row, vivid, widget_color, widget_glyph};
 use crate::core::WidgetCfg;
 use crate::feeds;
 
@@ -176,7 +177,7 @@ fn mail_status() -> Option<MailStatus> {
     Some(MailStatus { unread: v["unread"].as_u64().unwrap_or(0), items })
 }
 
-fn fmt_dur(d: Duration) -> String {
+pub(super) fn fmt_dur(d: Duration) -> String {
     let s = d.as_secs();
     if s >= 3600 {
         format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
@@ -194,36 +195,20 @@ fn gb(bytes: u64) -> String {
     }
 }
 
-/// Kleiner Fortschrittsbalken mit Beschriftung.
-fn meter(ui: &mut egui::Ui, label: &str, value: &str, frac: f32, color: Color32) {
-    if ui.available_width() < 240.0 {
-        ui.label(egui::RichText::new(label).size(13.0));
-        ui.label(egui::RichText::new(value).size(12.0).color(muted()));
-    } else {
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(label).size(13.0));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new(value).size(13.0).color(muted()));
-            });
-        });
-    }
-    let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 7.0), Sense::hover());
-    ui.painter().rect_filled(r, 4.0, chip());
-    ui.painter().rect_filled(Rect::from_min_size(r.min, egui::vec2(r.width() * frac.clamp(0.0, 1.0), r.height())), 4.0, color);
-}
-
-/// Titelzeile eines Widgets mit optionalem Link rechts; liefert true, wenn der Link geklickt wurde.
-fn title_row(ui: &mut egui::Ui, title: &str, action: Option<&str>) -> bool {
-    let mut clicked = false;
+/// Kleiner Fortschrittsbalken: farbiges Symbol (Name im Hinweis), Balken, Wert.
+fn meter(ui: &mut egui::Ui, g: Glyph, hint: &str, value: &str, frac: f32, color: Color32) {
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(title).size(14.0).color(muted()));
-        if let Some(a) = action {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                clicked = link(ui, a).clicked();
-            });
-        }
+        let (r, resp) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::hover());
+        glyph(ui.painter(), r, g, vivid(color));
+        let _ = resp.on_hover_text(hint);
+        let vw = 52.0;
+        let bw = (ui.available_width() - vw - 8.0).max(10.0);
+        let (b, resp) = ui.allocate_exact_size(egui::vec2(bw, 7.0), Sense::hover());
+        let _ = resp.on_hover_text(hint);
+        ui.painter().rect_filled(b, 4.0, chip());
+        ui.painter().rect_filled(Rect::from_min_size(b.min, egui::vec2(b.width() * frac.clamp(0.0, 1.0), b.height())), 4.0, color);
+        ui.add_sized([vw, 18.0], egui::Label::new(egui::RichText::new(value).size(12.5).color(muted())));
     });
-    clicked
 }
 
 impl Gui {
@@ -444,7 +429,6 @@ impl Gui {
     }
 
     fn w_clock(&mut self, ui: &mut egui::Ui, compact: bool) {
-        use chrono::Timelike;
         let now = chrono::Local::now();
         if compact {
             ui.horizontal(|ui| {
@@ -453,8 +437,7 @@ impl Gui {
             });
             return;
         }
-        ui.label(egui::RichText::new(greeting(now.hour())).size(14.0).color(muted()));
-        ui.add_space(4.0);
+        icon_row(ui, Glyph::Clock, widget_color("uhr"), None, None);
         ui.label(egui::RichText::new(now.format("%H:%M").to_string()).size(58.0).strong());
         ui.label(egui::RichText::new(long_date(now.date_naive())).size(15.0).color(soft()));
     }
@@ -465,7 +448,7 @@ impl Gui {
             Ok(s) => (s.data.clone().filter(|w| w.place == place.name), s.error.clone(), s.busy),
             Err(_) => (None, None, false),
         };
-        if title_row(ui, &place.name, Some(t("Ort ändern"))) {
+        if icon_row(ui, widget_glyph("wetter"), widget_color("wetter"), Some(&place.name), Some((Glyph::Pin, t("Ort ändern")))) {
             self.go(View::Prefs);
         }
         let Some(wx) = data else {
@@ -540,7 +523,7 @@ impl Gui {
 
     fn w_mail(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let app = self.manifest.app.iter().find(|a| a.id == "mailwerk").cloned();
-        let open = title_row(ui, t("Mail"), app.as_ref().map(|_| t("Öffnen")));
+        let open = icon_row(ui, Glyph::Mail, widget_color("mail"), None, app.as_ref().map(|_| (Glyph::External, t("Mailwerk öffnen"))));
         if let (true, Some(app)) = (open, &app) {
             let st = snapshot.get(&app.id).cloned().unwrap_or_default();
             if st.installed() {
@@ -574,7 +557,7 @@ impl Gui {
 
     fn w_calendar(&mut self, ui: &mut egui::Ui) {
         let has_url = self.cfg.calendar_url.as_deref().is_some_and(|u| !u.trim().is_empty());
-        if title_row(ui, t("Termine"), Some(if has_url { t("Kalender") } else { t("Verbinden") })) {
+        if icon_row(ui, Glyph::Calendar, widget_color("termine"), None, Some(if has_url { (Glyph::Gear, t("Kalender einstellen")) } else { (Glyph::Link, t("Kalender verbinden")) })) {
             self.go(View::Prefs);
         }
         if !has_url {
@@ -622,7 +605,7 @@ impl Gui {
     fn w_recent(&mut self, ui: &mut egui::Ui, snapshot: &HashMap<String, Status>) {
         let now = chrono::Local::now();
         let recent: Vec<Recent> = self.cfg.recent.iter().filter(|r| r.path.exists()).take(6).cloned().collect();
-        let pick_file = title_row(ui, t("Zuletzt geöffnet"), Some(t("Datei öffnen …")));
+        let pick_file = icon_row(ui, Glyph::History, widget_color("zuletzt"), None, Some((Glyph::FolderOpen, t("Datei öffnen …"))));
         let mut open: Option<Recent> = None;
         if recent.is_empty() {
             ui.label(egui::RichText::new(t("Noch keine Dateien")).size(15.0));
@@ -662,7 +645,7 @@ impl Gui {
     }
 
     fn w_notes(&mut self, ui: &mut egui::Ui) {
-        title_row(ui, t("Notizen"), None);
+        icon_row(ui, Glyph::Note, widget_color("notizen"), None, None);
         let mut remove = None;
         let rows = ((ui.available_height() - 34.0) / 22.0).floor().max(0.0) as usize;
         for (i, n) in self.cfg.notes.iter().enumerate().take(rows) {
@@ -704,7 +687,7 @@ impl Gui {
             Ok(n) => (n.items.clone(), n.error.clone(), n.busy),
             Err(_) => (Vec::new(), None, false),
         };
-        if title_row(ui, t("Nachrichten"), Some(t("Quelle wählen"))) {
+        if icon_row(ui, Glyph::News, widget_color("nachrichten"), None, Some((Glyph::Rss, t("Quelle wählen")))) {
             self.go(View::Prefs);
         }
         if items.is_empty() {
@@ -752,7 +735,7 @@ impl Gui {
     }
 
     fn w_timer(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, compact: bool) {
-        title_row(ui, t("Timer"), None);
+        icon_row(ui, Glyph::Timer, widget_color("timer"), None, None);
         let left = match (self.timer.end, self.timer.left) {
             (Some(end), _) => end.saturating_duration_since(Instant::now()),
             (None, Some(l)) => l,
@@ -777,16 +760,17 @@ impl Gui {
                     }
                 }
             }
+            let tc = widget_color("timer");
             if running {
-                if ui.small_button(t("Pause")).clicked() {
+                if color_button(ui, Glyph::Pause, t("Pause"), tc, 26.0, false).clicked() {
                     self.timer.left = Some(left);
                     self.timer.end = None;
                 }
-            } else if self.timer.left.is_some() && ui.small_button(t("Weiter")).clicked() {
+            } else if self.timer.left.is_some() && color_button(ui, Glyph::Play, t("Weiter"), tc, 26.0, false).clicked() {
                 self.timer.end = Some(Instant::now() + left);
                 self.timer.left = None;
             }
-            if (running || self.timer.left.is_some() || self.timer.rang) && ui.small_button(t("Stopp")).clicked() {
+            if (running || self.timer.left.is_some() || self.timer.rang) && color_button(ui, Glyph::Stop, t("Stopp"), rgb(0xC8102E), 26.0, false).clicked() {
                 self.timer = TimerState::default();
             }
         });
@@ -802,8 +786,8 @@ impl Gui {
     }
 
     fn w_folders(&mut self, ui: &mut egui::Ui) {
-        let edit_label = if self.folders_edit { t("Fertig") } else { t("Bearbeiten") };
-        if title_row(ui, t("Ordner"), Some(edit_label)) {
+        let edit = if self.folders_edit { (Glyph::Check, t("Fertig")) } else { (Glyph::Pencil, t("Bearbeiten")) };
+        if icon_row(ui, Glyph::Folder, widget_color("ordner"), None, Some(edit)) {
             self.folders_edit = !self.folders_edit;
         }
         let folders = self.folder_list();
@@ -815,7 +799,7 @@ impl Gui {
             let name = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| f.display().to_string());
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::hover());
-                glyph(ui.painter(), r, Glyph::Folder, muted());
+                glyph(ui.painter(), r, Glyph::Folder, vivid(widget_color("ordner")));
                 if ui.add(egui::Label::new(egui::RichText::new(name).size(14.0)).sense(Sense::click())).on_hover_text(f.display().to_string()).clicked() {
                     let _ = open::that(f);
                 }
@@ -824,7 +808,7 @@ impl Gui {
                 }
             });
         }
-        if self.folders_edit && link(ui, t("+ Ordner")).clicked() {
+        if self.folders_edit && color_button(ui, Glyph::Plus, t("Ordner hinzufügen"), widget_color("ordner"), 28.0, false).clicked() {
             if let Some(dir) = rfd::FileDialog::new().set_title(t("Ordner wählen")).pick_folder() {
                 let mut list = folders.clone();
                 list.push(dir);
@@ -846,17 +830,18 @@ impl Gui {
     }
 
     fn w_computer(&mut self, ui: &mut egui::Ui) {
-        title_row(ui, t("Computer"), None);
+        icon_row(ui, Glyph::Cpu, widget_color("computer"), None, None);
         let s = self.sys.lock().map(|s| s.clone()).unwrap_or_default();
         if s.mem_total == 0 {
             ui.spinner();
             return;
         }
-        meter(ui, t("Prozessor"), &format!("{:.0} %", s.cpu), s.cpu / 100.0, rgb(0x0F8B8D));
+        meter(ui, Glyph::Cpu, t("Prozessor"), &format!("{:.0} %", s.cpu), s.cpu / 100.0, rgb(0x0F8B8D));
         let frac = s.mem_used as f32 / s.mem_total as f32;
-        meter(ui, t("Arbeitsspeicher"), &format!("{} / {}", gb(s.mem_used), gb(s.mem_total)), frac, rgb(0x7B4FD6));
+        let mem = format!("{}: {} / {}", t("Arbeitsspeicher"), gb(s.mem_used), gb(s.mem_total));
+        meter(ui, Glyph::Ram, &mem, &format!("{:.0} %", frac * 100.0), frac, rgb(0x7B4FD6));
         if let Some(b) = s.battery {
-            ui.label(egui::RichText::new(tf("Akku {p} %", &[("p", &b)])).size(12.5).color(muted()));
+            meter(ui, Glyph::Battery, t("Akku"), &format!("{b} %"), b as f32 / 100.0, rgb(0x2F6FDE));
         }
     }
 }
