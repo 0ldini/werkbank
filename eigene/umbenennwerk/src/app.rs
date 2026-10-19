@@ -54,6 +54,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x0F, 0x8B, 0x8D]);
         App {
             rows: Vec::new(),
             rules: Rules::default(),

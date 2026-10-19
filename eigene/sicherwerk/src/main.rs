@@ -140,7 +140,7 @@ fn main() -> eframe::Result<()> {
     }
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_icon(thema::fenster_icon())
             .with_inner_size([1120.0, 740.0])
             .with_min_inner_size([900.0, 600.0])
             .with_title("Sicherwerk"),

@@ -175,6 +175,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x2E, 0x9B, 0xD6]);
         let ffmpeg = tool::find_ffmpeg();
         let status = if ffmpeg.is_some() {
             t("Bilder und Videos hineinziehen oder oben hinzufügen.").to_string()

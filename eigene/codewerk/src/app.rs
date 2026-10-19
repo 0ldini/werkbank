@@ -76,6 +76,7 @@ impl App {
         cc.egui_ctx.set_style(style);
         // Im Browser (wasm) gibt es weder Umgebungsvariable noch Datei – dort bleibt es hell.
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0xE0, 0x7A, 0x1F]);
         Self::default()
     }
 

@@ -90,6 +90,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x8C, 0x5A, 0x2B]);
         let cfg = store::load_config();
         let lib = store::load_library();
         let settings_open = cfg.api_key.trim().is_empty();

@@ -10,7 +10,7 @@ mod thema;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_icon(thema::fenster_icon())
             .with_inner_size([1120.0, 720.0])
             .with_min_inner_size([920.0, 600.0])
             .with_title("Schutzwerk"),

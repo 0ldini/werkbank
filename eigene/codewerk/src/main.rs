@@ -20,7 +20,7 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_icon(thema::fenster_icon())
             .with_inner_size([900.0, 580.0])
             .with_min_inner_size([680.0, 460.0])
             .with_title(t("Codewerk – QR-Codes")),

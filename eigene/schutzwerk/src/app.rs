@@ -102,6 +102,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x3D, 0x6B, 0x8C]);
         App {
             section: Section::Password,
             pw: String::new(),

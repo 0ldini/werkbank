@@ -214,6 +214,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
         options,
         Box::new(move |cc| {
             theme(&cc.egui_ctx);
+            titelleiste_merken(cc);
             let cfg = core::load_config();
             let mut sky = Sky::default();
             let place = cfg.place.clone().unwrap_or_else(Place::sarnen);
@@ -221,7 +222,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
             let mut app = Gui {
                 setup: None,
                 types: None,
-                manifest: Manifest { title: "Werkbank".into(), app: Vec::new() },
+                manifest: Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None },
                 textures: HashMap::new(),
                 state: Shared::default(),
                 web_addr: None,
@@ -384,6 +385,50 @@ pub fn theme_code() -> &'static str {
     }
 }
 
+/// Fenster des Launchers (Windows), damit die Titelleiste beim Wechsel hell/dunkel neu getönt wird.
+static FENSTER: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+fn titelleiste_merken(cc: &eframe::CreationContext<'_>) {
+    #[cfg(windows)]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        if let Ok(h) = cc.window_handle() {
+            if let RawWindowHandle::Win32(w) = h.as_raw() {
+                FENSTER.store(w.hwnd.get(), std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = cc;
+    titelleiste();
+}
+
+/// Windows 11: Titelleiste in einem Hauch der Werkbank-Farbe, passend zu hell/dunkel.
+/// Unter Windows 10 und Linux ohne Wirkung.
+fn titelleiste() {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR};
+        let h = FENSTER.load(std::sync::atomic::Ordering::Relaxed);
+        if h == 0 {
+            return;
+        }
+        let base = if dark() { rgb(0x17181C) } else { Color32::WHITE };
+        let farben = [
+            (DWMWA_CAPTION_COLOR, mix(ACCENT, base, if dark() { 0.18 } else { 0.16 })),
+            (DWMWA_TEXT_COLOR, text()),
+            (DWMWA_BORDER_COLOR, mix(ACCENT, base, 0.4)),
+        ];
+        for (attr, c) in farben {
+            let v: u32 = c.r() as u32 | (c.g() as u32) << 8 | (c.b() as u32) << 16;
+            // SAFETY: Fenster des eigenen Prozesses; der Wert ist ein COLORREF (u32, 4 Byte).
+            unsafe {
+                DwmSetWindowAttribute(h as windows_sys::Win32::Foundation::HWND, attr, &v as *const u32 as *const core::ffi::c_void, 4);
+            }
+        }
+    }
+}
+
 fn theme(ctx: &egui::Context) {
     let mut v = if dark() { egui::Visuals::dark() } else { egui::Visuals::light() };
     v.panel_fill = bg();
@@ -508,6 +553,7 @@ enum Glyph {
     Layers,
     Apps,
     Check,
+    Coffee,
 }
 
 /// Kleine Strichsymbole, gezeichnet statt aus der Schrift (die nicht alle Zeichen kennt).
@@ -756,6 +802,15 @@ fn glyph_more(p: &egui::Painter, r: Rect, g: Glyph, color: Color32) {
             }
         }
         Glyph::Check => line(&[(5.0, 12.5), (10.0, 17.5), (19.0, 7.0)]),
+        Glyph::Coffee => {
+            line(&[(4.0, 9.0), (16.0, 9.0), (16.0, 15.0)]);
+            arc(p, r, 10.0, 15.0, 6.0, 0.0, 180.0, s);
+            line(&[(4.0, 15.0), (4.0, 9.0)]);
+            arc(p, r, 17.5, 12.5, 2.5, -90.0, 90.0, s);
+            line(&[(7.0, 3.0), (7.0, 6.0)]);
+            line(&[(11.0, 3.0), (11.0, 6.0)]);
+            line(&[(4.0, 21.0), (16.0, 21.0)]);
+        }
         _ => {}
     }
 }
@@ -900,6 +955,10 @@ impl Gui {
         self.fetch_weather(ctx);
         if online {
             self.check_self_update(ctx, true);
+            if !self.cfg.nicht_melden {
+                let ids = self.installed_ids();
+                std::thread::spawn(move || crate::meldung::melden(&ids));
+            }
         }
         if let Some(dir) = bundle {
             self.start_bundle(ctx, dir, online);
@@ -908,6 +967,16 @@ impl Gui {
         if assoc::supported() && !self.cfg.types_asked {
             self.types = Some(Types { choice: assoc::all(&self.manifest), message: None, first_run: true });
         }
+    }
+
+    /// Kennungen der installierten Programme (für das Zählen).
+    fn installed_ids(&self) -> Vec<String> {
+        self.manifest
+            .app
+            .iter()
+            .filter(|a| core::installed_version(a, Kind::Native).is_some() || core::installed_version(a, Kind::Web).is_some())
+            .map(|a| a.id.clone())
+            .collect()
     }
 
     /// Nach einer neueren Werkbank suchen; mit `install` gleich laden und einsetzen.
@@ -993,6 +1062,7 @@ impl Gui {
     fn set_dark(&mut self, ctx: &egui::Context, d: bool) {
         DARK.store(d, std::sync::atomic::Ordering::Relaxed);
         theme(ctx);
+        titelleiste();
         let saved = theme_file().ok_or_else(|| anyhow::anyhow!("kein Einstellungsordner")).and_then(|p| {
             if let Some(dir) = p.parent() {
                 std::fs::create_dir_all(dir)?;
@@ -1499,6 +1569,11 @@ impl Gui {
                     let (g, hint, c) = if dark() { (Glyph::Sun, t("Helles Design"), rgb(0xE39B0B)) } else { (Glyph::Moon, t("Dunkles Design"), rgb(0x7B4FD6)) };
                     if color_button(ui, g, hint, c, 42.0, false).clicked() {
                         toggle_dark = true;
+                    }
+                    if let Some(url) = self.manifest.spenden.clone().filter(|u| u.starts_with("https://")) {
+                        if color_button(ui, Glyph::Coffee, t("Einen Kaffee spendieren"), rgb(0xB7791F), 42.0, false).clicked() {
+                            let _ = open::that(url);
+                        }
                     }
                     if self.view == View::Home && color_button(ui, Glyph::Search, t("Programm suchen"), rgb(0x2F6FDE), 42.0, false).clicked() {
                         self.show_all = true;
@@ -2119,6 +2194,7 @@ impl Gui {
                 }
                 let mut about = false;
                 let mut check = false;
+                let mut zaehlen_neu: Option<bool> = None;
                 let upd = self.self_update.lock().map(|s| s.clone()).unwrap_or_default();
                 section(ui, t("Über"), &mut |ui| {
                     ui.label(egui::RichText::new(concat!("Werkbank ", env!("CARGO_PKG_VERSION"))).color(soft()));
@@ -2138,12 +2214,35 @@ impl Gui {
                         }
                     });
                     ui.label(egui::RichText::new(t("Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.")).size(12.5).color(muted()));
+                    ui.add_space(6.0);
+                    let mut zaehlen = !self.cfg.nicht_melden;
+                    if ui.checkbox(&mut zaehlen, t("Nutzung zählen lassen")).changed() {
+                        zaehlen_neu = Some(!zaehlen);
+                    }
+                    ui.label(egui::RichText::new(t("Beim Start meldet die Werkbank einmal Computername, Benutzer, System, Version und installierte Programme, damit sichtbar ist, wie viele sie nutzen.")).size(12.5).color(muted()));
+                    if let Some(url) = self.manifest.spenden.clone().filter(|u| u.starts_with("https://")) {
+                        ui.add_space(6.0);
+                        ui.horizontal(|ui| {
+                            let (r, _) = ui.allocate_exact_size(Vec2::splat(22.0), Sense::hover());
+                            glyph(ui.painter(), r, Glyph::Coffee, vivid(rgb(0xB7791F)));
+                            if button(ui, t("Einen Kaffee spendieren"), Look::Accent).clicked() {
+                                let _ = open::that(url);
+                            }
+                        });
+                        ui.label(egui::RichText::new(t("Die Werkbank ist frei. Wer sie mag, kann mit einem Kaffee danke sagen.")).size(12.5).color(muted()));
+                    }
                     ui.label(egui::RichText::new(t("Programme basieren auf den Open-Source-Apps des ArtCraft-Teams (MIT / Apache 2.0). Wetterdaten: Open-Meteo.com (CC BY 4.0).")).size(12.5).color(muted()));
                     if link(ui, t("Mehr …")).clicked() {
                         about = true;
                     }
                 });
                 self.about |= about;
+                if let Some(v) = zaehlen_neu {
+                    let mut cfg = core::load_config();
+                    cfg.nicht_melden = v;
+                    let _ = core::save_config(&cfg);
+                    self.cfg.nicht_melden = v;
+                }
                 if check {
                     if let Ok(mut s) = self.self_update.lock() {
                         if matches!(*s, SelfUpdate::Current | SelfUpdate::Failed(_)) {

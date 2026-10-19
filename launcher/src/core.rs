@@ -16,6 +16,9 @@ pub struct Manifest {
     pub title: String,
     #[serde(default)]
     pub app: Vec<App>,
+    /// Adresse für Spenden (z. B. Buy Me a Coffee); leer = kein Spenden-Knopf.
+    #[serde(default)]
+    pub spenden: Option<String>,
 }
 
 fn default_title() -> String {
@@ -143,6 +146,9 @@ pub struct Config {
     /// Widget «Nachrichten»: RSS-Adresse (None: SRF News).
     #[serde(default)]
     pub news_url: Option<String>,
+    /// true: beim Start nicht zählen lassen (siehe meldung.rs).
+    #[serde(default)]
+    pub nicht_melden: bool,
 }
 
 /// Ein Widget der Startseite: Art und Grösse in Rasterfeldern (6 Spalten, Zeilen à ~92 px).
@@ -490,6 +496,29 @@ pub fn http_text(url: &str, limit: u64) -> Result<String> {
     let mut buf = Vec::new();
     resp.body_mut().as_reader().take(limit).read_to_end(&mut buf)?;
     Ok(String::from_utf8_lossy(&buf).into_owned())
+}
+
+/// JSON an eine Adresse schicken und die Antwort als Text lesen (für den Zähler).
+/// Weiterleitungen (z. B. auf www.) werden bis zu dreimal mit derselben Anfrage befolgt.
+pub fn post_json(url: &str, body: &str) -> Result<String> {
+    let mut url = url.to_string();
+    for _ in 0..4 {
+        let mut resp = agent().post(&url).header("Content-Type", "application/json").send(body)?;
+        if resp.status().is_redirection() {
+            let next = resp.headers().get("location").and_then(|h| h.to_str().ok()).ok_or_else(|| anyhow!("Weiterleitung ohne Ziel"))?;
+            url = if next.starts_with("http") {
+                next.to_string()
+            } else {
+                let base: String = url.splitn(4, '/').take(3).collect::<Vec<_>>().join("/");
+                format!("{base}{next}")
+            };
+            continue;
+        }
+        let mut buf = Vec::new();
+        resp.body_mut().as_reader().take(1 << 20).read_to_end(&mut buf)?;
+        return Ok(String::from_utf8_lossy(&buf).into_owned());
+    }
+    bail!("zu viele Weiterleitungen")
 }
 
 /// Alle Versions-Tags (`vX.Y.Z`) eines Repositories, neueste zuerst.

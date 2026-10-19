@@ -50,6 +50,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x6B, 0x4F, 0xA0]);
         App {
             root: None,
             tree: None,

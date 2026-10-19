@@ -114,6 +114,7 @@ impl Gui {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x0E, 0x74, 0x90]);
         Gui {
             tab: None,
             links: String::new(),

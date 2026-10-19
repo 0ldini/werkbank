@@ -14,6 +14,8 @@
 #             Release-Datei <id>-web-<version>.zip
 
 title = "Werkbank"
+# Spenden-Knopf im Launcher (Kaffeetasse oben rechts und in den Einstellungen), z. B.
+# spenden = "https://buymeacoffee.com/NAME"
 
 [[app]]
 id = "photocraft"

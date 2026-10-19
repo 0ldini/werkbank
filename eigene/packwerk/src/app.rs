@@ -164,6 +164,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0xB7, 0x79, 0x1F]);
         let mut app = App {
             ctx: cc.egui_ctx.clone(),
             modus: Modus::Start,

@@ -1,6 +1,6 @@
 [package]
 name = "packwerk"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Archive packen und entpacken – Teil der Werkbank"
 
@@ -28,6 +28,14 @@ tar = { version = "0.4.44", default-features = false }
 flate2 = "1.1"
 # Nur für die Ortszeit (ZIP speichert Ortszeit, TAR und 7z UTC).
 chrono = { version = "0.4.41", default-features = false, features = ["clock", "std"] }
+
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
+raw-window-handle = "0.6"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = 3

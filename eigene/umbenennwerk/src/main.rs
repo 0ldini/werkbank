@@ -8,7 +8,7 @@ mod thema;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_icon(thema::fenster_icon())
             .with_inner_size([1040.0, 660.0])
             .with_min_inner_size([820.0, 520.0])
             .with_title("Umbenennwerk"),

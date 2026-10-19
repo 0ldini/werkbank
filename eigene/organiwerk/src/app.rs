@@ -92,6 +92,7 @@ impl App {
         // Hell/Dunkel wie im Werkbank-Launcher gewählt (nicht nach dem System).
         cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x2F, 0x5F, 0xB3]);
         cc.egui_ctx.style_mut(|s| {
             s.visuals.selection.bg_fill = thema::pick(Color32::from_rgb(0xC7, 0xD7, 0xF2), Color32::from_rgb(0x2D, 0x4A, 0x7A));
             s.visuals.selection.stroke = Stroke::new(1.0, accent_text());

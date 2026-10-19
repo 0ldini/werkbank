@@ -91,6 +91,7 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0xB2, 0x3A, 0x48]);
 
         let mut cfg = Settings::default();
         cfg.out_dir = default_out_dir();

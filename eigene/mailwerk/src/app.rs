@@ -141,6 +141,7 @@ impl App {
         // Hell/Dunkel wie im Werkbank-Launcher gewählt (nicht nach dem System).
         cc.egui_ctx.set_theme(if thema::is_dark() { egui::Theme::Dark } else { egui::Theme::Light });
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x0B, 0x7A, 0x70]);
         let saved = cc
             .storage
             .and_then(|s| s.get_string(STORAGE_KEY))

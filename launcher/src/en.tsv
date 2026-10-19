@@ -247,3 +247,7 @@ Diese Werkbank ist aktuell.	This Werkbank is up to date.
 Werkbank {v} gilt nach einem Neustart.	Werkbank {v} takes effect after a restart.
 Selbst-Update fehlgeschlagen: {fehler}	Self-update failed: {fehler}
 Die Werkbank sucht beim Start selbst nach einer neuen Version und setzt sie ein.	Werkbank checks for a new version at startup and installs it by itself.
+Einen Kaffee spendieren	Buy me a coffee
+Nutzung zählen lassen	Allow usage counting
+Beim Start meldet die Werkbank einmal Computername, Benutzer, System, Version und installierte Programme, damit sichtbar ist, wie viele sie nutzen.	At startup Werkbank reports computer name, user, system, version and installed programs once, so it is visible how many people use it.
+Die Werkbank ist frei. Wer sie mag, kann mit einem Kaffee danke sagen.	Werkbank is free. If you like it, you can say thanks with a coffee.
