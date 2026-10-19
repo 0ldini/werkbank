@@ -4,6 +4,7 @@ mod app;
 mod frames;
 mod model;
 mod render;
+mod sicht;
 mod sprache;
 mod thema;
 mod tool;

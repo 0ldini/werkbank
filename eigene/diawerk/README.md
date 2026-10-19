@@ -32,6 +32,16 @@ Rust + egui, passend zu Codewerk, Wandelwerk und den anderen Werken.
 - **Einstreuen**: **Videos einstreuen**, **Panoramen einstreuen** oder **Beides einstreuen**
   verteilt sie gleichmässig zwischen die übrigen Bilder (die Reihenfolge der normalen
   Bilder bleibt). Danach lässt sich von Hand weiter feinschieben.
+- **Ansicht** unter der Liste: das angeklickte Bild oder Video gross, daneben Grösse,
+  Seitenverhältnis, Art (Querformat, Hochformat, Panorama, Video), Dauer im Film und
+  Dateigrösse. Videos lassen sich dort direkt abspielen (▶ Abspielen / ⏸ Anhalten). Mit den
+  Pfeiltasten ⬆ ⬇ durch die Liste blättern, **Entf** nimmt den Eintrag aus der Liste (die Datei
+  bleibt). Die Nachbarbilder werden vorgeladen, damit das Blättern flüssig geht. Abschaltbar
+  mit dem Haken **Ansicht**; die Höhe lässt sich an der Kante ziehen.
+- **Hochformat erkennen**: Bilder und Videos, die höher als breit sind (Kamera-Drehung
+  eingerechnet), tragen in der Liste die Marke **HOCH** bzw. «hoch». Oben steht, wie viele es
+  sind, mit **wählen** (alle markieren) und **entfernen …** (nach Rückfrage alle aus der Liste
+  nehmen).
 - **Vorschau** im Programmfenster: **▶ Vorschau ab Anfang** (mit Vorspann), **▶ ab Auswahl**
   oder **▶ nur Auswahl**. Läuft verkleinert (640 Pixel breit, höchstens 25 Bilder/s) mit
   denselben Übergängen, Schwenks und Zeiten wie der fertige Film, ohne Musik; Tempo 1×/2×/4×,

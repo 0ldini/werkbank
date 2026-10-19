@@ -581,6 +581,16 @@ pub fn probe(ffmpeg: &str, path: &Path) -> Result<Item, String> {
 
 // ---------------------------------------------------------------- Zeitplan
 
+/// Hochformat: Bild oder Video, das (nach der Drehung) höher als breit ist.
+pub fn is_portrait(it: &Item) -> bool {
+    matches!(it.kind, Kind::Image | Kind::Video) && it.h > it.w
+}
+
+/// Zeilen der Liste, die im Hochformat sind.
+pub fn portrait_rows(items: &[Item]) -> Vec<usize> {
+    items.iter().enumerate().filter(|(_, it)| is_portrait(it)).map(|(i, _)| i).collect()
+}
+
 pub fn is_pano(it: &Item, s: &Settings) -> bool {
     it.kind == Kind::Image && it.h > 0 && it.w as f32 / it.h as f32 >= s.pano_ratio
 }
@@ -1248,6 +1258,17 @@ mod tests {
         b.extend_from_slice(&[0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, 3, 0, 0]);
         assert_eq!(exif_orientation(&b), Some(3));
         assert_eq!(exif_orientation(b"kein exif"), None);
+    }
+
+    #[test]
+    fn hochformat_erkennen() {
+        let mut v = vid("drohne.mp4", 10.0);
+        assert!(!is_portrait(&v));
+        v.w = 1080;
+        v.h = 1920;
+        assert!(is_portrait(&v));
+        let items = vec![img("a.jpg", 6000, 4000), img("b.jpg", 4000, 6000), img("c.jpg", 3000, 3000), v];
+        assert_eq!(portrait_rows(&items), vec![1, 3]);
     }
 
     #[test]

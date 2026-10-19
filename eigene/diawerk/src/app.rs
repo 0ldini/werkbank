@@ -2,7 +2,7 @@
 //! Einstellungen, unten Ausgabedatei, Start und Fortschritt. Das Rendern läuft
 //! in einem Hintergrundthread (render.rs); die Oberfläche fragt den Stand ab.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Receiver};
@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::model::{self, Item, Kind, OutFmt, Quality, Settings, Transition};
 use crate::render::{self, Control, Preview};
+use crate::sicht;
 use crate::sprache::{t, tf};
 use crate::thema;
 use crate::tool;
@@ -28,6 +29,9 @@ fn blue() -> egui::Color32 {
 }
 fn orange() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
+}
+fn green() -> egui::Color32 {
+    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x5e, 0xea, 0xd4))
 }
 fn red() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
@@ -91,6 +95,9 @@ const RES: [(&str, u32, u32); 7] = [
     ("Instagram Beitrag 1080×1350 (4:5)", 1080, 1350),
     ("Quadrat 1080×1080", 1080, 1080),
 ];
+/// So viele Standbilder behält die Ansicht im Speicher.
+const THUMB_CACHE: usize = 30;
+
 /// Index von «Instagram Reel/Story» in RES.
 const RES_REEL: usize = 4;
 /// Instagram-Reels dürfen höchstens so lang sein (Sekunden).
@@ -143,6 +150,21 @@ pub struct App {
     status: String,
     status_ok: bool,
     notes: Vec<String>,
+    /// Ansicht des gewählten Eintrags unter der Liste.
+    show_view: bool,
+    /// Geladene Standbilder (Pfad → Bild, Grösse), älteste vorne in `thumb_order`.
+    thumbs: HashMap<PathBuf, (egui::TextureHandle, [usize; 2])>,
+    thumb_order: VecDeque<PathBuf>,
+    /// Standbild, das gerade im Hilfsthread geladen wird.
+    thumb_job: Option<(PathBuf, Receiver<Result<sicht::Still, String>>)>,
+    thumb_err: HashMap<PathBuf, String>,
+    /// Video, das in der Ansicht läuft.
+    player: Option<sicht::Player>,
+    player_tex: Option<egui::TextureHandle>,
+    /// Rückfrage «Hochformat entfernen?» offen.
+    confirm_portrait: bool,
+    /// Nach Pfeiltaste: diese Zeile in der Liste sichtbar machen.
+    scroll_to: Option<usize>,
 }
 
 impl App {
@@ -183,6 +205,15 @@ impl App {
             status,
             status_ok: true,
             notes: Vec::new(),
+            show_view: true,
+            thumbs: HashMap::new(),
+            thumb_order: VecDeque::new(),
+            thumb_job: None,
+            thumb_err: HashMap::new(),
+            player: None,
+            player_tex: None,
+            confirm_portrait: false,
+            scroll_to: None,
         }
     }
 
@@ -311,6 +342,7 @@ impl App {
             }
         }
         self.stop_preview();
+        self.player = None;
         self.notes.clear();
         self.started = Instant::now();
         self.status = t("Diashow wird gerechnet …").into();
@@ -428,6 +460,264 @@ impl App {
         self.anchor = None;
     }
 
+    /// Alle Einträge im Hochformat aus der Liste nehmen (die Dateien bleiben unberührt).
+    fn remove_portrait(&mut self) {
+        let rows = model::portrait_rows(&self.items);
+        if rows.is_empty() {
+            return;
+        }
+        let n = rows.len();
+        self.sel = rows.into_iter().collect();
+        self.remove_sel();
+        self.sel.clear();
+        self.status = tf("{n} Einträge im Hochformat entfernt.", &[("n", &n)]);
+        self.status_ok = true;
+    }
+
+    // ---------------------------------------------------------- Ansicht des gewählten Eintrags
+
+    /// Der Eintrag, den die Ansicht zeigt: der zuletzt angeklickte, sonst der erste gewählte.
+    fn current(&self) -> Option<usize> {
+        let c = match self.anchor {
+            Some(a) if self.sel.contains(&a) => Some(a),
+            _ => self.sel.iter().next().copied(),
+        };
+        c.filter(|&i| i < self.items.len())
+    }
+
+    /// Fertig geladene Standbilder übernehmen; danach das nächste anstossen
+    /// (zuerst der gewählte Eintrag, dann seine Nachbarn, damit das Blättern schnell geht).
+    fn poll_thumbs(&mut self, ctx: &egui::Context) {
+        if let Some((path, rx)) = &self.thumb_job {
+            match rx.try_recv() {
+                Ok(r) => {
+                    let path = path.clone();
+                    self.thumb_job = None;
+                    match r {
+                        Ok(st) => {
+                            let size = [st.w as usize, st.h as usize];
+                            let img = egui::ColorImage::from_rgb(size, &st.rgb);
+                            let tex = ctx.load_texture(path.display().to_string(), img, egui::TextureOptions::LINEAR);
+                            self.thumbs.insert(path.clone(), (tex, size));
+                            self.thumb_order.push_back(path);
+                            while self.thumb_order.len() > THUMB_CACHE {
+                                if let Some(old) = self.thumb_order.pop_front() {
+                                    self.thumbs.remove(&old);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.thumb_err.insert(path, engine_msg(&e));
+                        }
+                    }
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => return,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => self.thumb_job = None,
+            }
+        }
+        if !self.show_view || self.thumb_job.is_some() {
+            return;
+        }
+        let Some(ff) = self.ffmpeg.clone() else { return };
+        let Some(cur) = self.current() else { return };
+        let wanted = [Some(cur), cur.checked_add(1), cur.checked_sub(1)];
+        let next = wanted
+            .into_iter()
+            .flatten()
+            .filter_map(|i| self.items.get(i))
+            .find(|it| !self.thumbs.contains_key(&it.path) && !self.thumb_err.contains_key(&it.path))
+            .cloned();
+        if let Some(it) = next {
+            let (tx, rx) = channel();
+            let ctx2 = ctx.clone();
+            std::thread::spawn(move || {
+                let _ = tx.send(sicht::load_still(&ff, &it));
+                ctx2.request_repaint();
+            });
+            self.thumb_job = Some((it.path.clone(), rx));
+        }
+    }
+
+    /// Pfeiltasten wählen den vorigen/nächsten Eintrag, Entf nimmt die Auswahl aus der Liste.
+    fn keys(&mut self, ctx: &egui::Context, can_edit: bool) {
+        if self.items.is_empty() || ctx.wants_keyboard_input() {
+            return;
+        }
+        let (down, up, del) = ctx.input(|i| {
+            (i.key_pressed(egui::Key::ArrowDown), i.key_pressed(egui::Key::ArrowUp), i.key_pressed(egui::Key::Delete))
+        });
+        if down || up {
+            let last = self.items.len() - 1;
+            let i = match self.current() {
+                Some(c) if down => (c + 1).min(last),
+                Some(c) => c.saturating_sub(1),
+                None => 0,
+            };
+            self.sel = [i].into();
+            self.anchor = Some(i);
+            self.scroll_to = Some(i);
+        }
+        if del && can_edit && !self.sel.is_empty() {
+            self.remove_sel();
+            self.anchor = self.sel.iter().next().copied();
+            self.scroll_to = self.anchor;
+        }
+    }
+
+    /// Unter der Liste: das gewählte Bild bzw. Video gross, daneben die Angaben.
+    fn view_ui(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, slots: &[model::Slot], can_edit: bool) {
+        let Some(cur) = self.current() else {
+            self.player = None;
+            ui.add_space(8.0);
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new(t("Einen Eintrag anklicken, um ihn hier zu sehen. Mit ⬆ ⬇ blättern.")).weak());
+            });
+            return;
+        };
+        let it = self.items[cur].clone();
+        if self.player.as_ref().is_some_and(|p| p.path != it.path) {
+            self.player = None;
+        }
+        // neues Videobild übernehmen
+        let mut playing = false;
+        let mut play_pos = 0.0;
+        if let Some(p) = &self.player {
+            if let Some(rgb) = p.take_frame() {
+                let img = egui::ColorImage::from_rgb([p.w as usize, p.h as usize], &rgb);
+                match &mut self.player_tex {
+                    Some(tx) => tx.set(img, egui::TextureOptions::LINEAR),
+                    None => self.player_tex = Some(ctx.load_texture("ansicht-video", img, egui::TextureOptions::LINEAR)),
+                }
+            }
+            playing = !p.finished();
+            play_pos = p.position();
+        }
+        if self.player.as_ref().is_some_and(|p| p.finished()) {
+            self.player = None;
+        }
+        let pano = slots.get(cur).is_some_and(|s| s.pano);
+        let portrait = model::is_portrait(&it);
+        let mut toggle_play = false;
+        let mut remove = false;
+        ui.add_space(6.0);
+        let avail = ui.available_size();
+        ui.horizontal(|ui| {
+            // ---- Bild links, so gross wie Platz ist
+            let info_w = 250.0_f32.min(avail.x * 0.45);
+            let box_w = (avail.x - info_w - 16.0).max(80.0);
+            let box_h = (avail.y - 6.0).max(60.0);
+            let ratio = it.w.max(1) as f32 / it.h.max(1) as f32;
+            let (mut w, mut h) = (box_w, box_w / ratio);
+            if h > box_h {
+                h = box_h;
+                w = box_h * ratio;
+            }
+            let size = egui::vec2(w.max(8.0), h.max(8.0));
+            let tex = if self.player.is_some() { self.player_tex.as_ref().map(|t| t.id()) } else { None }
+                .or_else(|| self.thumbs.get(&it.path).map(|(t, _)| t.id()));
+            ui.allocate_ui_with_layout(egui::vec2(box_w, box_h), egui::Layout::top_down(egui::Align::Center), |ui| {
+                match tex {
+                    Some(id) => {
+                        ui.add(egui::Image::new((id, size)));
+                    }
+                    None => {
+                        let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+                        ui.painter().rect_filled(rect, 4.0, egui::Color32::from_gray(24));
+                        let msg = match self.thumb_err.get(&it.path) {
+                            Some(e) => e.clone(),
+                            None => t("Wird geladen …").to_string(),
+                        };
+                        ui.painter().text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            msg,
+                            egui::FontId::proportional(14.0),
+                            egui::Color32::GRAY,
+                        );
+                    }
+                }
+            });
+            ui.add_space(8.0);
+            // ---- Angaben rechts
+            ui.vertical(|ui| {
+                ui.set_width(info_w);
+                ui.label(egui::RichText::new(format!("{}. {}", cur + 1, it.name)).strong());
+                let (kind, col) = match it.kind {
+                    Kind::Video if portrait => (t("Video im Hochformat"), green()),
+                    Kind::Video => (t("Video"), vio()),
+                    _ if pano => (t("Panorama"), orange()),
+                    _ if portrait => (t("Hochformat"), green()),
+                    _ if it.w == it.h => (t("Quadrat"), blue()),
+                    _ => (t("Querformat"), blue()),
+                };
+                ui.colored_label(col, kind);
+                let seite = format!("{:.2} : 1", it.w as f32 / it.h.max(1) as f32);
+                ui.label(format!("{} × {} · {}", it.w, it.h, seite));
+                if it.kind == Kind::Video {
+                    let laenge = model::fmt_hms(it.secs);
+                    ui.label(tf("Länge {laenge}", &[("laenge", &laenge)]));
+                }
+                if let Some(sl) = slots.get(cur) {
+                    let s = format!("{:.1}", sl.frames as f32 / self.s.fps.max(1) as f32);
+                    ui.label(tf("Im Film {s} s", &[("s", &s)]));
+                }
+                if let Ok(md) = std::fs::metadata(&it.path) {
+                    let mb = format!("{:.1}", md.len() as f64 / 1_048_576.0);
+                    ui.label(egui::RichText::new(tf("{mb} MB", &[("mb", &mb)])).weak());
+                }
+                if portrait && it.kind == Kind::Image && self.s.width > self.s.height {
+                    ui.small(t("Im Querformat-Film steht es ganz im Bild vor unscharfem Hintergrund."));
+                }
+                ui.add_space(6.0);
+                if it.kind == Kind::Video && self.ffmpeg.is_some() {
+                    ui.horizontal(|ui| {
+                        let lab = if playing { t("⏸ Anhalten") } else { t("▶ Abspielen") };
+                        if ui.button(lab).clicked() {
+                            toggle_play = true;
+                        }
+                        if playing {
+                            ui.label(format!("{} / {}", model::fmt_hms(play_pos), model::fmt_hms(it.secs)));
+                        }
+                    });
+                    if playing {
+                        ui.add(egui::ProgressBar::new((play_pos / it.secs.max(0.1)).clamp(0.0, 1.0)));
+                    }
+                }
+                if ui
+                    .add_enabled(can_edit, egui::Button::new(t("Aus der Liste entfernen")))
+                    .on_hover_text(t("Nur aus der Liste, die Datei bleibt erhalten (Taste Entf)"))
+                    .clicked()
+                {
+                    remove = true;
+                }
+            });
+        });
+        if toggle_play {
+            if playing {
+                self.player = None;
+            } else if let Some(ff) = self.ffmpeg.clone() {
+                let ctx2 = ctx.clone();
+                match sicht::Player::start(&ff, &it, play_pos, Box::new(move || ctx2.request_repaint())) {
+                    Ok(p) => {
+                        self.player_tex = None;
+                        self.player = Some(p);
+                    }
+                    Err(e) => {
+                        self.status = engine_msg(&e);
+                        self.status_ok = false;
+                    }
+                }
+            }
+        }
+        if remove {
+            self.player = None;
+            self.sel = [cur].into();
+            self.remove_sel();
+            self.anchor = self.sel.iter().next().copied();
+            self.scroll_to = self.anchor;
+        }
+    }
+
     // ---------------------------------------------------------- Vorschau
 
     fn stop_preview(&mut self) {
@@ -454,6 +744,7 @@ impl App {
             ),
         };
         self.stop_preview();
+        self.player = None;
         let items = model::with_cards(&list, &self.s, intro, outro);
         self.preview = Some(render::preview(ff, items, &self.s, self.pv_speed));
         self.pv_mode = Some(mode);
@@ -558,6 +849,8 @@ impl eframe::App for App {
         self.poll_job();
         let busy = self.job.is_some() || self.probing.is_some();
         self.sel.retain(|&i| i < self.items.len());
+        self.keys(ctx, self.job.is_none() && self.probing.is_none());
+        self.poll_thumbs(ctx);
         if busy {
             ctx.request_repaint_after(Duration::from_millis(250));
         }
@@ -635,6 +928,27 @@ impl eframe::App for App {
                 {
                     self.spread(true, true);
                 }
+                let n_hoch = model::portrait_rows(&self.items).len();
+                if n_hoch > 0 {
+                    ui.separator();
+                    ui.colored_label(green(), tf("{n} im Hochformat", &[("n", &n_hoch)]));
+                    if ui
+                        .add_enabled(can_edit, egui::Button::new(t("wählen")))
+                        .on_hover_text(t("Alle Bilder und Videos im Hochformat auswählen"))
+                        .clicked()
+                    {
+                        self.sel = model::portrait_rows(&self.items).into_iter().collect();
+                        self.anchor = self.sel.iter().next().copied();
+                        self.scroll_to = self.anchor;
+                    }
+                    if ui
+                        .add_enabled(can_edit, egui::Button::new(t("entfernen …")))
+                        .on_hover_text(t("Alle Bilder und Videos im Hochformat aus der Liste nehmen"))
+                        .clicked()
+                    {
+                        self.confirm_portrait = true;
+                    }
+                }
             });
             ui.horizontal_wrapped(|ui| {
                 let can_edit = !running && self.probing.is_none();
@@ -678,6 +992,9 @@ impl eframe::App for App {
                 if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new(t("▶ nur Auswahl"))).clicked() {
                     pv_req = Some(PvMode::OnlySel);
                 }
+                ui.separator();
+                ui.checkbox(&mut self.show_view, t("Ansicht"))
+                    .on_hover_text(t("Das gewählte Bild oder Video unter der Liste zeigen"));
             });
             ui.add_space(4.0);
         });
@@ -954,6 +1271,16 @@ impl eframe::App for App {
                 });
                 return;
             }
+            if self.show_view {
+                let can_edit = !running && self.probing.is_none();
+                egui::TopBottomPanel::bottom("ansicht")
+                    .resizable(true)
+                    .default_height(300.0)
+                    .height_range(140.0..=900.0)
+                    .show_inside(ui, |ui| self.view_ui(ui, ctx, &tl_all.slots, can_edit));
+            } else {
+                self.player = None;
+            }
             let row_h = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y + 4.0;
             let items = &self.items;
             let slots = &tl_all.slots;
@@ -967,9 +1294,14 @@ impl eframe::App for App {
             let mut drag_started: Option<usize> = None;
             let mut rects: Vec<(usize, egui::Rect)> = Vec::new();
             let can_edit = !running && self.probing.is_none();
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show_rows(ui, row_h, items.len(), |ui, range| {
+            let scroll_to = self.scroll_to.take();
+            let mut sa = egui::ScrollArea::vertical().auto_shrink([false, false]);
+            if let Some(i) = scroll_to {
+                // Zeile ungefähr in die Mitte holen
+                let y = (i as f32 * row_h - area.height() / 2.0).max(0.0);
+                sa = sa.vertical_scroll_offset(y);
+            }
+            sa.show_rows(ui, row_h, items.len(), |ui, range| {
                     if dragging {
                         if let Some(p) = ptr {
                             if p.y < area.top() + 28.0 {
@@ -986,12 +1318,18 @@ impl eframe::App for App {
                             (Kind::Video, _) => (t("VIDEO"), vio()),
                             (Kind::Intro | Kind::Outro, _) => (t("KARTE"), vio()),
                             (_, true) => (t("PANORAMA"), orange()),
+                            _ if model::is_portrait(it) => (t("HOCH"), green()),
                             _ => (t("BILD"), blue()),
                         };
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(format!("{:>4}", i + 1)).monospace().weak());
                             ui.label(egui::RichText::new(format!("{tag:<8}")).monospace().strong().color(col));
-                            let text = format!("{}    {}×{}    {:.1} s", it.name, it.w, it.h, sl.frames as f32 / fps);
+                            let hoch = if it.kind == Kind::Video && model::is_portrait(it) {
+                                format!(" · {}", t("hoch"))
+                            } else {
+                                String::new()
+                            };
+                            let text = format!("{}    {}×{}{hoch}    {:.1} s", it.name, it.w, it.h, sl.frames as f32 / fps);
                             let r = ui.selectable_label(sel.contains(&i), text);
                             let r = r.interact(egui::Sense::click_and_drag());
                             rects.push((i, r.rect));
@@ -1064,6 +1402,35 @@ impl eframe::App for App {
             }
         });
 
+        if self.confirm_portrait {
+            let n = model::portrait_rows(&self.items).len();
+            let mut yes = false;
+            let mut no = false;
+            egui::Window::new(t("Hochformat entfernen"))
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ctx, |ui| {
+                    ui.label(tf("{n} Bilder und Videos im Hochformat aus der Liste nehmen?", &[("n", &n)]));
+                    ui.small(t("Die Dateien selbst bleiben unberührt."));
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(t("Entfernen")).clicked() {
+                            yes = true;
+                        }
+                        if ui.button(t("Abbrechen")).clicked() {
+                            no = true;
+                        }
+                    });
+                });
+            if yes {
+                self.player = None;
+                self.remove_portrait();
+            }
+            if yes || no || n == 0 {
+                self.confirm_portrait = false;
+            }
+        }
         if let Some(m) = pv_req {
             self.start_preview(m);
         }
