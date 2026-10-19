@@ -114,7 +114,7 @@ pub fn titelleiste(cc: &eframe::CreationContext<'_>, logo: [u8; 3]) {
         for (attr, v) in farben {
             // SAFETY: Fenster des eigenen Prozesses; der Wert ist ein COLORREF (u32, 4 Byte).
             unsafe {
-                DwmSetWindowAttribute(w.hwnd.get() as windows_sys::Win32::Foundation::HWND, attr, &v as *const u32 as *const core::ffi::c_void, 4);
+                DwmSetWindowAttribute(w.hwnd.get() as windows_sys::Win32::Foundation::HWND, attr as u32, &v as *const u32 as *const std::ffi::c_void, 4);
             }
         }
     }

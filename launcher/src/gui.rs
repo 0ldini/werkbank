@@ -423,7 +423,7 @@ fn titelleiste() {
             let v: u32 = c.r() as u32 | (c.g() as u32) << 8 | (c.b() as u32) << 16;
             // SAFETY: Fenster des eigenen Prozesses; der Wert ist ein COLORREF (u32, 4 Byte).
             unsafe {
-                DwmSetWindowAttribute(h as windows_sys::Win32::Foundation::HWND, attr, &v as *const u32 as *const core::ffi::c_void, 4);
+                DwmSetWindowAttribute(h as windows_sys::Win32::Foundation::HWND, attr as u32, &v as *const u32 as *const std::ffi::c_void, 4);
             }
         }
     }
