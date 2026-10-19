@@ -204,6 +204,16 @@ pub struct Home {
     /// Programme im Schnellzugriff in ihrer Reihenfolge; None = Vorgabe.
     #[serde(default)]
     pub quick: Option<Vec<String>>,
+    /// Programmnamen unter den Symbolen.
+    #[serde(default = "yes")]
+    pub names: bool,
+    /// Grösse der Programm-Symbole: 0 klein, 1 mittel, 2 gross.
+    #[serde(default = "one")]
+    pub icon_size: u8,
+}
+
+fn one() -> u8 {
+    1
 }
 
 fn yes() -> bool {
@@ -212,7 +222,7 @@ fn yes() -> bool {
 
 impl Default for Home {
     fn default() -> Self {
-        Home { clock: true, weather: true, recent: true, grouped: true, widgets: Vec::new(), bar_open: false, quick: None }
+        Home { clock: true, weather: true, recent: true, grouped: true, widgets: Vec::new(), bar_open: false, quick: None, names: true, icon_size: 1 }
     }
 }
 

@@ -1635,7 +1635,7 @@ impl Gui {
                 });
             });
             ui.add_space(6.0);
-            let cell = 84.0;
+            let cell = if self.cfg.home.names { 96.0 } else { 84.0 };
             let per_row = ((ui.available_width() + 4.0) / cell).floor().max(1.0) as usize;
             let cw = ui.available_width() / per_row as f32;
             for chunk in apps.chunks(per_row) {
@@ -1654,14 +1654,21 @@ impl Gui {
     /// Icon mit Namen; Klick startet, Rechtsklick zeigt das Menü des Programms.
     fn icon_button(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
         let update = st.update();
-        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 80.0), Sense::click());
+        let names = self.cfg.home.names;
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, if names { 98.0 } else { 80.0 }), Sense::click());
         if resp.hovered() {
             ui.painter().rect_filled(rect.shrink(4.0), 14.0, hover());
         }
-        let ir = Rect::from_center_size(rect.center(), Vec2::splat(56.0));
+        let ir = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 40.0), Vec2::splat(56.0));
         paint_icon(ui, &mut self.textures, app, ir);
         let quick = self.in_quick(&app.id);
         let p = ui.painter();
+        if names {
+            let mut job = egui::text::LayoutJob::simple_singleline(app.name.clone(), egui::FontId::proportional(12.5), soft());
+            job.wrap = egui::text::TextWrapping::truncate_at_width(w - 6.0);
+            let galley = p.layout_job(job);
+            p.galley(Pos2::new(rect.center().x - galley.size().x / 2.0, ir.bottom() + 6.0), galley, soft());
+        }
         if quick {
             let c = Pos2::new(ir.right() - 1.0, ir.bottom() - 1.0);
             p.circle_filled(c, 9.0, ACCENT);
@@ -1937,13 +1944,29 @@ impl Gui {
                 if let Some(v) = theme_pick {
                     self.set_dark(ctx, v);
                 }
+                let mut look_changed = false;
+                section(ui, t("Aussehen der Startseite"), &mut |ui| {
+                    look_changed = self.look_settings(ui);
+                });
+                if look_changed {
+                    self.save_cfg();
+                }
                 let mut arrange = false;
                 let mut widget_save = false;
-                section(ui, t("Startseite"), &mut |ui| {
-                    if button(ui, t("Widgets anordnen"), Look::Outline).clicked() {
-                        arrange = true;
-                    }
+                section(ui, t("Widgets"), &mut |ui| {
+                    ui.label(egui::RichText::new(t("Diese Widgets stehen auf der Startseite. Grösse und Reihenfolge änderst du mit «Widgets anordnen».")).size(12.5).color(muted()));
                     ui.add_space(6.0);
+                    self.widget_settings(ui);
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if button(ui, t("Widgets anordnen"), Look::Outline).clicked() {
+                            arrange = true;
+                        }
+                        if link(ui, t("Vorgabe wiederherstellen")).clicked() {
+                            self.set_widgets(Vec::new());
+                        }
+                    });
+                    ui.add_space(10.0);
                     ui.label(egui::RichText::new(t("Kalender für «Termine» (ICS-Adresse, z. B. «Privatadresse im iCal-Format» aus Google Kalender oder ein veröffentlichter Outlook-Kalender)")).size(13.0));
                     ui.add(egui::TextEdit::singleline(&mut self.cal_input).hint_text("https://…/basic.ics").desired_width(f32::INFINITY));
                     ui.label(egui::RichText::new(t("Nachrichten-Quelle (RSS-Adresse, leer = SRF News)")).size(13.0));

@@ -220,7 +220,7 @@ impl Gui {
         }
     }
 
-    fn set_widgets(&mut self, list: Vec<WidgetCfg>) {
+    pub(super) fn set_widgets(&mut self, list: Vec<WidgetCfg>) {
         self.cfg.home.widgets = list;
         self.save_cfg();
     }
