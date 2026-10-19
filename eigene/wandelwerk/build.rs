@@ -2,6 +2,7 @@
 // Dann wird es in die Programmdatei eingebettet; ohne die Variable baut Wandelwerk wie bisher
 // und sucht ffmpeg neben der .exe oder auf dem PATH.
 fn main() {
+    werk_icon();
     println!("cargo::rustc-check-cfg=cfg(embedded_ffmpeg)");
     println!("cargo::rerun-if-env-changed=WERK_FFMPEG");
     if let Ok(path) = std::env::var("WERK_FFMPEG") {
@@ -16,3 +17,19 @@ fn main() {
         }
     }
 }
+
+// Logo der Programmdatei (Explorer, Verknüpfungen) unter Windows.
+#[cfg(windows)]
+fn werk_icon() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        println!("cargo::rerun-if-changed=icon.ico");
+        let mut res = winresource::WindowsResource::new();
+        res.set_icon("icon.ico");
+        if let Err(e) = res.compile() {
+            println!("cargo::warning=Programm-Logo nicht eingebettet: {e}");
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn werk_icon() {}

@@ -5,6 +5,7 @@ mod assoc;
 mod core;
 mod gui;
 mod icons;
+mod meldung;
 mod sprache;
 mod feeds;
 mod weather;
@@ -28,7 +29,7 @@ fn main() {
     // Von Windows aufgerufen («Öffnen mit»): Datei im zugeordneten Programm öffnen.
     if args.first().map(String::as_str) == Some("--open") {
         let (Some(id), Some(file)) = (args.get(1), args.get(2)) else { std::process::exit(2) };
-        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new() });
+        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None });
         if let Some(app) = manifest.app.iter().find(|a| &a.id == id) {
             if core::run_with(app, Some(std::path::Path::new(file))).is_ok() {
                 return;

@@ -4,6 +4,7 @@
 
 use crate::scan::{self, fmt_size, group_thousands, Node};
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -14,11 +15,7 @@ use std::time::Instant;
 
 /// Türkis für Schrift, Balken und Linien – je Design lesbar auf dem Hintergrund.
 fn teal() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x2d, 0xd4, 0xbf))
-}
-/// Füllung der Hauptschaltfläche (weisse Schrift darauf) – in beiden Designs gleich.
-fn teal_fill() -> egui::Color32 {
-    egui::Color32::from_rgb(0x0f, 0x76, 0x6e)
+    stil::akzent()
 }
 
 struct Prog {
@@ -50,6 +47,8 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x6B, 0x4F, 0xA0]);
+        stil::init(&cc.egui_ctx, [0x6B, 0x4F, 0xA0]);
         App {
             root: None,
             tree: None,
@@ -128,148 +127,123 @@ impl eframe::App for App {
             ctx.request_repaint();
         }
 
-        egui::TopBottomPanel::top("tbar").show(ctx, |ui| {
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                let open = egui::Button::new(
-                    egui::RichText::new(format!("   {}   ", t("Ordner wählen"))).color(egui::Color32::WHITE),
-                )
-                .fill(teal_fill());
-                if ui.add_enabled(!self.scanning, open).clicked() {
-                    if let Some(d) = rfd::FileDialog::new().pick_folder() {
-                        self.start_scan(d);
-                    }
+        let total = self
+            .tree
+            .as_ref()
+            .map(|t| t.size)
+            .or_else(|| self.prog.as_ref().map(|p| p.bytes.load(Ordering::Relaxed)))
+            .unwrap_or(0);
+
+        // ---------------- Kopfleiste
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Speicherwerk");
+            stil::trenner(ui);
+            if stil::knopf_an(ui, !self.scanning, Sym::OrdnerAuf, t("Ordner wählen")).clicked() {
+                if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                    self.start_scan(d);
                 }
-                if let Some(r) = &self.root {
-                    ui.add(
-                        egui::Label::new(egui::RichText::new(r.display().to_string()).weak())
-                            .truncate(),
-                    );
+            }
+            if let Some(r) = &self.root {
+                ui.add(egui::Label::new(egui::RichText::new(r.display().to_string()).color(thema::muted())).truncate());
+            }
+            stil::rechts(ui, |ui| {
+                if stil::leise(ui, self.tree.is_some(), Sym::Download, t("CSV speichern …"), "").clicked() {
+                    self.export_csv();
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let total = self
-                        .tree
-                        .as_ref()
-                        .map(|t| t.size)
-                        .or_else(|| self.prog.as_ref().map(|p| p.bytes.load(Ordering::Relaxed)))
-                        .unwrap_or(0);
-                    ui.label(
-                        egui::RichText::new(tf("Gesamt: {size}", &[("size", &fmt_size(total))]))
-                            .strong(),
-                    );
-                    if self.tree.is_some() {
-                        ui.add_space(8.0);
-                        if ui.button(t("CSV speichern …")).clicked() {
-                            self.export_csv();
-                        }
-                        if ui.button(t("Neu scannen")).clicked() {
-                            if let Some(r) = self.root.clone() {
-                                self.start_scan(r);
-                            }
-                        }
-                    }
-                    if self.scanning {
-                        ui.add_space(8.0);
-                        if ui.button(t("Abbrechen")).clicked() {
-                            if let Some(p) = &self.prog {
-                                p.cancel.store(true, Ordering::Relaxed);
-                            }
-                        }
-                    }
-                });
             });
-            ui.add_space(6.0);
         });
 
-        egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-            ui.add_space(4.0);
+        // ---------------- Fussleiste
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
                 if self.scanning {
                     if let Some(p) = &self.prog {
                         ui.spinner();
-                        ui.label(tf(
-                            "Scanne … {files} Dateien · {dirs} Ordner",
+                        stil::grau(
+                            ui,
+                            &tf(
+                                "Scanne … {files} Dateien · {dirs} Ordner",
+                                &[("files", &group_thousands(p.files.load(Ordering::Relaxed))), ("dirs", &group_thousands(p.dirs.load(Ordering::Relaxed)))],
+                            ),
+                        );
+                    }
+                } else if let Some(p) = &self.prog {
+                    stil::grau(
+                        ui,
+                        &tf(
+                            "{files} Dateien · {dirs} Ordner · {status}",
                             &[
                                 ("files", &group_thousands(p.files.load(Ordering::Relaxed))),
                                 ("dirs", &group_thousands(p.dirs.load(Ordering::Relaxed))),
+                                ("status", &self.status),
                             ],
-                        ));
-                    }
-                } else if let Some(p) = &self.prog {
-                    ui.weak(tf(
-                        "{files} Dateien · {dirs} Ordner · {status}",
-                        &[
-                            ("files", &group_thousands(p.files.load(Ordering::Relaxed))),
-                            ("dirs", &group_thousands(p.dirs.load(Ordering::Relaxed))),
-                            ("status", &self.status),
-                        ],
-                    ));
+                        ),
+                    );
                 } else {
-                    ui.weak(self.status.as_str());
+                    stil::grau(ui, self.status.as_str());
                 }
+                stil::rechts(ui, |ui| {
+                    if self.scanning {
+                        if stil::knopf(ui, Sym::Stopp, t("Abbrechen")).clicked() {
+                            if let Some(p) = &self.prog {
+                                p.cancel.store(true, Ordering::Relaxed);
+                            }
+                        }
+                    } else if let Some(r) = self.root.clone() {
+                        if stil::haupt(ui, true, Sym::Aktualisieren, t("Neu scannen")).clicked() {
+                            self.start_scan(r);
+                        }
+                    } else if stil::haupt(ui, true, Sym::OrdnerAuf, t("Ordner wählen")).clicked() {
+                        if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                            self.start_scan(d);
+                        }
+                    }
+                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new(tf("Gesamt: {size}", &[("size", &fmt_size(total))])).strong());
+                });
             });
-            ui.add_space(4.0);
         });
 
         if self.tree.is_some() {
-            egui::SidePanel::right("info")
-                .resizable(false)
-                .exact_width(330.0)
-                .show(ctx, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.add_space(8.0);
-                        ui.label(egui::RichText::new(t("GRÖSSTE DATEIEN")).strong().size(11.0).color(thema::muted()));
-                        ui.add_space(4.0);
-                        let maxf = self.largest.first().map(|x| x.1).unwrap_or(1).max(1);
-                        for (name, sz) in self.largest.iter().take(15) {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::Label::new(short(name)).truncate());
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.monospace(fmt_size(*sz));
-                                    bar(ui, *sz as f32 / maxf as f32, teal(), 90.0);
-                                });
+            stil::seitenleiste(ctx, 330.0, |ui| {
+                stil::karte(ui, "groesste", Sym::Datei, t("Grösste Dateien"), true, |ui| {
+                    let maxf = self.largest.first().map(|x| x.1).unwrap_or(1).max(1);
+                    for (name, sz) in self.largest.iter().take(15) {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Label::new(short(name)).truncate());
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.monospace(fmt_size(*sz));
+                                bar(ui, *sz as f32 / maxf as f32, teal(), 80.0);
                             });
-                        }
-                        ui.add_space(12.0);
-                        ui.separator();
-                        ui.add_space(8.0);
-                        ui.label(egui::RichText::new(t("DATEITYPEN")).strong().size(11.0).color(thema::muted()));
-                        ui.add_space(4.0);
-                        let maxe = self.exts.first().map(|x| x.1).unwrap_or(1).max(1);
-                        for (ext, sz, _c) in self.exts.iter().take(15) {
-                            ui.horizontal(|ui| {
-                                let shown = if ext == "(ohne)" { format!(".{}", t("(ohne)")) } else { format!(".{}", ext) };
-                                ui.add(egui::Label::new(egui::RichText::new(shown).color(teal()).strong()));
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.monospace(fmt_size(*sz));
-                                    bar(ui, *sz as f32 / maxe as f32, teal(), 90.0);
-                                });
-                            });
-                        }
-                        ui.add_space(10.0);
-                    });
+                        });
+                    }
                 });
+                stil::karte(ui, "typen", Sym::Ebenen, t("Dateitypen"), true, |ui| {
+                    let maxe = self.exts.first().map(|x| x.1).unwrap_or(1).max(1);
+                    for (ext, sz, _c) in self.exts.iter().take(15) {
+                        ui.horizontal(|ui| {
+                            let shown = if ext == "(ohne)" { format!(".{}", t("(ohne)")) } else { format!(".{}", ext) };
+                            ui.add(egui::Label::new(egui::RichText::new(shown).color(teal()).strong()));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.monospace(fmt_size(*sz));
+                                bar(ui, *sz as f32 / maxe as f32, teal(), 80.0);
+                            });
+                        });
+                    }
+                });
+            });
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        stil::mitte(ctx, |ui| {
             if let Some(tree) = &self.tree {
                 let total = tree.size.max(1);
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     node_ui(ui, tree, &tree.name, 0, total, &mut self.expanded);
                 });
             } else if self.scanning {
-                ui.centered_and_justified(|ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(40.0);
-                        ui.spinner();
-                        ui.add_space(8.0);
-                        ui.weak(t("Wird gescannt …"));
-                    });
-                });
+                stil::leer(ui, Sym::Suche, t("Wird gescannt …"), "");
             } else {
-                ui.centered_and_justified(|ui| {
-                    ui.weak(t("Oben einen Ordner wählen."));
-                });
+                stil::leer(ui, Sym::OrdnerAuf, t("Noch kein Ordner"), t("Oben einen Ordner wählen."));
             }
         });
     }

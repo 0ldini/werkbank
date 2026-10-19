@@ -16,6 +16,7 @@ use crate::archiv::{
 };
 use crate::regeln::{self, Art, Start, StartFehler, Warnung};
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 
 const ZEILE: f32 = 24.0;
@@ -24,34 +25,13 @@ const BREITE_GEPACKT: f32 = 92.0;
 const BREITE_ZEIT: f32 = 132.0;
 
 fn akzent() -> egui::Color32 {
-    thema::pick(
-        egui::Color32::from_rgb(0xb4, 0x53, 0x09),
-        egui::Color32::from_rgb(0xf5, 0x9e, 0x0b),
-    )
-}
-fn akzent_weich() -> egui::Color32 {
-    thema::pick(
-        egui::Color32::from_rgb(0xfe, 0xf3, 0xc7),
-        egui::Color32::from_rgb(0x45, 0x32, 0x0d),
-    )
-}
-fn auf_akzent() -> egui::Color32 {
-    thema::pick(
-        egui::Color32::WHITE,
-        egui::Color32::from_rgb(0x17, 0x18, 0x1C),
-    )
+    stil::akzent()
 }
 fn rot() -> egui::Color32 {
-    thema::pick(
-        egui::Color32::from_rgb(0xb9, 0x1c, 0x1c),
-        egui::Color32::from_rgb(0xf8, 0x71, 0x71),
-    )
+    stil::rot()
 }
 fn gruen() -> egui::Color32 {
-    thema::pick(
-        egui::Color32::from_rgb(0x15, 0x80, 0x3d),
-        egui::Color32::from_rgb(0x4a, 0xde, 0x80),
-    )
+    stil::gruen()
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -164,6 +144,8 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0xB7, 0x79, 0x1F]);
+        stil::init(&cc.egui_ctx, [0xB7, 0x79, 0x1F]);
         let mut app = App {
             ctx: cc.egui_ctx.clone(),
             modus: Modus::Start,
@@ -793,109 +775,74 @@ impl App {
     // Oberfläche
     // -----------------------------------------------------------------------
 
-    fn kopfzeile(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
-            ui.label(
-                egui::RichText::new("Packwerk")
-                    .size(19.0)
-                    .strong()
-                    .color(akzent()),
-            );
-            ui.add_space(12.0);
-            if ui
-                .button(t("📂 Öffnen …"))
-                .on_hover_text(t("Archiv öffnen (ZIP, 7z, TAR, TAR.GZ, GZ)"))
-                .clicked()
-            {
-                self.oeffnen_dialog();
+    /// Kopfleiste: Öffnen, Neues Archiv, (Archiv anzeigen), beim Packen die Hinzufügen-Knöpfe; rechts Hilfe.
+    fn kopfzeile(&mut self, ui: &mut egui::Ui, an: bool) {
+        stil::titel(ui, "Packwerk");
+        stil::trenner(ui);
+        if stil::knopf_an(ui, an, Sym::OrdnerAuf, t("Öffnen …"))
+            .on_hover_text(t("Archiv öffnen (ZIP, 7z, TAR, TAR.GZ, GZ)"))
+            .clicked()
+        {
+            self.oeffnen_dialog();
+        }
+        if stil::knopf_an(ui, an, Sym::Archiv, t("Neues Archiv"))
+            .on_hover_text(t("Dateien und Ordner zu einem Archiv packen"))
+            .clicked()
+        {
+            self.neues_archiv();
+        }
+        if self.inhalt.is_some()
+            && self.modus != Modus::Ansicht
+            && stil::knopf_an(ui, an, Sym::Raster, t("Archiv anzeigen")).clicked()
+        {
+            self.modus = Modus::Ansicht;
+        }
+        if self.modus == Modus::Packen {
+            stil::trenner(ui);
+            if stil::knopf_an(ui, an, Sym::Datei, t("Dateien hinzufügen …")).clicked() {
+                if let Some(v) = rfd::FileDialog::new().set_title(t("Dateien hinzufügen")).pick_files() {
+                    self.quellen_dazu(v);
+                }
             }
-            if ui
-                .add(chip(t("➕ Neues Archiv"), self.modus == Modus::Packen))
-                .on_hover_text(t("Dateien und Ordner zu einem Archiv packen"))
-                .clicked()
-            {
-                self.neues_archiv();
+            if stil::knopf_an(ui, an, Sym::Ordner, t("Ordner hinzufügen …")).clicked() {
+                if let Some(v) = rfd::FileDialog::new().set_title(t("Ordner hinzufügen")).pick_folders() {
+                    self.quellen_dazu(v);
+                }
             }
-            if self.inhalt.is_some()
-                && ui
-                    .add(chip(t("🗂 Archiv anzeigen"), self.modus == Modus::Ansicht))
-                    .clicked()
-            {
-                self.modus = Modus::Ansicht;
-            }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("?").on_hover_text(t("Hilfe")).clicked() {
-                    self.dialog = Some(Dialog::Hilfe);
-                }
-            });
-        });
-        if self.modus == Modus::Ansicht && self.inhalt.is_some() {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(t("Ziel:")).color(thema::muted()));
-                let breite = (ui.available_width() - 360.0).max(160.0);
-                ui.add(egui::TextEdit::singleline(&mut self.ziel).desired_width(breite))
-                    .on_hover_text(t("Ordner, in den entpackt wird (wird bei Bedarf angelegt)"));
-                if ui.button(t("Wählen …")).clicked() {
-                    let mut d = rfd::FileDialog::new().set_title(t("Zielordner wählen"));
-                    let jetzt = PathBuf::from(self.ziel.trim());
-                    if let Some(p) = jetzt.parent().filter(|p| p.is_dir()) {
-                        d = d.set_directory(p);
-                    }
-                    if let Some(p) = d.pick_folder() {
-                        self.ziel = p.display().to_string();
-                    }
-                }
-                let n_auswahl = self.auswahl.len();
-                if ui
-                    .add_enabled(n_auswahl > 0, egui::Button::new(t("Auswahl entpacken")))
-                    .on_hover_text(t(
-                        "Nur die markierten Einträge entpacken (relativ zum aktuellen Ordner)",
-                    ))
-                    .clicked()
-                {
-                    let eintraege = self.auswahl_eintraege();
-                    let weglassen = self
-                        .baum
-                        .as_ref()
-                        .map(|b| b.pfad(self.ordner).len())
-                        .unwrap_or(0);
-                    self.entpacken_starten(Some(eintraege), weglassen);
-                }
-                let gross = egui::Button::new(
-                    egui::RichText::new(t("Alles entpacken"))
-                        .strong()
-                        .color(auf_akzent()),
-                )
-                .fill(akzent());
-                if ui.add(gross).clicked() {
-                    self.entpacken_starten(None, 0);
-                }
-            });
-            if let Some(inhalt) = &self.inhalt {
-                if inhalt.verschluesselt {
-                    ui.horizontal(|ui| {
-                        let text = if self.passwort.is_some() {
-                            t("🔒 Verschlüsselt – Passwort ist gesetzt.")
-                        } else {
-                            t("🔒 Verschlüsselt – beim Entpacken wird nach dem Passwort gefragt.")
-                        };
-                        ui.label(egui::RichText::new(text).color(thema::muted()));
-                        if self.passwort.is_some()
-                            && ui.small_button(t("Passwort vergessen")).clicked()
-                        {
-                            self.passwort = None;
-                        }
-                    });
+            if stil::gefahr(ui, an && !self.quellen.is_empty(), Sym::Papierkorb, t("Liste leeren")).clicked() {
+                self.quellen.clear();
+                if self.pack_name_auto {
+                    self.pack_name.clear();
                 }
             }
         }
-        ui.add_space(6.0);
+        stil::rechts(ui, |ui| {
+            if stil::leise(ui, an, Sym::Info, "", t("Hilfe")).clicked() {
+                self.dialog = Some(Dialog::Hilfe);
+            }
+        });
     }
 
-    fn fusszeile(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(4.0);
+    /// Auswahlleiste in der Archiv-Ansicht (nur mit markierten Einträgen).
+    fn auswahlzeile(&mut self, ui: &mut egui::Ui, an: bool) {
+        if stil::knopf_an(ui, an, Sym::Download, t("Auswahl entpacken"))
+            .on_hover_text(t("Nur die markierten Einträge entpacken (relativ zum aktuellen Ordner)"))
+            .clicked()
+        {
+            let eintraege = self.auswahl_eintraege();
+            let weglassen = self.baum.as_ref().map(|b| b.pfad(self.ordner).len()).unwrap_or(0);
+            self.entpacken_starten(Some(eintraege), weglassen);
+        }
+        stil::rechts(ui, |ui| {
+            if stil::leise(ui, true, Sym::Kreuz, t("Auswahl aufheben"), "").clicked() {
+                self.auswahl.clear();
+                self.anker = None;
+            }
+        });
+    }
+
+    /// Fussleiste: links Status und Zusammenfassung, rechts Ziel und der Hauptknopf.
+    fn fusszeile(&mut self, ui: &mut egui::Ui, an: bool) {
         if let Some(lauf) = &self.lauf {
             let anteil = lauf.fp.anteil();
             let aktuell = lauf.fp.aktuell();
@@ -904,92 +851,105 @@ impl App {
             ui.horizontal(|ui| {
                 ui.spinner();
                 ui.label(titel);
-                if ui.button(t("Abbrechen")).clicked() {
-                    abbrechen = true;
-                }
                 let bar = match anteil {
                     Some(a) => egui::ProgressBar::new(a).show_percentage(),
                     None => egui::ProgressBar::new(0.0).animate(true),
                 };
-                ui.add(bar.desired_width((ui.available_width() * 0.45).max(120.0)));
-                ui.add(
-                    egui::Label::new(egui::RichText::new(aktuell).color(thema::muted())).truncate(),
-                );
+                ui.add(bar.fill(stil::farbe()).desired_width((ui.available_width() * 0.4).max(120.0)));
+                stil::rechts(ui, |ui| {
+                    if stil::knopf(ui, Sym::Stopp, t("Abbrechen")).clicked() {
+                        abbrechen = true;
+                    }
+                    ui.add(egui::Label::new(egui::RichText::new(aktuell).color(thema::muted())).truncate());
+                });
             });
             if abbrechen {
-                lauf.fp
-                    .abbrechen
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                lauf.fp.abbrechen.store(true, std::sync::atomic::Ordering::Relaxed);
             }
-        } else {
-            ui.horizontal(|ui| {
-                let farbe = if self.status_fehler {
-                    rot()
-                } else {
-                    thema::muted()
-                };
-                ui.add(egui::Label::new(egui::RichText::new(&self.status).color(farbe)).truncate());
-                if let (Modus::Ansicht, Some(inhalt)) = (self.modus, &self.inhalt) {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let gesamt: u64 = inhalt
-                            .eintraege
-                            .iter()
-                            .map(|e| e.groesse)
-                            .fold(0, u64::saturating_add);
-                        let g = anzeige::groesse(gesamt);
-                        let a = anzeige::groesse(inhalt.archivgroesse);
-                        let n = inhalt.eintraege.len();
-                        let art = inhalt.art.name();
-                        ui.label(
-                            egui::RichText::new(tf(
-                                "{art} · {n} Einträge · {g} entpackt · {a} gepackt",
-                                &[("art", &art), ("n", &n), ("g", &g), ("a", &a)],
-                            ))
-                            .color(thema::muted()),
-                        );
-                    });
-                }
-            });
+            return;
         }
-        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            stil::rechts(ui, |ui| {
+                match self.modus {
+                        Modus::Ansicht if self.inhalt.is_some() => {
+                            if stil::haupt(ui, an, Sym::Download, t("Alles entpacken")).clicked() {
+                                self.entpacken_starten(None, 0);
+                            }
+                            if stil::leise(ui, an, Sym::OrdnerAuf, "", t("Zielordner wählen")).clicked() {
+                                let mut d = rfd::FileDialog::new().set_title(t("Zielordner wählen"));
+                                let jetzt = PathBuf::from(self.ziel.trim());
+                                if let Some(p) = jetzt.parent().filter(|p| p.is_dir()) {
+                                    d = d.set_directory(p);
+                                }
+                                if let Some(p) = d.pick_folder() {
+                                    self.ziel = p.display().to_string();
+                                }
+                            }
+                            ui.add_enabled(an, egui::TextEdit::singleline(&mut self.ziel).desired_width(280.0))
+                                .on_hover_text(t("Ordner, in den entpackt wird (wird bei Bedarf angelegt)"));
+                            ui.label(egui::RichText::new(t("Ziel:")).color(thema::muted()));
+                        }
+                        Modus::Packen => {
+                            let bereit = !self.quellen.is_empty() && self.pack_ziel().is_some();
+                            if stil::haupt(ui, an && bereit, Sym::Archiv, t("Archiv erstellen")).clicked() {
+                                self.packen_starten();
+                            }
+                        }
+                        _ => {}
+                }
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.vertical(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            if !self.status.is_empty() {
+                                let farbe = if self.status_fehler { rot() } else { thema::muted() };
+                                ui.add(egui::Label::new(egui::RichText::new(&self.status).size(13.0).color(farbe)).truncate());
+                            }
+                            if let (Modus::Ansicht, Some(inhalt)) = (self.modus, &self.inhalt) {
+                                let gesamt: u64 = inhalt.eintraege.iter().map(|e| e.groesse).fold(0, u64::saturating_add);
+                                let g = anzeige::groesse(gesamt);
+                                let a = anzeige::groesse(inhalt.archivgroesse);
+                                let n = inhalt.eintraege.len();
+                                let art = inhalt.art.name();
+                                stil::grau(ui, &tf("{art} · {n} Einträge · {g} entpackt · {a} gepackt", &[("art", &art), ("n", &n), ("g", &g), ("a", &a)]));
+                            }
+                            let verschl = self.modus == Modus::Ansicht && self.inhalt.as_ref().is_some_and(|i| i.verschluesselt);
+                            if verschl {
+                                ui.horizontal(|ui| {
+                                    stil::symbol(ui, Sym::Schluessel, 15.0, stil::akzent());
+                                    let text = if self.passwort.is_some() {
+                                        t("Verschlüsselt – Passwort ist gesetzt.")
+                                    } else {
+                                        t("Verschlüsselt – beim Entpacken wird nach dem Passwort gefragt.")
+                                    };
+                                    stil::grau(ui, text);
+                                    if self.passwort.is_some() && stil::leise(ui, an, Sym::Kreuz, t("Passwort vergessen"), "").clicked() {
+                                        self.passwort = None;
+                                    }
+                                });
+                            }
+                        });
+                });
+            });
+        });
     }
 
     fn startseite(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(ui.available_height() * 0.18);
-        ui.vertical_centered(|ui| {
-            egui::Frame::none()
-                .fill(thema::panel())
-                .rounding(16.0)
-                .stroke(egui::Stroke::new(1.5_f32, thema::border()))
-                .inner_margin(32.0)
-                .show(ui, |ui| {
-                    ui.set_width(460.0_f32.min(ui.available_width()));
-                    ui.vertical_centered(|ui| {
-                        ui.label(egui::RichText::new("📦").size(48.0).color(akzent()));
-                        ui.add_space(6.0);
-                        ui.label(egui::RichText::new(t("Archiv hierher ziehen")).size(20.0).strong());
-                        ui.label(
-                            egui::RichText::new(t(
-                                "ZIP, 7z, TAR, TAR.GZ und GZ öffnen – oder Dateien und Ordner ablegen, um ein neues Archiv zu packen.",
-                            ))
-                            .color(thema::muted()),
-                        );
-                        ui.add_space(14.0);
-                        ui.horizontal(|ui| {
-                            let w = ui.available_width();
-                            ui.add_space((w - 300.0).max(0.0) / 2.0);
-                            let b = egui::Button::new(egui::RichText::new(t("Archiv öffnen …")).strong().color(auf_akzent()))
-                                .fill(akzent())
-                                .min_size(egui::vec2(140.0, 32.0));
-                            if ui.add(b).clicked() {
-                                self.oeffnen_dialog();
-                            }
-                            if ui.add(egui::Button::new(t("Neues Archiv …")).min_size(egui::vec2(140.0, 32.0))).clicked() {
-                                self.neues_archiv();
-                            }
-                        });
-                    });
-                });
+        stil::leer(
+            ui,
+            Sym::Archiv,
+            t("Archiv hierher ziehen"),
+            t("ZIP, 7z, TAR, TAR.GZ und GZ öffnen – oder Dateien und Ordner ablegen, um ein neues Archiv zu packen."),
+        );
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            let w = ui.available_width();
+            ui.add_space((w - 330.0).max(0.0) / 2.0);
+            if stil::haupt(ui, true, Sym::OrdnerAuf, t("Archiv öffnen …")).clicked() {
+                self.oeffnen_dialog();
+            }
+            if stil::knopf(ui, Sym::Archiv, t("Neues Archiv …")).clicked() {
+                self.neues_archiv();
+            }
         });
     }
 
@@ -1006,11 +966,7 @@ impl App {
         let mut neuer_ordner: Option<usize> = None;
         ui.horizontal(|ui| {
             let oben = baum.knoten.get(self.ordner).and_then(|k| k.eltern);
-            if ui
-                .add_enabled(oben.is_some(), egui::Button::new("⬆"))
-                .on_hover_text(t("Eine Ebene höher (Rücktaste)"))
-                .clicked()
-            {
+            if stil::leise(ui, oben.is_some(), Sym::Pfeil, "", t("Eine Ebene höher (Rücktaste)")).clicked() {
                 neuer_ordner = oben;
             }
             let mut kette = Vec::new();
@@ -1027,8 +983,11 @@ impl App {
                 if n > 0 {
                     ui.label(egui::RichText::new("›").color(thema::muted()));
                 }
+                if i == 0 {
+                    stil::symbol(ui, Sym::Archiv, 16.0, stil::akzent());
+                }
                 let name = if i == 0 {
-                    format!("📦 {archivname}")
+                    archivname.clone()
                 } else {
                     baum.knoten[i].name.clone()
                 };
@@ -1149,7 +1108,7 @@ impl App {
                     );
                     let gewaehlt = self.auswahl.contains(&k);
                     let fuellung = if gewaehlt {
-                        Some(akzent_weich())
+                        Some(stil::toenung())
                     } else if resp.hovered() {
                         Some(thema::hover())
                     } else {
@@ -1160,34 +1119,39 @@ impl App {
                     }
                     let sp = Spalten::neu(rect);
                     let ist_unsicher = kn.eintrag.is_some_and(|e| unsicher.contains(&e));
-                    let symbol = if kn.ist_ordner {
-                        "📁"
+                    let symbol = if ist_unsicher {
+                        Sym::Warnung
+                    } else if kn.ist_ordner {
+                        Sym::Ordner
                     } else {
                         match kn
                             .eintrag
                             .and_then(|e| self.inhalt.as_ref().and_then(|i| i.eintraege.get(e)))
                             .map(|e| e.art)
                         {
-                            Some(EintragArt::Verknuepfung) => "🔗",
-                            Some(EintragArt::Sonstiges) => "❔",
-                            _ => "📄",
+                            Some(EintragArt::Verknuepfung) => Sym::Link,
+                            Some(EintragArt::Sonstiges) => Sym::Info,
+                            _ => Sym::Datei,
                         }
                     };
-                    let schloss = if verschl && !kn.ist_ordner {
-                        " 🔒"
-                    } else {
-                        ""
-                    };
-                    let warn = if ist_unsicher { "⚠ " } else { "" };
                     let farbe_name = if ist_unsicher { rot() } else { thema::text() };
+                    let farbe_sym = if ist_unsicher { rot() } else if kn.ist_ordner { stil::akzent() } else { thema::muted() };
                     let p = ui.painter();
-                    p.with_clip_rect(sp.name).text(
-                        sp.name.left_center() + egui::vec2(8.0, 0.0),
+                    let sr = egui::Rect::from_center_size(sp.name.left_center() + egui::vec2(17.0, 0.0), egui::Vec2::splat(16.0));
+                    stil::sym(p, sr, symbol, farbe_sym);
+                    let name_rect = p.with_clip_rect(sp.name).text(
+                        sp.name.left_center() + egui::vec2(32.0, 0.0),
                         egui::Align2::LEFT_CENTER,
-                        format!("{symbol}  {warn}{}{schloss}", kn.name),
+                        kn.name.clone(),
                         egui::FontId::proportional(13.5),
                         farbe_name,
                     );
+                    if verschl && !kn.ist_ordner {
+                        let kr = egui::Rect::from_center_size(egui::pos2(name_rect.right() + 12.0, sp.name.center().y), egui::Vec2::splat(13.0));
+                        if kr.right() < sp.name.right() {
+                            stil::sym(p, kr, Sym::Schluessel, thema::muted());
+                        }
+                    }
                     let gr = if kn.ist_ordner && kn.dateien == 0 {
                         String::new()
                     } else {
@@ -1283,72 +1247,12 @@ impl App {
     }
 
     fn packen_ansicht(&mut self, ui: &mut egui::Ui) {
-        egui::SidePanel::right("pack_optionen")
-            .resizable(false)
-            .exact_width(320.0)
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::bg())
-                    .inner_margin(egui::Margin::symmetric(12.0, 8.0)),
-            )
-            .show_inside(ui, |ui| self.pack_optionen(ui));
-
-        ui.horizontal(|ui| {
-            ui.label(
-                egui::RichText::new(t("INHALT DES NEUEN ARCHIVS"))
-                    .size(11.0)
-                    .strong()
-                    .color(thema::muted()),
-            );
-        });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            if ui.button(t("📄 Dateien hinzufügen …")).clicked() {
-                if let Some(v) = rfd::FileDialog::new()
-                    .set_title(t("Dateien hinzufügen"))
-                    .pick_files()
-                {
-                    self.quellen_dazu(v);
-                }
-            }
-            if ui.button(t("📁 Ordner hinzufügen …")).clicked() {
-                if let Some(v) = rfd::FileDialog::new()
-                    .set_title(t("Ordner hinzufügen"))
-                    .pick_folders()
-                {
-                    self.quellen_dazu(v);
-                }
-            }
-            if ui
-                .add_enabled(
-                    !self.quellen.is_empty(),
-                    egui::Button::new(t("Liste leeren")),
-                )
-                .clicked()
-            {
-                self.quellen.clear();
-                if self.pack_name_auto {
-                    self.pack_name.clear();
-                }
-            }
-        });
-        ui.add_space(6.0);
         if self.quellen.is_empty() {
-            ui.add_space(30.0);
-            ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("📥").size(40.0).color(thema::muted()));
-                ui.label(
-                    egui::RichText::new(t("Dateien und Ordner hierher ziehen"))
-                        .size(16.0)
-                        .strong(),
-                );
-                ui.label(
-                    egui::RichText::new(t("oder mit den Knöpfen oben hinzufügen."))
-                        .color(thema::muted()),
-                );
-            });
+            stil::leer(ui, Sym::Upload, t("Dateien und Ordner hierher ziehen"), t("oder mit den Knöpfen oben hinzufügen."));
             return;
         }
+        ui.label(egui::RichText::new(t("INHALT DES NEUEN ARCHIVS")).size(11.0).strong().color(thema::muted()));
+        ui.add_space(4.0);
         let mut weg: Option<usize> = None;
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
@@ -1362,7 +1266,7 @@ impl App {
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 let ordner = q.is_dir();
-                                ui.label(if ordner { "📁" } else { "📄" });
+                                stil::symbol(ui, if ordner { Sym::Ordner } else { Sym::Datei }, 16.0, if ordner { stil::akzent() } else { thema::muted() });
                                 let name = q
                                     .file_name()
                                     .map(|n| n.to_string_lossy().into_owned())
@@ -1375,11 +1279,7 @@ impl App {
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
-                                        if ui
-                                            .small_button("✕")
-                                            .on_hover_text(t("Aus der Liste entfernen"))
-                                            .clicked()
-                                        {
+                                        if stil::leise(ui, true, Sym::Kreuz, "", t("Aus der Liste entfernen")).clicked() {
                                             weg = Some(i);
                                         }
                                         if !ordner {
@@ -1414,68 +1314,46 @@ impl App {
     }
 
     fn pack_optionen(&mut self, ui: &mut egui::Ui) {
-        abschnitt(ui, t("FORMAT"));
-        ui.horizontal_wrapped(|ui| {
-            for a in [Art::Zip, Art::SiebenZ, Art::Tar, Art::TarGz, Art::Gz] {
-                let erlaubt = a != Art::Gz || self.gz_moeglich();
-                let r = ui.add_enabled(erlaubt, chip(a.name(), self.pack_art == a));
-                let r = if a == Art::Gz {
-                    r.on_hover_text(t("GZ packt genau eine Datei"))
-                } else {
-                    r
-                };
-                if r.clicked() {
-                    self.pack_art = a;
-                }
+        let gz = self.gz_moeglich();
+        stil::karte(ui, "format", Sym::Archiv, t("Format"), true, |ui| {
+            let vorher = self.pack_art;
+            let opts: Vec<(Art, &str)> = [Art::Zip, Art::SiebenZ, Art::Tar, Art::TarGz, Art::Gz].iter().map(|a| (*a, a.name())).collect();
+            stil::wahl(ui, &mut self.pack_art, &opts);
+            if self.pack_art == Art::Gz && !gz {
+                self.pack_art = vorher;
+            }
+            let hinweis = match self.pack_art {
+                Art::Zip => t("Läuft überall, auch ohne Zusatzprogramm (Deflate)."),
+                Art::SiebenZ => t("Packt am stärksten (LZMA2, solid)."),
+                Art::Tar => t("Nur gebündelt, nicht gepackt."),
+                Art::TarGz => t("Üblich unter Linux."),
+                Art::Gz => t("Eine einzelne Datei packen."),
+            };
+            stil::hinweis(ui, hinweis);
+            if !gz {
+                stil::hinweis(ui, t("GZ packt genau eine Datei"));
             }
         });
-        let hinweis = match self.pack_art {
-            Art::Zip => t("Läuft überall, auch ohne Zusatzprogramm (Deflate)."),
-            Art::SiebenZ => t("Packt am stärksten (LZMA2, solid)."),
-            Art::Tar => t("Nur gebündelt, nicht gepackt."),
-            Art::TarGz => t("Üblich unter Linux."),
-            Art::Gz => t("Eine einzelne Datei packen."),
-        };
-        ui.label(
-            egui::RichText::new(hinweis)
-                .size(12.0)
-                .color(thema::muted()),
-        );
-
-        ui.add_space(10.0);
-        abschnitt(ui, t("STÄRKE"));
-        ui.add_enabled_ui(self.pack_art != Art::Tar, |ui| {
-            ui.horizontal(|ui| {
-                for (s, text) in [
-                    (Stufe::Schnell, t("Schnell")),
-                    (Stufe::Normal, t("Normal")),
-                    (Stufe::Stark, t("Stark")),
-                ] {
-                    if ui.add(chip(text, self.stufe == s)).clicked() {
-                        self.stufe = s;
-                    }
-                }
+        stil::karte(ui, "staerke", Sym::Zahnrad, t("Stärke"), true, |ui| {
+            ui.add_enabled_ui(self.pack_art != Art::Tar, |ui| {
+                stil::wahl(ui, &mut self.stufe, &[(Stufe::Schnell, t("Schnell")), (Stufe::Normal, t("Normal")), (Stufe::Stark, t("Stark"))]);
             });
         });
-
-        ui.add_space(10.0);
-        abschnitt(ui, t("PASSWORT"));
-        if self.pack_art.kann_passwort() {
-            ui.add(
-                egui::TextEdit::singleline(&mut self.pack_pw)
-                    .password(!self.pw_zeigen)
-                    .hint_text(t("ohne Passwort leer lassen"))
-                    .desired_width(f32::INFINITY),
-            );
-            if !self.pack_pw.is_empty() {
+        stil::karte(ui, "passwort", Sym::Schluessel, t("Passwort"), true, |ui| {
+            if self.pack_art.kann_passwort() {
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.pack_pw2)
+                    egui::TextEdit::singleline(&mut self.pack_pw)
                         .password(!self.pw_zeigen)
-                        .hint_text(t("Passwort wiederholen"))
+                        .hint_text(t("ohne Passwort leer lassen"))
                         .desired_width(f32::INFINITY),
                 );
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.pw_zeigen, t("Passwort anzeigen"));
+                if !self.pack_pw.is_empty() {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.pack_pw2)
+                            .password(!self.pw_zeigen)
+                            .hint_text(t("Passwort wiederholen"))
+                            .desired_width(f32::INFINITY),
+                    );
                     if !self.pack_pw2.is_empty() {
                         if self.pack_pw == self.pack_pw2 {
                             ui.label(egui::RichText::new(t("✔ gleich")).color(gruen()));
@@ -1483,77 +1361,52 @@ impl App {
                             ui.label(egui::RichText::new(t("✕ verschieden")).color(rot()));
                         }
                     }
-                });
-                let text = if self.pack_art == Art::SiebenZ {
-                    t("AES-256; auch die Dateinamen werden verschlüsselt.")
-                } else {
-                    t("AES-256; die Dateinamen bleiben sichtbar. Ältere Windows-Explorer können AES-ZIPs nicht öffnen.")
-                };
-                ui.label(egui::RichText::new(text).size(12.0).color(thema::muted()));
-            }
-        } else {
-            ui.label(
-                egui::RichText::new(t("Für TAR und GZ nicht möglich – ZIP oder 7z wählen."))
-                    .size(12.0)
-                    .color(thema::muted()),
-            );
-        }
-
-        ui.add_space(10.0);
-        abschnitt(ui, t("SPEICHERN UNTER"));
-        ui.horizontal(|ui| {
-            let endung = if self.pack_art == Art::Gz {
-                ".gz".to_string()
+                    stil::schalter(ui, &mut self.pw_zeigen, t("Passwort anzeigen"));
+                    let text = if self.pack_art == Art::SiebenZ {
+                        t("AES-256; auch die Dateinamen werden verschlüsselt.")
+                    } else {
+                        t("AES-256; die Dateinamen bleiben sichtbar. Ältere Windows-Explorer können AES-ZIPs nicht öffnen.")
+                    };
+                    stil::hinweis(ui, text);
+                }
             } else {
-                format!(".{}", self.pack_art.endung())
-            };
-            let r = ui.add(
-                egui::TextEdit::singleline(&mut self.pack_name)
-                    .desired_width(200.0)
-                    .hint_text(t("Name")),
-            );
-            if r.changed() {
-                self.pack_name_auto = false;
-            }
-            ui.label(endung);
-        });
-        let ordner = self
-            .pack_ordner
-            .as_ref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| t("(kein Ordner gewählt)").to_string());
-        ui.add(
-            egui::Label::new(egui::RichText::new(ordner).size(12.0).color(thema::muted()))
-                .truncate(),
-        );
-        ui.horizontal(|ui| {
-            if ui.button(t("Ordner …")).clicked() {
-                let mut d = rfd::FileDialog::new().set_title(t("Ordner für das Archiv"));
-                if let Some(o) = &self.pack_ordner {
-                    d = d.set_directory(o);
-                }
-                if let Some(p) = d.pick_folder() {
-                    self.pack_ordner = Some(p);
-                }
-            }
-            if ui.button(t("Speichern unter …")).clicked() {
-                self.speichern_unter();
+                stil::hinweis(ui, t("Für TAR und GZ nicht möglich – ZIP oder 7z wählen."));
             }
         });
-
-        ui.add_space(16.0);
-        let bereit = !self.quellen.is_empty() && self.pack_ziel().is_some();
-        let knopf = egui::Button::new(
-            egui::RichText::new(t("Archiv erstellen"))
-                .strong()
-                .size(15.0)
-                .color(auf_akzent()),
-        )
-        .fill(akzent())
-        .min_size(egui::vec2(ui.available_width(), 36.0));
-        if ui.add_enabled(bereit, knopf).clicked() {
-            self.packen_starten();
-        }
+        stil::karte(ui, "speichern", Sym::Speichern, t("Speichern unter"), true, |ui| {
+            stil::feld(ui, t("Name"), |ui| {
+                ui.horizontal(|ui| {
+                    let endung = if self.pack_art == Art::Gz { ".gz".to_string() } else { format!(".{}", self.pack_art.endung()) };
+                    let r = ui.add(egui::TextEdit::singleline(&mut self.pack_name).desired_width((ui.available_width() - 60.0).max(80.0)).hint_text(t("Name")));
+                    if r.changed() {
+                        self.pack_name_auto = false;
+                    }
+                    ui.label(endung);
+                });
+            });
+            let ordner = self
+                .pack_ordner
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| t("(kein Ordner gewählt)").to_string());
+            stil::feld(ui, t("Ordner"), |ui| {
+                ui.add(egui::Label::new(egui::RichText::new(ordner).size(12.5).color(thema::text())).truncate());
+            });
+            ui.horizontal_wrapped(|ui| {
+                if stil::knopf(ui, Sym::Ordner, t("Ordner …")).clicked() {
+                    let mut d = rfd::FileDialog::new().set_title(t("Ordner für das Archiv"));
+                    if let Some(o) = &self.pack_ordner {
+                        d = d.set_directory(o);
+                    }
+                    if let Some(p) = d.pick_folder() {
+                        self.pack_ordner = Some(p);
+                    }
+                }
+                if stil::knopf(ui, Sym::Speichern, t("Speichern unter …")).clicked() {
+                    self.speichern_unter();
+                }
+            });
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -1603,10 +1456,10 @@ impl App {
                         }
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if ui.add_enabled(!eingabe.is_empty(), egui::Button::new(t("OK"))).clicked() {
+                            if stil::haupt(ui, !eingabe.is_empty(), Sym::Haken, t("OK")).clicked() {
                                 wahl = Some(Wahl::Ok);
                             }
-                            if ui.button(t("Abbrechen")).clicked() {
+                            if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                                 wahl = Some(Wahl::Abbrechen);
                             }
                         });
@@ -1624,32 +1477,35 @@ impl App {
                         }
                         ui.add_space(8.0);
                         ui.horizontal_wrapped(|ui| {
-                            if ui.button(t("Beide behalten")).on_hover_text(t("Neue Dateien bekommen «(2)» im Namen")).clicked() {
+                            if stil::haupt(ui, true, Sym::Kopieren, t("Beide behalten")).on_hover_text(t("Neue Dateien bekommen «(2)» im Namen")).clicked() {
                                 wahl = Some(Wahl::Umbenennen);
                             }
-                            if ui.button(t("Überspringen")).on_hover_text(t("Vorhandene Dateien bleiben unverändert")).clicked() {
+                            if stil::knopf_text(ui, true, t("Überspringen")).on_hover_text(t("Vorhandene Dateien bleiben unverändert")).clicked() {
                                 wahl = Some(Wahl::Ueberspringen);
                             }
-                            if ui.add(egui::Button::new(egui::RichText::new(t("Überschreiben")).color(rot()))).clicked() {
+                            if stil::gefahr(ui, true, Sym::Warnung, t("Überschreiben")).clicked() {
                                 wahl = Some(Wahl::Ueberschreiben);
                             }
-                            if ui.button(t("Abbrechen")).clicked() {
+                            if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                                 wahl = Some(Wahl::Abbrechen);
                             }
                         });
                     }
                     Dialog::Bombe { warnungen, .. } => {
                         for w in warnungen.iter() {
-                            ui.label(egui::RichText::new(format!("⚠ {w}")).color(rot()));
+                            ui.horizontal(|ui| {
+                                stil::symbol(ui, Sym::Warnung, 16.0, rot());
+                                ui.label(egui::RichText::new(w.as_str()).color(rot()));
+                            });
                         }
                         ui.add_space(4.0);
                         ui.label(t("Das kann sehr viel Speicherplatz belegen. Trotzdem entpacken?"));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if ui.button(t("Trotzdem entpacken")).clicked() {
+                            if stil::haupt(ui, true, Sym::Download, t("Trotzdem entpacken")).clicked() {
                                 wahl = Some(Wahl::Ok);
                             }
-                            if ui.button(t("Abbrechen")).clicked() {
+                            if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                                 wahl = Some(Wahl::Abbrechen);
                             }
                         });
@@ -1659,10 +1515,10 @@ impl App {
                         ui.label(tf("Die Datei gibt es schon:\n{p}\n\nSoll sie durch das neue Archiv ersetzt werden?", &[("p", &p)]));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if ui.add(egui::Button::new(egui::RichText::new(t("Ersetzen")).color(rot()))).clicked() {
+                            if stil::gefahr(ui, true, Sym::Warnung, t("Ersetzen")).clicked() {
                                 wahl = Some(Wahl::Ueberschreiben);
                             }
-                            if ui.button(t("Abbrechen")).clicked() {
+                            if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                                 wahl = Some(Wahl::Abbrechen);
                             }
                         });
@@ -1683,25 +1539,25 @@ impl App {
                         }
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if ordner.is_some() && ui.button(t("Ordner öffnen")).clicked() {
-                                wahl = Some(Wahl::OrdnerZeigen);
-                            }
-                            if ui.button(t("Schliessen")).clicked() || enter {
+                            if stil::haupt(ui, true, Sym::Haken, t("Schliessen")).clicked() || enter {
                                 wahl = Some(Wahl::Ok);
+                            }
+                            if ordner.is_some() && stil::knopf(ui, Sym::OrdnerAuf, t("Ordner öffnen")).clicked() {
+                                wahl = Some(Wahl::OrdnerZeigen);
                             }
                         });
                     }
                     Dialog::Meldung { text, .. } => {
                         ui.label(text.as_str());
                         ui.add_space(8.0);
-                        if ui.button(t("OK")).clicked() || enter {
+                        if stil::haupt(ui, true, Sym::Haken, t("OK")).clicked() || enter {
                             wahl = Some(Wahl::Ok);
                         }
                     }
                     Dialog::Hilfe => {
                         hilfe_text(ui);
                         ui.add_space(8.0);
-                        if ui.button(t("Schliessen")).clicked() || enter {
+                        if stil::haupt(ui, true, Sym::Haken, t("Schliessen")).clicked() || enter {
                             wahl = Some(Wahl::Ok);
                         }
                     }
@@ -1779,35 +1635,25 @@ impl eframe::App for App {
         }
         let gesperrt = self.lauf.is_some() || self.dialog.is_some();
 
-        egui::TopBottomPanel::top("kopf")
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::panel())
-                    .inner_margin(egui::Margin::symmetric(12.0, 4.0)),
-            )
-            .show(ctx, |ui| {
-                ui.add_enabled_ui(!gesperrt, |ui| self.kopfzeile(ui));
+        let an = !gesperrt;
+        stil::kopfleiste(ctx, |ui| self.kopfzeile(ui, an));
+        if self.modus == Modus::Ansicht && self.inhalt.is_some() && !self.auswahl.is_empty() {
+            let n = self.auswahl.len();
+            stil::auswahlleiste(ctx, &tf("{n} gewählt", &[("n", &n)]), |ui| self.auswahlzeile(ui, an));
+        }
+        stil::fussleiste(ctx, |ui| self.fusszeile(ui, an));
+        if self.modus == Modus::Packen {
+            stil::seitenleiste(ctx, 320.0, |ui| {
+                ui.add_enabled_ui(an, |ui| self.pack_optionen(ui));
             });
-        egui::TopBottomPanel::bottom("fuss")
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::panel())
-                    .inner_margin(egui::Margin::symmetric(12.0, 4.0)),
-            )
-            .show(ctx, |ui| self.fusszeile(ui));
-        egui::CentralPanel::default()
-            .frame(
-                egui::Frame::none()
-                    .fill(thema::bg())
-                    .inner_margin(egui::Margin::symmetric(12.0, 10.0)),
-            )
-            .show(ctx, |ui| {
-                ui.add_enabled_ui(!gesperrt, |ui| match self.modus {
-                    Modus::Start => self.startseite(ui),
-                    Modus::Ansicht => self.ansicht(ui),
-                    Modus::Packen => self.packen_ansicht(ui),
-                });
+        }
+        stil::mitte(ctx, |ui| {
+            ui.add_enabled_ui(an, |ui| match self.modus {
+                Modus::Start => self.startseite(ui),
+                Modus::Ansicht => self.ansicht(ui),
+                Modus::Packen => self.packen_ansicht(ui),
             });
+        });
 
         self.dialoge(ctx);
 
@@ -1868,27 +1714,6 @@ impl Spalten {
             zeit: egui::Rect::from_x_y_ranges(x3..=x4, y),
         }
     }
-}
-
-fn chip(text: &str, sel: bool) -> egui::Button<'static> {
-    let t = egui::RichText::new(text.to_string()).color(if sel { akzent() } else { thema::text() });
-    egui::Button::new(t)
-        .fill(if sel { akzent_weich() } else { thema::panel() })
-        .stroke(egui::Stroke::new(
-            1.0_f32,
-            if sel { akzent() } else { thema::border() },
-        ))
-        .rounding(8.0)
-}
-
-fn abschnitt(ui: &mut egui::Ui, text: &str) {
-    ui.label(
-        egui::RichText::new(text)
-            .size(11.0)
-            .strong()
-            .color(thema::muted()),
-    );
-    ui.add_space(2.0);
 }
 
 fn hilfe_text(ui: &mut egui::Ui) {

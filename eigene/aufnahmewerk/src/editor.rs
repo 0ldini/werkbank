@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use crate::schnapp::{self, Blend, History, Img, Rechteck};
 use crate::shot;
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 
 /// Werkzeuge im Editor.
@@ -297,21 +298,22 @@ impl Editor {
 
     fn close_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top(egui::Id::new(("schliessen", self.id)))
-            .frame(egui::Frame::none().fill(warn_soft()).inner_margin(egui::Margin::symmetric(12.0, 8.0)))
+            .frame(egui::Frame::none().fill(warn_soft()).inner_margin(egui::Margin::symmetric(12.0, 6.0)))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
+                    stil::symbol(ui, Sym::Warnung, 18.0, warn_text());
                     ui.label(egui::RichText::new(t("Das Bild ist noch nicht gespeichert.")).strong().color(warn_text()));
                     ui.add_space(8.0);
-                    if ui.button(t("Speichern und schliessen")).clicked() {
+                    if stil::knopf(ui, Sym::Speichern, t("Speichern und schliessen")).clicked() {
                         let jpg = self.jpg;
                         if self.save(jpg) {
                             self.closed = true;
                         }
                     }
-                    if ui.button(t("Verwerfen")).clicked() {
+                    if stil::gefahr(ui, true, Sym::Papierkorb, t("Verwerfen")).clicked() {
                         self.closed = true;
                     }
-                    if ui.button(t("Weiter bearbeiten")).clicked() {
+                    if stil::leise(ui, true, Sym::Stift, t("Weiter bearbeiten"), "").clicked() {
                         self.ask_close = false;
                     }
                 });
@@ -322,26 +324,23 @@ impl Editor {
         egui::TopBottomPanel::top(egui::Id::new(("werkzeuge", self.id)))
             .frame(egui::Frame::none().fill(thema::panel()).inner_margin(egui::Margin::symmetric(12.0, 8.0)).stroke(egui::Stroke::new(1.0, thema::border())))
             .show(ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    for tool in Tool::ALL {
-                        let sel = self.tool == tool;
-                        let txt = egui::RichText::new(tool.label()).color(if sel { accent_text() } else { thema::text() });
-                        let b = egui::Button::new(txt)
-                            .fill(if sel { accent_soft() } else { thema::panel() })
-                            .stroke(egui::Stroke::new(1.0, if sel { accent_text() } else { thema::border() }));
-                        if ui.add(b).on_hover_text(tool.tip()).clicked() {
-                            if self.tool == Tool::Text && tool != Tool::Text {
-                                self.commit_text();
-                            }
-                            self.tool = tool;
-                            self.drag = None;
-                        }
+                ui.spacing_mut().item_spacing.x = 6.0;
+                // Werkzeuge (Hinweis zum gewählten Werkzeug steht unten in der Fussleiste)
+                let before = self.tool;
+                let mut tool = self.tool;
+                let opts: Vec<(Tool, &str)> = Tool::ALL.iter().map(|w| (*w, w.label())).collect();
+                if stil::wahl(ui, &mut tool, &opts) {
+                    if before == Tool::Text && tool != Tool::Text {
+                        self.commit_text();
                     }
-                });
+                    self.tool = tool;
+                    self.drag = None;
+                }
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
                     // Farbe
-                    ui.label(egui::RichText::new(t("Farbe")).color(thema::muted()));
+                    ui.label(egui::RichText::new(t("Farbe")).size(12.0).color(thema::muted()));
                     let target = if self.tool == Tool::Marker { &mut self.marker_color } else { &mut self.color };
                     for s in SWATCHES {
                         let c = egui::Color32::from_rgb(s[0], s[1], s[2]);
@@ -359,70 +358,70 @@ impl Editor {
                     }
                     egui::color_picker::color_edit_button_srgba(ui, target, egui::color_picker::Alpha::Opaque)
                         .on_hover_text(t("Eigene Farbe"));
-                    ui.add_space(10.0);
+                    stil::trenner(ui);
                     if self.tool == Tool::Text {
                         ui.add(egui::Slider::new(&mut self.text_size, 10.0..=120.0).text(t("Schriftgrösse")));
                     } else {
                         ui.add(egui::Slider::new(&mut self.width, 1.0..=24.0).text(t("Strichstärke")));
                     }
-                    ui.add_space(10.0);
-                    if ui
-                        .add_enabled(self.hist.can_undo(), egui::Button::new(t("Rückgängig")))
-                        .on_hover_text(t("Strg + Z"))
-                        .clicked()
-                    {
+                    stil::trenner(ui);
+                    if stil::leise(ui, self.hist.can_undo(), Sym::Rueckgaengig, t("Rückgängig"), t("Strg + Z")).clicked() {
                         self.undo();
                     }
-                    if ui
-                        .add_enabled(self.hist.can_redo(), egui::Button::new(t("Wiederholen")))
-                        .on_hover_text(t("Strg + Y"))
-                        .clicked()
-                    {
+                    if stil::leise(ui, self.hist.can_redo(), Sym::Aktualisieren, t("Wiederholen"), t("Strg + Y")).clicked() {
                         self.redo();
                     }
-                });
-                ui.add_space(6.0);
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button(t("Als PNG speichern")).clicked() {
-                        self.save(false);
-                    }
-                    if ui.button(t("Als JPG speichern")).clicked() {
-                        self.save(true);
-                    }
-                    if ui.button(t("Kopieren")).on_hover_text(t("In die Zwischenablage (Strg + C)")).clicked() {
-                        self.copy();
-                    }
-                    if ui.button(t("Ordner öffnen")).clicked() {
-                        self.open_dir();
-                    }
+                    stil::rechts(ui, |ui| {
+                        if stil::leise(ui, true, Sym::OrdnerAuf, t("Ordner öffnen"), "").clicked() {
+                            self.open_dir();
+                        }
+                        if stil::leise(ui, true, Sym::Kopieren, t("Kopieren"), t("In die Zwischenablage (Strg + C)")).clicked() {
+                            self.copy();
+                        }
+                    });
                 });
             });
     }
 
     fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom(egui::Id::new(("fuss", self.id))).show(ctx, |ui| {
-            ui.add_space(3.0);
-            ui.horizontal(|ui| {
-                match &self.msg {
-                    Some((m, true)) => {
-                        ui.colored_label(warn_text(), m.as_str());
+        egui::TopBottomPanel::bottom(egui::Id::new(("fuss", self.id)))
+            .frame(egui::Frame::none().fill(thema::panel()).inner_margin(egui::Margin::symmetric(14.0, 9.0)).stroke(egui::Stroke::new(1.0, thema::border())))
+            .show(ctx, |ui| {
+                ui.spacing_mut().item_spacing.x = 8.0;
+                ui.horizontal(|ui| {
+                    match &self.msg {
+                        Some((m, true)) => {
+                            ui.colored_label(warn_text(), m.as_str());
+                        }
+                        Some((m, false)) => {
+                            ui.colored_label(stil::akzent(), m.as_str());
+                        }
+                        None => {
+                            stil::grau(ui, self.tool.tip());
+                        }
                     }
-                    Some((m, false)) => {
-                        ui.colored_label(accent_text(), m.as_str());
-                    }
-                    None => {
-                        ui.weak(self.tool.tip());
-                    }
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    stil::trenner(ui);
                     let n = self.hist.items().len();
-                    ui.weak(tf("{w} × {h} Pixel · {n} Schritte",
+                    stil::grau(ui, &tf("{w} × {h} Pixel · {n} Schritte",
                         &[("w", &self.shown.w), ("h", &self.shown.h), ("n", &n)],
                     ));
+                    stil::rechts(ui, |ui| {
+                        // Hauptknopf im voreingestellten Format, das andere daneben.
+                        let jpg = self.jpg;
+                        let (main, other) = if jpg {
+                            (t("Als JPG speichern"), t("Als PNG speichern"))
+                        } else {
+                            (t("Als PNG speichern"), t("Als JPG speichern"))
+                        };
+                        if stil::haupt(ui, true, Sym::Speichern, main).on_hover_text(t("Strg + S")).clicked() {
+                            self.save(jpg);
+                        }
+                        if stil::knopf_text(ui, true, other).clicked() {
+                            self.save(!jpg);
+                        }
+                    });
                 });
             });
-            ui.add_space(3.0);
-        });
     }
 
     fn canvas(&mut self, ctx: &egui::Context) {
@@ -605,10 +604,10 @@ impl Editor {
                     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                         cancel = true;
                     }
-                    if ui.button(t("Einfügen")).clicked() {
+                    if stil::knopf(ui, Sym::Haken, t("Einfügen")).clicked() {
                         commit = true;
                     }
-                    if ui.button(t("Abbrechen")).clicked() {
+                    if stil::leise(ui, true, Sym::Kreuz, t("Abbrechen"), "").clicked() {
                         cancel = true;
                     }
                 });
@@ -743,12 +742,6 @@ pub fn color_image(img: &Img) -> egui::ColorImage {
 }
 
 // Farben im Editor je Design (hell/dunkel).
-fn accent_text() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x2d, 0xd4, 0xbf))
-}
-fn accent_soft() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xe6, 0xf6, 0xf3), egui::Color32::from_rgb(0x17, 0x33, 0x30))
-}
 fn warn_text() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xc6, 0x28, 0x28), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }

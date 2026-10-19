@@ -14,7 +14,7 @@ on:
         default: codewerk
       # Mehrere Programme: durch Leerzeichen getrennt, z. B. «codewerk wandelwerk».
   push:
-    branches: [main]
+    branches: [main, probe]
     paths: ["eigene/**"]
 
 permissions:
@@ -39,6 +39,14 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             apps="${{ inputs.app }}"
             [ "$apps" = "all" ] && apps=$(ls -d eigene/*/ | xargs -n1 basename)
+          elif [ "$GITHUB_REF" = "refs/heads/probe" ]; then
+            # Probelauf: «[probe eigene]» baut alle, «[probe eigene diawerk codewerk]» nur diese –
+            # ohne zu veröffentlichen.
+            apps=""
+            nur=$(git log -1 --format=%s | sed -n 's/.*\[probe eigene\( [a-z ]*\)\{0,1\}\].*/\1/p' | xargs)
+            if git log -1 --format=%s | grep -q '\[probe eigene\( [a-z ]*\)\{0,1\}\]'; then
+              if [ -n "$nur" ]; then apps="$nur"; else apps=$(ls -d eigene/*/ | xargs -n1 basename); fi
+            fi
           else
             apps=$(git diff --name-only HEAD~1 HEAD -- eigene | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi
@@ -142,7 +150,7 @@ jobs:
   release:
     name: ${{ matrix.app }} veröffentlichen
     needs: [plan, build]
-    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' }}
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref != 'refs/heads/probe' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -175,7 +183,7 @@ jobs:
   setup:
     name: Offline-Setup neu bauen
     needs: [plan, release]
-    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' }}
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref != 'refs/heads/probe' }}
     runs-on: ubuntu-latest
     permissions:
       actions: write

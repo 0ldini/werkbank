@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::model::{self, Entry, Filter, Kind, Status};
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::store::{self, Config};
 use crate::thema;
 use crate::tmdb;
@@ -16,20 +17,9 @@ use crate::tmdb;
 fn am() -> egui::Color32 {
     egui::Color32::from_rgb(0xe0, 0x98, 0x2a)
 }
-/// Dunkle Schrift auf `am()`-Flächen (weiss wäre auf Bernstein zu schwach lesbar).
-fn on_am() -> egui::Color32 {
-    egui::Color32::from_rgb(0x17, 0x18, 0x1c)
-}
 /// Bernstein als Schriftfarbe – je Design lesbar auf dem Hintergrund.
 fn am_text() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0x8a, 0x5a, 0x0f), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
-}
-/// Hintergrund gewählter Chips.
-fn am_soft() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xfb, 0xf0, 0xdb), egui::Color32::from_rgb(0x3a, 0x2e, 0x17))
-}
-fn red() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }
 /// Füllung der Status-Plakette auf dem Poster (weisse Schrift) – in beiden Designs gleich.
 fn status_color(s: Status) -> egui::Color32 {
@@ -90,6 +80,8 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x8C, 0x5A, 0x2B]);
+        stil::init(&cc.egui_ctx, [0x8C, 0x5A, 0x2B]);
         let cfg = store::load_config();
         let lib = store::load_library();
         let settings_open = cfg.api_key.trim().is_empty();
@@ -139,82 +131,94 @@ impl eframe::App for App {
 
 impl App {
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                let (r, _) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::hover());
-                ui.painter().rect_filled(r, 7.0, am());
-                paint_clap(ui.painter(), r);
-                ui.add_space(4.0);
-                ui.heading("Mediathekwerk");
-                ui.add(egui::Label::new(egui::RichText::new(t("Filme & Serien · Werkbank")).weak()));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(t("Einstellungen")).clicked() {
-                        self.settings_open = true;
-                    }
-                    if ui.button(t("Suchen")).clicked() {
-                        self.do_search();
-                    }
-                    let resp = ui.add(
-                        egui::TextEdit::singleline(&mut self.search_text)
-                            .hint_text(t("Film oder Serie suchen …"))
-                            .desired_width(300.0),
-                    );
-                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        self.do_search();
-                    }
-                });
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Mediathekwerk");
+            stil::grau(ui, t("Filme & Serien · Werkbank"));
+            stil::trenner(ui);
+            let resp = ui.add_sized(
+                [300.0, 28.0],
+                egui::TextEdit::singleline(&mut self.search_text).hint_text(t("Film oder Serie suchen …")),
+            );
+            if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.do_search();
+            }
+            if stil::knopf(ui, Sym::Suche, t("Suchen")).clicked() {
+                self.do_search();
+            }
+            stil::rechts(ui, |ui| {
+                if stil::leise(ui, true, Sym::Zahnrad, t("Einstellungen"), t("TMDB-Schlüssel und Sprache")).clicked() {
+                    self.settings_open = true;
+                }
             });
-            ui.add_space(8.0);
         });
     }
 
     fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
-            ui.add_space(4.0);
+        let connected = !self.cfg.api_key.trim().is_empty();
+        let in_lib = self.sel.as_ref().and_then(|e| self.lib_index(e));
+        let has_sel = self.sel.is_some();
+        let mut do_add = false;
+        let mut do_remove = false;
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
-                let connected = !self.cfg.api_key.trim().is_empty();
                 let (dot, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
-                let col = if connected {
-                    egui::Color32::from_rgb(0x1f, 0x9d, 0x55)
-                } else {
-                    egui::Color32::from_rgb(0xe5, 0x34, 0x2e)
-                };
-                ui.painter().circle_filled(dot.center(), 4.0, col);
-                ui.weak(if connected { t("TMDB verbunden") } else { t("Kein TMDB-Schlüssel") });
+                ui.painter().circle_filled(dot.center(), 4.0, if connected { stil::gruen() } else { stil::rot() });
+                stil::grau(ui, if connected { t("TMDB verbunden") } else { t("Kein TMDB-Schlüssel") });
                 if !self.msg.is_empty() {
-                    ui.separator();
-                    ui.weak(self.msg.as_str());
+                    stil::trenner(ui);
+                    stil::grau(ui, self.msg.as_str());
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak(tf("{n} Titel in der Sammlung · Daten von TMDB", &[("n", &self.lib.len())]));
+                stil::trenner(ui);
+                stil::grau(ui, &tf("{n} Titel in der Sammlung · Daten von TMDB", &[("n", &self.lib.len())]));
+                stil::rechts(ui, |ui| {
+                    if in_lib.is_some() {
+                        if stil::gefahr(ui, true, Sym::Papierkorb, t("Aus Sammlung entfernen")).clicked() {
+                            do_remove = true;
+                        }
+                    } else if stil::haupt(ui, has_sel, Sym::Plus, t("In Sammlung aufnehmen")).clicked() {
+                        do_add = true;
+                    }
                 });
             });
-            ui.add_space(4.0);
         });
+        if do_add {
+            if let Some(sel) = self.sel.clone() {
+                if self.lib_index(&sel).is_none() {
+                    self.lib.push(sel);
+                    store::save_library(&self.lib);
+                    self.msg = t("In Sammlung aufgenommen.").into();
+                }
+            }
+        }
+        if do_remove {
+            if let Some(i) = in_lib {
+                self.lib.remove(i);
+                store::save_library(&self.lib);
+            }
+            self.sel = None;
+            self.msg = t("Aus Sammlung entfernt.").into();
+        }
     }
 
     fn central(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(8.0);
+        stil::mitte(ctx, |ui| {
+            ui.add_space(4.0);
             // Kopfzeile je Modus
             match self.mode {
                 Mode::Collection => {
-                    ui.horizontal_wrapped(|ui| {
-                        for f in Filter::all() {
-                            if chip(ui, self.filter == f, t(f.label())).clicked() {
-                                self.filter = f;
-                            }
-                        }
+                    let opts: Vec<(Filter, &str)> = Filter::all().iter().map(|f| (*f, t(f.label()))).collect();
+                    let w = ui.available_width().min(640.0);
+                    ui.allocate_ui(egui::vec2(w, 28.0), |ui| {
+                        stil::wahl(ui, &mut self.filter, &opts);
                     });
                 }
                 Mode::Search => {
                     ui.horizontal(|ui| {
-                        if ui.button(t("< Zur Sammlung")).clicked() {
+                        if stil::knopf(ui, Sym::Rueckgaengig, t("< Zur Sammlung")).clicked() {
                             self.mode = Mode::Collection;
                             self.sel = None;
                         }
-                        ui.label(egui::RichText::new(tf("Suchergebnisse: {q}", &[("q", &self.search_text.trim())])).strong());
+                        ui.label(egui::RichText::new(tf("Suchergebnisse: {q}", &[("q", &self.search_text.trim())])).strong().color(thema::text()));
                         if self.results.running() {
                             ui.spinner();
                         }
@@ -227,7 +231,7 @@ impl App {
             let (display, err): (Vec<Entry>, Option<String>) = match self.mode {
                 Mode::Collection => {
                     let idx = model::filter_sort(&self.lib, self.filter, "");
-                    (idx.iter().map(|&i| self.lib[i].clone()).collect(), None)
+                    (idx.iter().filter_map(|&i| self.lib.get(i).cloned()).collect(), None)
                 }
                 Mode::Search => {
                     let g = self.results.data.lock().unwrap();
@@ -240,15 +244,20 @@ impl App {
             };
 
             if let Some(e) = err {
-                ui.colored_label(red(), e);
+                stil::leer(ui, Sym::Warnung, t("Suche fehlgeschlagen"), &e);
                 return;
             }
             if display.is_empty() {
-                ui.add_space(20.0);
-                ui.weak(match self.mode {
-                    Mode::Collection => t("Noch nichts in der Sammlung. Oben nach einem Titel suchen und aufnehmen."),
-                    Mode::Search => if self.results.running() { t("Wird gesucht …") } else { t("Keine Treffer.") },
-                });
+                match self.mode {
+                    Mode::Collection => stil::leer(ui, Sym::Film, t("Sammlung leer"), t("Noch nichts in der Sammlung. Oben nach einem Titel suchen und aufnehmen.")),
+                    Mode::Search => {
+                        if self.results.running() {
+                            stil::leer(ui, Sym::Suche, t("Wird gesucht …"), "");
+                        } else {
+                            stil::leer(ui, Sym::Suche, t("Keine Treffer."), t("Anderen Suchbegriff versuchen."));
+                        }
+                    }
+                }
                 return;
             }
 
@@ -258,7 +267,7 @@ impl App {
             let gap = 14.0;
             let cols = (((ui.available_width() + gap) / (pw + gap)).floor() as usize).max(1);
             let mut newsel: Option<Entry> = None;
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 for row in display.chunks(cols) {
                     ui.horizontal(|ui| {
                         for e in row {
@@ -282,12 +291,22 @@ impl App {
             Some(e) => e.clone(),
             None => return,
         };
+        let in_lib = self.lib_index(&sel);
+        let mut set_status: Option<Status> = None;
+        let mut set_rating: Option<u8> = None;
+        let mut close = false;
         egui::SidePanel::right("detail")
             .resizable(false)
             .exact_width(356.0)
+            .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(12.0)).stroke(egui::Stroke::new(1.0, thema::border())))
             .show(ctx, |ui| {
-                ui.add_space(12.0);
-                let in_lib = self.lib_index(&sel);
+                ui.horizontal(|ui| {
+                    stil::rechts(ui, |ui| {
+                        if stil::leise(ui, true, Sym::Kreuz, "", t("Detail schliessen")).clicked() {
+                            close = true;
+                        }
+                    });
+                });
 
                 // Poster (zentriert)
                 ui.vertical_centered(|ui| {
@@ -296,7 +315,7 @@ impl App {
                 });
 
                 ui.add_space(12.0);
-                ui.add(egui::Label::new(egui::RichText::new(&sel.title).size(18.0).strong()).truncate());
+                ui.add(egui::Label::new(egui::RichText::new(&sel.title).size(18.0).strong().color(thema::text())).truncate());
                 ui.horizontal(|ui| {
                     let mut parts = vec![t(sel.kind.label()).to_string()];
                     if let Some(y) = sel.year {
@@ -308,7 +327,7 @@ impl App {
                     if let Some(s) = sel.seasons {
                         parts.push(tf("{s} Staffeln", &[("s", &s)]));
                     }
-                    ui.weak(parts.join(" · "));
+                    stil::grau(ui, &parts.join(" · "));
                     if sel.rating > 0.0 {
                         let (sr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
                         paint_star(ui.painter(), sr.center(), 6.0, true, am());
@@ -322,66 +341,50 @@ impl App {
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new(t("STATUS")).size(11.0).strong().color(thema::muted()));
-                ui.add_space(6.0);
-                let mut set_status: Option<Status> = None;
-                ui.horizontal(|ui| {
-                    for s in Status::all() {
-                        if chip(ui, sel.status == s, t(s.label())).clicked() {
-                            set_status = Some(s);
-                        }
+                stil::feld(ui, t("STATUS"), |ui| {
+                    let mut st = sel.status;
+                    let opts: Vec<(Status, &str)> = Status::all().iter().map(|s| (*s, t(s.label()))).collect();
+                    if stil::wahl(ui, &mut st, &opts) {
+                        set_status = Some(st);
                     }
                 });
 
                 ui.add_space(14.0);
-                ui.label(egui::RichText::new(t("MEINE BEWERTUNG")).size(11.0).strong().color(thema::muted()));
-                ui.add_space(6.0);
-                let set_rating = star_row(ui, sel.my_rating);
-
-                ui.add_space(16.0);
-                let mut do_add = false;
-                let mut do_remove = false;
-                if in_lib.is_some() {
-                    if ui.add(egui::Button::new(egui::RichText::new(t("Aus Sammlung entfernen")).color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c)).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
-                        do_remove = true;
-                    }
-                } else if ui.add(egui::Button::new(egui::RichText::new(t("In Sammlung aufnehmen")).color(on_am())).fill(am()).min_size(egui::vec2(ui.available_width(), 42.0))).clicked() {
-                    do_add = true;
-                }
-
-                // Aktionen anwenden
-                if let Some(s) = set_status {
-                    if let Some(i) = in_lib {
-                        self.lib[i].status = s;
-                        store::save_library(&self.lib);
-                    }
-                    if let Some(e) = self.sel.as_mut() {
-                        e.status = s;
-                    }
-                }
-                if let Some(r) = set_rating {
-                    if let Some(i) = in_lib {
-                        self.lib[i].my_rating = r;
-                        store::save_library(&self.lib);
-                    }
-                    if let Some(e) = self.sel.as_mut() {
-                        e.my_rating = r;
-                    }
-                }
-                if do_add {
-                    self.lib.push(sel.clone());
-                    store::save_library(&self.lib);
-                    self.msg = t("In Sammlung aufgenommen.").into();
-                }
-                if do_remove {
-                    if let Some(i) = in_lib {
-                        self.lib.remove(i);
-                        store::save_library(&self.lib);
-                    }
-                    self.sel = None;
-                    self.msg = t("Aus Sammlung entfernt.").into();
+                stil::feld(ui, t("MEINE BEWERTUNG"), |ui| {
+                    set_rating = star_row(ui, sel.my_rating);
+                });
+                if in_lib.is_none() {
+                    ui.add_space(10.0);
+                    stil::hinweis(ui, t("Status und Bewertung werden gespeichert, sobald der Titel in der Sammlung ist."));
                 }
             });
+
+        // Aktionen anwenden
+        if let Some(s) = set_status {
+            if let Some(i) = in_lib {
+                if let Some(e) = self.lib.get_mut(i) {
+                    e.status = s;
+                }
+                store::save_library(&self.lib);
+            }
+            if let Some(e) = self.sel.as_mut() {
+                e.status = s;
+            }
+        }
+        if let Some(r) = set_rating {
+            if let Some(i) = in_lib {
+                if let Some(e) = self.lib.get_mut(i) {
+                    e.my_rating = r;
+                }
+                store::save_library(&self.lib);
+            }
+            if let Some(e) = self.sel.as_mut() {
+                e.my_rating = r;
+            }
+        }
+        if close {
+            self.sel = None;
+        }
     }
 
     fn settings_window(&mut self, ctx: &egui::Context) {
@@ -392,43 +395,36 @@ impl App {
             .resizable(false)
             .show(ctx, |ui| {
                 ui.set_width(380.0);
-                ui.label(t("TMDB-API-Schlüssel (kostenlos bei themoviedb.org):"));
-                ui.add(egui::TextEdit::singleline(&mut self.cfg.api_key).desired_width(360.0).password(false).hint_text(t("API-Schlüssel (v3 auth)")));
-                ui.add_space(8.0);
-                ui.horizontal(|ui| {
-                    ui.label(t("Sprache:"));
-                    egui::ComboBox::from_id_salt("lang")
-                        .selected_text(self.cfg.lang.clone())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.cfg.lang, "de-DE".into(), "Deutsch");
-                            ui.selectable_value(&mut self.cfg.lang, "en-US".into(), "English");
-                        });
+                ui.spacing_mut().item_spacing.y = 6.0;
+                stil::feld(ui, t("TMDB-API-Schlüssel (kostenlos bei themoviedb.org):"), |ui| {
+                    ui.add_sized(
+                        [ui.available_width(), 28.0],
+                        egui::TextEdit::singleline(&mut self.cfg.api_key).password(false).hint_text(t("API-Schlüssel (v3 auth)")),
+                    );
+                });
+                ui.add_space(6.0);
+                stil::feld(ui, t("Sprache:"), |ui| {
+                    let cur = self.cfg.lang.clone();
+                    let mut v: &str = cur.as_str();
+                    if stil::liste(ui, "lang", &mut v, &[("de-DE", "Deutsch"), ("en-US", "English")]) {
+                        self.cfg.lang = v.to_string();
+                    }
                 });
                 ui.add_space(12.0);
-                if ui.add(egui::Button::new(egui::RichText::new(t("Speichern")).color(on_am())).fill(am())).clicked() {
-                    store::save_config(&self.cfg);
-                    self.msg = t("Einstellungen gespeichert.").into();
-                }
+                ui.horizontal(|ui| {
+                    if stil::knopf(ui, Sym::Speichern, t("Speichern")).clicked() {
+                        store::save_config(&self.cfg);
+                        self.msg = t("Einstellungen gespeichert.").into();
+                    }
+                });
                 ui.add_space(4.0);
-                ui.weak(t("Der Schlüssel wird nur lokal gespeichert."));
+                stil::hinweis(ui, t("Der Schlüssel wird nur lokal gespeichert."));
             });
         self.settings_open = open;
     }
 }
 
 // ---------- Bausteine ----------
-
-fn chip(ui: &mut egui::Ui, sel: bool, label: &str) -> egui::Response {
-    ui.add(
-        egui::Button::new(
-            egui::RichText::new(label)
-                .size(12.5)
-                .color(if sel { am_text() } else { thema::text() }),
-        )
-        .fill(if sel { am_soft() } else { thema::panel() })
-        .stroke(egui::Stroke::new(1.0, if sel { am() } else { thema::border() })),
-    )
-}
 
 fn poster_card(ui: &mut egui::Ui, e: &Entry, pw: f32, ph: f32, selected: bool, show_status: bool) -> egui::Response {
     ui.allocate_ui(egui::vec2(pw, ph + 46.0), |ui| {
@@ -512,17 +508,5 @@ fn paint_star(p: &egui::Painter, c: egui::Pos2, r: f32, filled: bool, col: egui:
         }
     } else {
         p.add(egui::Shape::closed_line(pts, egui::Stroke::new(1.4, col)));
-    }
-}
-
-fn paint_clap(p: &egui::Painter, r: egui::Rect) {
-    let st = egui::Stroke::new(1.8, egui::Color32::WHITE);
-    let body = egui::Rect::from_center_size(r.center() + egui::vec2(0.0, 2.5), egui::vec2(15.0, 10.0));
-    p.rect_stroke(body, 1.0, st);
-    // Klapp-Leiste oben mit schrägen Strichen
-    let top = body.top() - 1.0;
-    for k in 0..3 {
-        let x = body.left() + 3.0 + k as f32 * 5.0;
-        p.line_segment([egui::pos2(x, top), egui::pos2(x - 2.0, top - 4.0)], st);
     }
 }

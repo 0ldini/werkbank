@@ -148,3 +148,4 @@ iCloud verlangt ein App-spezifisches Passwort (Apple-ID → Anmeldung und Sicher
 Yahoo verlangt ein App-Passwort.	Yahoo requires an app password.
 Proton Mail bietet keinen direkten Zugriff. Dafür wäre die «Proton Mail Bridge» nötig (Server 127.0.0.1).	Proton Mail does not offer direct access. This would require “Proton Mail Bridge” (server 127.0.0.1).
 Fastmail: Unter Einstellungen → Passwort & Sicherheit → Zugangsschlüssel einen Schlüssel mit Mail-Zugriff erstellen und hier als Passwort eintragen. Benutzername leer lassen.	Fastmail: under Settings → Privacy & Security → API tokens, create a token with mail access and enter it here as the password. Leave the username empty.
+Ausblenden	Hide

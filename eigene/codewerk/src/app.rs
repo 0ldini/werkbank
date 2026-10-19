@@ -4,6 +4,7 @@
 use crate::qr::{self, Content, Ec, Style, SwissQr, WifiEnc};
 use crate::save::save_bytes;
 use crate::sprache::t;
+use crate::stil::{self, Sym};
 use crate::thema;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -76,6 +77,8 @@ impl App {
         cc.egui_ctx.set_style(style);
         // Im Browser (wasm) gibt es weder Umgebungsvariable noch Datei – dort bleibt es hell.
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0xE0, 0x7A, 0x1F]);
+        stil::init(&cc.egui_ctx, [0xE0, 0x7A, 0x1F]);
         Self::default()
     }
 
@@ -143,190 +146,161 @@ impl App {
     }
 }
 
+fn kind_label(k: Kind) -> &'static str {
+    match k {
+        Kind::Text => t("Text / Link"),
+        Kind::Wifi => t("WLAN-Zugang"),
+        Kind::Email => t("E-Mail"),
+        Kind::Contact => t("Kontakt (vCard)"),
+        Kind::Swiss => t("Schweizer QR-Rechnung"),
+    }
+}
+
+fn kind_sym(k: Kind) -> Sym {
+    match k {
+        Kind::Text => Sym::Link,
+        Kind::Wifi => Sym::Schluessel,
+        Kind::Email => Sym::Mail,
+        Kind::Contact => Sym::Datei,
+        Kind::Swiss => Sym::Schild,
+    }
+}
+
+/// Einzeiliges Textfeld über die ganze Breite mit Beschriftung darüber.
+fn txt(ui: &mut egui::Ui, label: &str, v: &mut String) {
+    stil::feld(ui, label, |ui| {
+        ui.add(egui::TextEdit::singleline(v).desired_width(f32::INFINITY));
+    });
+}
+
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let payload = self.content().payload();
         let eff = self.effective_style();
         self.refresh(ctx, &payload, &eff);
+        let ok = self.err.is_none() && self.tex.is_some();
 
-        egui::SidePanel::left("eingabe")
-            .resizable(false)
-            .min_width(340.0)
-            .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(8.0);
-                    ui.heading("Codewerk");
-                    ui.label(egui::RichText::new(t("QR-Codes erstellen")).weak());
-                    ui.add_space(10.0);
-
-                    ui.label(t("Inhalt"));
-                    egui::ComboBox::from_id_salt("kind")
-                        .selected_text(match self.kind {
-                            Kind::Text => t("Text / Link"),
-                            Kind::Wifi => t("WLAN-Zugang"),
-                            Kind::Email => t("E-Mail"),
-                            Kind::Contact => t("Kontakt (vCard)"),
-                            Kind::Swiss => t("Schweizer QR-Rechnung"),
-                        })
-                        .width(300.0)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.kind, Kind::Text, t("Text / Link"));
-                            ui.selectable_value(&mut self.kind, Kind::Wifi, t("WLAN-Zugang"));
-                            ui.selectable_value(&mut self.kind, Kind::Email, t("E-Mail"));
-                            ui.selectable_value(&mut self.kind, Kind::Contact, t("Kontakt (vCard)"));
-                            ui.selectable_value(
-                                &mut self.kind,
-                                Kind::Swiss,
-                                t("Schweizer QR-Rechnung"),
-                            );
-                        });
-                    ui.add_space(8.0);
-
-                    self.content_fields(ui);
-
-                    ui.add_space(12.0);
-                    ui.separator();
-                    ui.add_space(6.0);
-                    ui.label(t("Darstellung"));
-                    grid(ui, "style", |ui| {
-                        ui.label(t("Farbe:"));
-                        ui.horizontal(|ui| {
-                            ui.color_edit_button_srgb(&mut self.st.fg);
-                            ui.label(t("Hintergrund:"));
-                            ui.color_edit_button_srgb(&mut self.st.bg);
-                        });
-                        ui.end_row();
-                        ui.label(t("Grösse:"));
-                        ui.add(egui::Slider::new(&mut self.st.scale, 2..=30).suffix(t(" px/Modul")));
-                        ui.end_row();
-                        ui.label(t("Rand:"));
-                        ui.add(egui::Slider::new(&mut self.st.quiet, 0..=10).suffix(t(" Module")));
-                        ui.end_row();
-                        if self.kind == Kind::Swiss {
-                            ui.label(t("Fehlerkorrektur:"));
-                            ui.label(egui::RichText::new(t("M + Schweizer Kreuz (vorgeschrieben)")).weak());
-                            ui.end_row();
-                        } else {
-                            ui.label(t("Fehlerkorrektur:"));
-                            egui::ComboBox::from_id_salt("ec")
-                                .selected_text(self.st.ec.label())
-                                .show_ui(ui, |ui| {
-                                    for ec in [Ec::L, Ec::M, Ec::Q, Ec::H] {
-                                        ui.selectable_value(&mut self.st.ec, ec, ec.label());
-                                    }
-                                });
-                            ui.end_row();
-                        }
-                    });
-                    ui.add_space(10.0);
-                });
-            });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
-            ui.vertical_centered(|ui| {
-                if let Some(err) = &self.err {
-                    ui.add_space(40.0);
-                    ui.colored_label(thema::pick(egui::Color32::from_rgb(0xc0, 0x39, 0x2b), egui::Color32::from_rgb(0xf8, 0x71, 0x71)), err);
-                } else if let Some(tex) = &self.tex {
-                    let avail = ui.available_width().min(ui.available_height() - 90.0);
-                    let d = avail.clamp(120.0, 440.0);
-                    ui.image(egui::load::SizedTexture::new(tex.id(), egui::vec2(d, d)));
-                    ui.add_space(14.0);
-                    ui.horizontal(|ui| {
-                        ui.add_space((ui.available_width() - 260.0).max(0.0) / 2.0);
-                        if ui
-                            .add_sized([120.0, 34.0], egui::Button::new(t("Als PNG speichern")))
-                            .clicked()
-                        {
-                            if let Ok(bytes) = qr::to_png(&payload, &eff) {
-                                save_bytes("qr-code.png", &bytes);
-                            }
-                        }
-                        ui.add_space(8.0);
-                        if ui
-                            .add_sized([120.0, 34.0], egui::Button::new(t("Als SVG speichern")))
-                            .clicked()
-                        {
-                            if let Ok(s) = qr::to_svg(&payload, &eff) {
-                                save_bytes("qr-code.svg", s.as_bytes());
-                            }
-                        }
-                    });
+        // ---------------- Kopfleiste
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Codewerk");
+            stil::trenner(ui);
+            let cur = self.kind;
+            stil::menue(ui, true, kind_sym(cur), kind_label(cur), |ui| {
+                for k in [Kind::Text, Kind::Wifi, Kind::Email, Kind::Contact, Kind::Swiss] {
+                    if stil::eintrag(ui, true, kind_sym(k), kind_label(k)).clicked() {
+                        self.kind = k;
+                    }
                 }
             });
+            stil::rechts(ui, |ui| {
+                stil::grau(ui, t("QR-Codes erstellen"));
+            });
+        });
+
+        // ---------------- Fussleiste
+        stil::fussleiste(ctx, |ui| {
+            ui.horizontal(|ui| {
+                match &self.err {
+                    Some(e) => {
+                        ui.label(egui::RichText::new(e).size(13.0).color(stil::rot()));
+                    }
+                    None => {
+                        stil::grau(ui, &format!("{} · {} {}", kind_label(self.kind), payload.chars().count(), t("Zeichen")));
+                    }
+                }
+                stil::rechts(ui, |ui| {
+                    if stil::haupt(ui, ok, Sym::Download, t("Als PNG speichern")).clicked() {
+                        if let Ok(bytes) = qr::to_png(&payload, &eff) {
+                            save_bytes("qr-code.png", &bytes);
+                        }
+                    }
+                    if stil::knopf_an(ui, ok, Sym::Download, t("Als SVG speichern")).clicked() {
+                        if let Ok(s) = qr::to_svg(&payload, &eff) {
+                            save_bytes("qr-code.svg", s.as_bytes());
+                        }
+                    }
+                });
+            });
+        });
+
+        // ---------------- rechts: Inhalt und Darstellung
+        stil::seitenleiste(ctx, 340.0, |ui| {
+            stil::karte(ui, "inhalt", kind_sym(self.kind), t("Inhalt"), true, |ui| {
+                stil::feld(ui, t("Art"), |ui| {
+                    let opts: Vec<(Kind, &str)> = [Kind::Text, Kind::Wifi, Kind::Email, Kind::Contact, Kind::Swiss].iter().map(|k| (*k, kind_label(*k))).collect();
+                    stil::liste(ui, "kind", &mut self.kind, &opts);
+                });
+                self.content_fields(ui);
+            });
+            stil::karte(ui, "darstellung", Sym::Raster, t("Darstellung"), true, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(t("Farbe:"));
+                    ui.color_edit_button_srgb(&mut self.st.fg);
+                    ui.add_space(8.0);
+                    ui.label(t("Hintergrund:"));
+                    ui.color_edit_button_srgb(&mut self.st.bg);
+                });
+                stil::feld(ui, t("Grösse:"), |ui| {
+                    ui.add(egui::Slider::new(&mut self.st.scale, 2..=30).suffix(t(" px/Modul")));
+                });
+                stil::feld(ui, t("Rand:"), |ui| {
+                    ui.add(egui::Slider::new(&mut self.st.quiet, 0..=10).suffix(t(" Module")));
+                });
+                stil::feld(ui, t("Fehlerkorrektur:"), |ui| {
+                    if self.kind == Kind::Swiss {
+                        stil::grau(ui, t("M + Schweizer Kreuz (vorgeschrieben)"));
+                    } else {
+                        let opts: Vec<(Ec, &str)> = [Ec::L, Ec::M, Ec::Q, Ec::H].iter().map(|e| (*e, e.label())).collect();
+                        stil::liste(ui, "ec", &mut self.st.ec, &opts);
+                    }
+                });
+            });
+        });
+
+        // ---------------- Mitte: Vorschau
+        stil::mitte(ctx, |ui| {
+            if let Some(err) = &self.err {
+                stil::leer(ui, Sym::Warnung, t("Kein QR-Code"), err);
+            } else if let Some(tex) = &self.tex {
+                ui.vertical_centered(|ui| {
+                    let avail = ui.available_width().min(ui.available_height() - 40.0);
+                    let d = avail.clamp(120.0, 520.0);
+                    ui.add_space(((ui.available_height() - d) / 2.0).max(10.0));
+                    ui.image(egui::load::SizedTexture::new(tex.id(), egui::vec2(d, d)));
+                });
+            }
         });
     }
 }
-
 impl App {
     fn content_fields(&mut self, ui: &mut egui::Ui) {
         match self.kind {
             Kind::Text => {
-                ui.label(t("Text oder Link:"));
-                ui.add(
-                    egui::TextEdit::multiline(&mut self.text)
-                        .desired_rows(4)
-                        .desired_width(f32::INFINITY),
-                );
+                stil::feld(ui, t("Text oder Link:"), |ui| {
+                    ui.add(egui::TextEdit::multiline(&mut self.text).desired_rows(4).desired_width(f32::INFINITY));
+                });
             }
             Kind::Wifi => {
-                grid(ui, "wifi", |ui| {
-                    ui.label(t("Netzname (SSID):"));
-                    ui.text_edit_singleline(&mut self.ssid);
-                    ui.end_row();
-                    ui.label(t("Passwort:"));
-                    ui.text_edit_singleline(&mut self.wpass);
-                    ui.end_row();
-                    ui.label(t("Verschlüsselung:"));
-                    egui::ComboBox::from_id_salt("wenc")
-                        .selected_text(match self.wenc {
-                            WifiEnc::Wpa => "WPA/WPA2",
-                            WifiEnc::Wep => "WEP",
-                            WifiEnc::None => t("offen"),
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.wenc, WifiEnc::Wpa, "WPA/WPA2");
-                            ui.selectable_value(&mut self.wenc, WifiEnc::Wep, "WEP");
-                            ui.selectable_value(&mut self.wenc, WifiEnc::None, t("offen"));
-                        });
-                    ui.end_row();
-                    ui.label(t("Verstecktes Netz:"));
-                    ui.checkbox(&mut self.whidden, "");
-                    ui.end_row();
+                txt(ui, t("Netzname (SSID):"), &mut self.ssid);
+                txt(ui, t("Passwort:"), &mut self.wpass);
+                stil::feld(ui, t("Verschlüsselung:"), |ui| {
+                    let opts = [(WifiEnc::Wpa, "WPA/WPA2"), (WifiEnc::Wep, "WEP"), (WifiEnc::None, t("offen"))];
+                    stil::liste(ui, "wenc", &mut self.wenc, &opts);
                 });
+                stil::schalter(ui, &mut self.whidden, t("Verstecktes Netz:"));
             }
             Kind::Email => {
-                grid(ui, "email", |ui| {
-                    ui.label(t("An:"));
-                    ui.text_edit_singleline(&mut self.eto);
-                    ui.end_row();
-                    ui.label(t("Betreff:"));
-                    ui.text_edit_singleline(&mut self.esubj);
-                    ui.end_row();
+                txt(ui, t("An:"), &mut self.eto);
+                txt(ui, t("Betreff:"), &mut self.esubj);
+                stil::feld(ui, t("Text:"), |ui| {
+                    ui.add(egui::TextEdit::multiline(&mut self.ebody).desired_rows(3).desired_width(f32::INFINITY));
                 });
-                ui.label(t("Text:"));
-                ui.add(
-                    egui::TextEdit::multiline(&mut self.ebody)
-                        .desired_rows(3)
-                        .desired_width(f32::INFINITY),
-                );
             }
             Kind::Contact => {
-                grid(ui, "contact", |ui| {
-                    ui.label(t("Name:"));
-                    ui.text_edit_singleline(&mut self.cname);
-                    ui.end_row();
-                    ui.label(t("Firma:"));
-                    ui.text_edit_singleline(&mut self.corg);
-                    ui.end_row();
-                    ui.label(t("Telefon:"));
-                    ui.text_edit_singleline(&mut self.cphone);
-                    ui.end_row();
-                    ui.label(t("E-Mail:"));
-                    ui.text_edit_singleline(&mut self.cemail);
-                    ui.end_row();
-                });
+                txt(ui, t("Name:"), &mut self.cname);
+                txt(ui, t("Firma:"), &mut self.corg);
+                txt(ui, t("Telefon:"), &mut self.cphone);
+                txt(ui, t("E-Mail:"), &mut self.cemail);
             }
             Kind::Swiss => self.swiss_fields(ui),
         }
@@ -334,13 +308,10 @@ impl App {
 
     fn swiss_fields(&mut self, ui: &mut egui::Ui) {
         let sw = &mut self.sw;
-        grid(ui, "swiss_head", |ui| {
-            ui.label(t("IBAN / QR-IBAN:"));
-            ui.text_edit_singleline(&mut sw.iban);
-            ui.end_row();
-            ui.label(t("Betrag:"));
+        txt(ui, t("IBAN / QR-IBAN:"), &mut sw.iban);
+        stil::feld(ui, t("Betrag:"), |ui| {
             ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut sw.amount).desired_width(90.0));
+                ui.add(egui::TextEdit::singleline(&mut sw.amount).desired_width(110.0));
                 egui::ComboBox::from_id_salt("ccy")
                     .selected_text(if sw.currency.is_empty() { "CHF" } else { sw.currency.as_str() })
                     .width(70.0)
@@ -349,86 +320,50 @@ impl App {
                         ui.selectable_value(&mut sw.currency, "EUR".into(), "EUR");
                     });
             });
-            ui.end_row();
         });
 
-        ui.add_space(6.0);
+        ui.add_space(4.0);
         ui.label(egui::RichText::new(t("Empfänger")).strong());
-        grid(ui, "swiss_cr", |ui| {
-            ui.label(t("Name:"));
-            ui.text_edit_singleline(&mut sw.cr_name);
-            ui.end_row();
-            ui.label(t("Strasse:"));
-            ui.text_edit_singleline(&mut sw.cr_street);
-            ui.end_row();
-            ui.label(t("Nr.:"));
-            ui.text_edit_singleline(&mut sw.cr_bno);
-            ui.end_row();
-            ui.label(t("PLZ / Ort:"));
-            ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut sw.cr_zip).desired_width(70.0));
-                ui.text_edit_singleline(&mut sw.cr_city);
-            });
-            ui.end_row();
-            ui.label(t("Land:"));
-            ui.add(egui::TextEdit::singleline(&mut sw.cr_country).desired_width(50.0));
-            ui.end_row();
+        txt(ui, t("Name:"), &mut sw.cr_name);
+        ui.columns(2, |c| {
+            txt(&mut c[0], t("Strasse:"), &mut sw.cr_street);
+            txt(&mut c[1], t("Nr.:"), &mut sw.cr_bno);
         });
+        ui.columns(2, |c| {
+            txt(&mut c[0], t("PLZ / Ort:"), &mut sw.cr_zip);
+            txt(&mut c[1], " ", &mut sw.cr_city);
+        });
+        txt(ui, t("Land:"), &mut sw.cr_country);
 
-        ui.add_space(6.0);
+        ui.add_space(4.0);
         ui.label(egui::RichText::new(t("Zahlungspflichtiger (optional)")).strong());
-        grid(ui, "swiss_db", |ui| {
-            ui.label(t("Name:"));
-            ui.text_edit_singleline(&mut sw.db_name);
-            ui.end_row();
-            ui.label(t("Strasse:"));
-            ui.text_edit_singleline(&mut sw.db_street);
-            ui.end_row();
-            ui.label(t("Nr.:"));
-            ui.text_edit_singleline(&mut sw.db_bno);
-            ui.end_row();
-            ui.label(t("PLZ / Ort:"));
-            ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut sw.db_zip).desired_width(70.0));
-                ui.text_edit_singleline(&mut sw.db_city);
-            });
-            ui.end_row();
-            ui.label(t("Land:"));
-            ui.add(egui::TextEdit::singleline(&mut sw.db_country).desired_width(50.0));
-            ui.end_row();
+        txt(ui, t("Name:"), &mut sw.db_name);
+        ui.columns(2, |c| {
+            txt(&mut c[0], t("Strasse:"), &mut sw.db_street);
+            txt(&mut c[1], t("Nr.:"), &mut sw.db_bno);
         });
+        ui.columns(2, |c| {
+            txt(&mut c[0], t("PLZ / Ort:"), &mut sw.db_zip);
+            txt(&mut c[1], " ", &mut sw.db_city);
+        });
+        txt(ui, t("Land:"), &mut sw.db_country);
 
-        ui.add_space(6.0);
+        ui.add_space(4.0);
         ui.label(egui::RichText::new(t("Referenz & Mitteilung")).strong());
-        grid(ui, "swiss_ref", |ui| {
-            ui.label(t("Referenztyp:"));
-            egui::ComboBox::from_id_salt("rtype")
-                .selected_text(match sw.ref_type.as_str() {
-                    "QRR" => t("QR-Referenz (QRR)"),
-                    "SCOR" => "Creditor Reference (SCOR)",
-                    _ => t("keine (NON)"),
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut sw.ref_type, "NON".into(), t("keine (NON)"));
-                    ui.selectable_value(&mut sw.ref_type, "QRR".into(), t("QR-Referenz (QRR)"));
-                    ui.selectable_value(&mut sw.ref_type, "SCOR".into(), "Creditor Reference (SCOR)");
-                });
-            ui.end_row();
-            if sw.ref_type != "NON" {
-                ui.label(t("Referenz:"));
-                ui.text_edit_singleline(&mut sw.reference);
-                ui.end_row();
+        stil::feld(ui, t("Referenztyp:"), |ui| {
+            let opts = [("NON", t("keine (NON)")), ("QRR", t("QR-Referenz (QRR)")), ("SCOR", "Creditor Reference (SCOR)")];
+            let mut cur: &str = match sw.ref_type.as_str() {
+                "QRR" => "QRR",
+                "SCOR" => "SCOR",
+                _ => "NON",
+            };
+            if stil::liste(ui, "rtype", &mut cur, &opts) {
+                sw.ref_type = cur.to_string();
             }
-            ui.label(t("Mitteilung:"));
-            ui.text_edit_singleline(&mut sw.message);
-            ui.end_row();
         });
+        if sw.ref_type != "NON" {
+            txt(ui, t("Referenz:"), &mut sw.reference);
+        }
+        txt(ui, t("Mitteilung:"), &mut sw.message);
     }
-}
-
-fn grid(ui: &mut egui::Ui, id: &str, add: impl FnOnce(&mut egui::Ui)) {
-    egui::Grid::new(id)
-        .num_columns(2)
-        .spacing([10.0, 8.0])
-        .show(ui, add);
 }

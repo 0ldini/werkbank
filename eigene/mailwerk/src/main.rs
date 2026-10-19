@@ -18,6 +18,7 @@ mod save;
 mod smtp;
 mod sprache;
 mod status;
+mod stil;
 mod store;
 mod textutil;
 mod thema;
@@ -31,7 +32,7 @@ use app::App;
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_icon(thema::fenster_icon())
             .with_inner_size([1180.0, 740.0])
             .with_min_inner_size([360.0, 480.0])
             .with_title("Mailwerk"),

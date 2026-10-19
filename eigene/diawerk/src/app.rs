@@ -13,29 +13,9 @@ use crate::model::{self, Item, Kind, OutFmt, Quality, Settings, Transition};
 use crate::render::{self, Control, Preview};
 use crate::sicht;
 use crate::sprache::{t, tf};
+use crate::stil::{self, Sym};
 use crate::thema;
 use crate::tool;
-
-// Schrift- und Linienfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
-fn vio() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x6d, 0x49, 0xe0), egui::Color32::from_rgb(0xa7, 0x8b, 0xfa))
-}
-/// Füllung der Hauptschaltfläche (weisse Schrift darauf) – in beiden Designs gleich.
-fn vio_fill() -> egui::Color32 {
-    egui::Color32::from_rgb(0x6d, 0x49, 0xe0)
-}
-fn blue() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x25, 0x63, 0xeb), egui::Color32::from_rgb(0x60, 0xa5, 0xfa))
-}
-fn orange() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
-}
-fn green() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0x0f, 0x76, 0x6e), egui::Color32::from_rgb(0x5e, 0xea, 0xd4))
-}
-fn red() -> egui::Color32 {
-    thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
-}
 
 /// Meldungen aus model.rs/render.rs übersetzen. Diese Dateien bleiben ohne Sprachmodul
 /// (sie werden für Tests einzeln mit rustc gebaut), darum geschieht es hier bei der Anzeige.
@@ -175,6 +155,8 @@ impl App {
         }
         cc.egui_ctx.set_style(style);
         thema::apply(&cc.egui_ctx);
+        thema::titelleiste(cc, [0x2E, 0x9B, 0xD6]);
+        stil::init(&cc.egui_ctx, [0x2E, 0x9B, 0xD6]);
         let ffmpeg = tool::find_ffmpeg();
         let status = if ffmpeg.is_some() {
             t("Bilder und Videos hineinziehen oder oben hinzufügen.").to_string()
@@ -644,14 +626,14 @@ impl App {
                 ui.set_width(info_w);
                 ui.label(egui::RichText::new(format!("{}. {}", cur + 1, it.name)).strong());
                 let (kind, col) = match it.kind {
-                    Kind::Video if portrait => (t("Video im Hochformat"), green()),
-                    Kind::Video => (t("Video"), vio()),
-                    _ if pano => (t("Panorama"), orange()),
-                    _ if portrait => (t("Hochformat"), green()),
-                    _ if it.w == it.h => (t("Quadrat"), blue()),
-                    _ => (t("Querformat"), blue()),
+                    Kind::Video if portrait => (t("Video im Hochformat"), stil::gruen()),
+                    Kind::Video => (t("Video"), stil::violett()),
+                    _ if pano => (t("Panorama"), stil::orange()),
+                    _ if portrait => (t("Hochformat"), stil::gruen()),
+                    _ if it.w == it.h => (t("Quadrat"), stil::blau()),
+                    _ => (t("Querformat"), stil::blau()),
                 };
-                ui.colored_label(col, kind);
+                stil::marke(ui, kind, col, 0.0);
                 let seite = format!("{:.2} : 1", it.w as f32 / it.h.max(1) as f32);
                 ui.label(format!("{} × {} · {}", it.w, it.h, seite));
                 if it.kind == Kind::Video {
@@ -672,8 +654,8 @@ impl App {
                 ui.add_space(6.0);
                 if it.kind == Kind::Video && self.ffmpeg.is_some() {
                     ui.horizontal(|ui| {
-                        let lab = if playing { t("⏸ Anhalten") } else { t("▶ Abspielen") };
-                        if ui.button(lab).clicked() {
+                        let (s, lab) = if playing { (Sym::Pause, t("Anhalten")) } else { (Sym::Play, t("Abspielen")) };
+                        if stil::knopf(ui, s, lab).clicked() {
                             toggle_play = true;
                         }
                         if playing {
@@ -681,11 +663,10 @@ impl App {
                         }
                     });
                     if playing {
-                        ui.add(egui::ProgressBar::new((play_pos / it.secs.max(0.1)).clamp(0.0, 1.0)));
+                        ui.add(egui::ProgressBar::new((play_pos / it.secs.max(0.1)).clamp(0.0, 1.0)).fill(stil::farbe()));
                     }
                 }
-                if ui
-                    .add_enabled(can_edit, egui::Button::new(t("Aus der Liste entfernen")))
+                if stil::gefahr(ui, can_edit, Sym::Papierkorb, t("Aus der Liste entfernen"))
                     .on_hover_text(t("Nur aus der Liste, die Datei bleibt erhalten (Taste Entf)"))
                     .clicked()
                 {
@@ -807,10 +788,10 @@ impl App {
                     model::fmt_hms(len)
                 )));
                 ui.horizontal(|ui| {
-                    if ui.button(t("Neu starten")).clicked() {
+                    if stil::knopf(ui, Sym::Aktualisieren, t("Neu starten")).clicked() {
                         restart = true;
                     }
-                    if ui.add_enabled(running, egui::Button::new(t("Stopp"))).clicked() {
+                    if stil::knopf_an(ui, running, Sym::Stopp, t("Stopp")).clicked() {
                         stop = true;
                     }
                     ui.separator();
@@ -824,7 +805,7 @@ impl App {
                 });
                 if let Ok(l) = pv.ctl.log.lock() {
                     if let Some(last) = l.last() {
-                        ui.colored_label(orange(), engine_msg(last));
+                        ui.colored_label(stil::orange(), engine_msg(last));
                     }
                 }
                 ui.small(t("Verkleinerte Vorschau (640 Pixel breit) – Übergänge, Schwenks und Dauer wie im fertigen Film, ohne Musik."));
@@ -874,250 +855,234 @@ impl eframe::App for App {
 
         let ffmpeg_ok = self.ffmpeg.is_some();
         let mut pv_req: Option<PvMode> = None;
-        // ---------------- oben: Liste verwalten
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.add_space(4.0);
-            ui.horizontal_wrapped(|ui| {
-                ui.heading("Diawerk");
-                ui.separator();
-                let can_edit = !running && self.probing.is_none();
-                if ui.add_enabled(can_edit, egui::Button::new(t("+ Bilder / Videos …"))).clicked() {
-                    let mut exts: Vec<&str> = model::IMAGE_EXT.to_vec();
-                    exts.extend_from_slice(model::VIDEO_EXT);
-                    if let Some(files) = rfd::FileDialog::new()
-                        .set_title(t("Bilder und Videos wählen"))
-                        .add_filter(t("Bilder und Videos"), &exts)
-                        .pick_files()
-                    {
-                        self.add_paths(ctx, files);
-                    }
+        let can_edit = !running && self.probing.is_none();
+        let can_prev = ffmpeg_ok && !running && !self.items.is_empty() && self.probing.is_none();
+        let n_base = self.items.len().saturating_sub(n_vid + n_pano);
+        let n_hoch = model::portrait_rows(&self.items).len();
+
+        // ---------------- Kopfleiste
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Diawerk");
+            stil::trenner(ui);
+            if stil::knopf_an(ui, can_edit, Sym::Plus, t("Bilder / Videos")).on_hover_text(t("Bilder und Videos wählen")).clicked() {
+                let mut exts: Vec<&str> = model::IMAGE_EXT.to_vec();
+                exts.extend_from_slice(model::VIDEO_EXT);
+                if let Some(files) = rfd::FileDialog::new().set_title(t("Bilder und Videos wählen")).add_filter(t("Bilder und Videos"), &exts).pick_files() {
+                    self.add_paths(ctx, files);
                 }
-                if ui.add_enabled(can_edit, egui::Button::new(t("+ Ordner …"))).clicked() {
+            }
+            stil::menue(ui, can_edit, Sym::Ordner, t("Ordner"), |ui| {
+                if stil::eintrag(ui, true, Sym::OrdnerAuf, t("Ordner wählen …")).clicked() {
                     if let Some(dir) = rfd::FileDialog::new().set_title(t("Ordner wählen")).pick_folder() {
                         self.add_paths(ctx, vec![dir]);
                     }
                 }
-                ui.checkbox(&mut self.recursive, t("inkl. Unterordner"));
-                ui.separator();
-                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new(t("Nach Namen"))).clicked() {
+                let lab = if self.recursive { t("Mit Unterordnern (an)") } else { t("Mit Unterordnern (aus)") };
+                if stil::eintrag(ui, true, if self.recursive { Sym::Haken } else { Sym::Kreuz }, lab).clicked() {
+                    self.recursive = !self.recursive;
+                }
+            });
+            stil::trenner(ui);
+            let many = can_edit && self.items.len() > 1;
+            stil::menue(ui, many, Sym::Sortieren, t("Sortieren"), |ui| {
+                if stil::eintrag(ui, true, Sym::Text, t("Nach Namen")).clicked() {
                     self.items.sort_by(|a, b| model::natural_cmp(&a.path.to_string_lossy(), &b.path.to_string_lossy()));
                     self.sel.clear();
                 }
-                if ui.add_enabled(can_edit && self.items.len() > 1, egui::Button::new(t("Nach Datum"))).clicked() {
+                if stil::eintrag(ui, true, Sym::Kalender, t("Nach Datum")).clicked() {
                     self.items.sort_by_key(|i| i.modified);
                     self.sel.clear();
                 }
-                let n_base = self.items.len() - n_vid - n_pano;
-                if ui
-                    .add_enabled(can_edit && n_vid > 0 && self.items.len() > n_vid, egui::Button::new(t("Videos einstreuen")))
-                    .on_hover_text(t("Verteilt die Videos gleichmässig zwischen die Bilder"))
-                    .clicked()
-                {
+            });
+            stil::menue(ui, many && (n_vid > 0 || n_pano > 0), Sym::Mischen, t("Einstreuen"), |ui| {
+                if stil::eintrag(ui, n_vid > 0 && self.items.len() > n_vid, Sym::Film, t("Videos einstreuen")).on_hover_text(t("Verteilt die Videos gleichmässig zwischen die Bilder")).clicked() {
                     self.spread(true, false);
                 }
-                if ui
-                    .add_enabled(can_edit && n_pano > 0 && n_base + n_vid > 0, egui::Button::new(t("Panoramen einstreuen")))
-                    .on_hover_text(t("Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge"))
-                    .clicked()
-                {
+                if stil::eintrag(ui, n_pano > 0 && n_base + n_vid > 0, Sym::Panorama, t("Panoramen einstreuen")).on_hover_text(t("Verteilt die Panoramen gleichmässig zwischen die übrigen Einträge")).clicked() {
                     self.spread(false, true);
                 }
-                if ui
-                    .add_enabled(can_edit && n_pano > 0 && n_vid > 0 && n_base > 0, egui::Button::new(t("Beides einstreuen")))
-                    .on_hover_text(t("Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen"))
-                    .clicked()
-                {
+                if stil::eintrag(ui, n_pano > 0 && n_vid > 0 && n_base > 0, Sym::Mischen, t("Beides einstreuen")).on_hover_text(t("Videos und Panoramen gleichmässig zwischen die normalen Bilder verteilen")).clicked() {
                     self.spread(true, true);
                 }
-                let n_hoch = model::portrait_rows(&self.items).len();
-                if n_hoch > 0 {
-                    ui.separator();
-                    ui.colored_label(green(), tf("{n} im Hochformat", &[("n", &n_hoch)]));
-                    if ui
-                        .add_enabled(can_edit, egui::Button::new(t("wählen")))
-                        .on_hover_text(t("Alle Bilder und Videos im Hochformat auswählen"))
-                        .clicked()
-                    {
+            });
+            if n_hoch > 0 {
+                stil::menue(ui, can_edit, Sym::Bild, &tf("{n} im Hochformat", &[("n", &n_hoch)]), |ui| {
+                    if stil::eintrag(ui, true, Sym::Haken, t("Alle wählen")).on_hover_text(t("Alle Bilder und Videos im Hochformat auswählen")).clicked() {
                         self.sel = model::portrait_rows(&self.items).into_iter().collect();
                         self.anchor = self.sel.iter().next().copied();
                         self.scroll_to = self.anchor;
                     }
-                    if ui
-                        .add_enabled(can_edit, egui::Button::new(t("entfernen …")))
-                        .on_hover_text(t("Alle Bilder und Videos im Hochformat aus der Liste nehmen"))
-                        .clicked()
-                    {
+                    if stil::eintrag(ui, true, Sym::Papierkorb, t("Alle entfernen …")).on_hover_text(t("Alle Bilder und Videos im Hochformat aus der Liste nehmen")).clicked() {
                         self.confirm_portrait = true;
                     }
+                });
+            }
+            stil::trenner(ui);
+            stil::menue(ui, can_prev, Sym::Play, t("Vorschau"), |ui| {
+                if stil::eintrag(ui, true, Sym::Play, t("Ab Anfang")).clicked() {
+                    pv_req = Some(PvMode::Start);
+                }
+                if stil::eintrag(ui, !self.sel.is_empty(), Sym::Pfeil, t("Ab Auswahl")).clicked() {
+                    pv_req = Some(PvMode::FromSel);
+                }
+                if stil::eintrag(ui, !self.sel.is_empty(), Sym::Haken, t("Nur Auswahl")).clicked() {
+                    pv_req = Some(PvMode::OnlySel);
                 }
             });
-            ui.horizontal_wrapped(|ui| {
-                let can_edit = !running && self.probing.is_none();
-                let has_sel = can_edit && !self.sel.is_empty();
-                ui.label(tf("{n} gewählt", &[("n", &self.sel.len())]));
-                if ui.add_enabled(has_sel, egui::Button::new("⬆")).on_hover_text(t("Eine Stelle nach oben")).clicked() {
+            stil::rechts(ui, |ui| {
+                stil::menue(ui, true, Sym::Mehr, "", |ui| {
+                    if stil::eintrag(ui, can_edit && !self.items.is_empty(), Sym::Haken, t("Alle wählen")).clicked() {
+                        self.sel = (0..self.items.len()).collect();
+                    }
+                    if stil::eintrag(ui, can_edit && !self.items.is_empty(), Sym::Papierkorb, t("Liste leeren")).clicked() {
+                        self.items.clear();
+                        self.sel.clear();
+                    }
+                });
+                let (s, h) = if self.show_view { (Sym::Auge, t("Ansicht ausblenden")) } else { (Sym::Auge, t("Ansicht einblenden")) };
+                if stil::leise(ui, true, s, "", h).clicked() {
+                    self.show_view = !self.show_view;
+                }
+            });
+        });
+
+        // ---------------- Auswahlleiste (nur mit Auswahl)
+        if !self.sel.is_empty() && !self.items.is_empty() {
+            let n = self.sel.len();
+            stil::auswahlleiste(ctx, &tf("{n} gewählt", &[("n", &n)]), |ui| {
+                if stil::leise(ui, can_edit, Sym::Pfeil, "", t("Eine Stelle nach oben")).clicked() {
                     self.move_sel(true);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new("⬇")).on_hover_text(t("Eine Stelle nach unten")).clicked() {
+                if stil::leise(ui, can_edit, Sym::PfeilRunter, "", t("Eine Stelle nach unten")).clicked() {
                     self.move_sel(false);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new(t("⏫ Anfang"))).clicked() {
+                if stil::leise(ui, can_edit, Sym::Anfang, "", t("An den Anfang")).clicked() {
                     self.to_start();
                 }
-                if ui.add_enabled(has_sel, egui::Button::new(t("⏬ Ende"))).clicked() {
+                if stil::leise(ui, can_edit, Sym::Ende, "", t("Ans Ende")).clicked() {
                     self.to_end();
                 }
-                ui.add(egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)).prefix(format!("{} ", t("Nr."))));
-                if ui.add_enabled(has_sel, egui::Button::new(t("dorthin"))).on_hover_text(t("Gewählte Einträge an diese Nummer setzen")).clicked() {
+                stil::trenner(ui);
+                ui.label(egui::RichText::new(t("an Nr.")).color(thema::muted()));
+                ui.add_sized([56.0, 26.0], egui::DragValue::new(&mut self.goto).range(1..=self.items.len().max(1)));
+                if stil::knopf_text(ui, can_edit, t("dorthin")).on_hover_text(t("Gewählte Einträge an diese Nummer setzen")).clicked() {
                     let nr = self.goto;
                     self.to_number(nr);
                 }
-                if ui.add_enabled(has_sel, egui::Button::new(t("Entfernen"))).clicked() {
-                    self.remove_sel();
-                }
-                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new(t("Alle wählen"))).clicked() {
-                    self.sel = (0..self.items.len()).collect();
-                }
-                if ui.add_enabled(can_edit && !self.items.is_empty(), egui::Button::new(t("Liste leeren"))).clicked() {
-                    self.items.clear();
-                    self.sel.clear();
-                }
-                ui.separator();
-                let can_prev = ffmpeg_ok && !running && !self.items.is_empty() && self.probing.is_none();
-                if ui.add_enabled(can_prev, egui::Button::new(t("▶ Vorschau ab Anfang"))).clicked() {
-                    pv_req = Some(PvMode::Start);
-                }
-                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new(t("▶ ab Auswahl"))).clicked() {
-                    pv_req = Some(PvMode::FromSel);
-                }
-                if ui.add_enabled(can_prev && !self.sel.is_empty(), egui::Button::new(t("▶ nur Auswahl"))).clicked() {
+                stil::trenner(ui);
+                if stil::leise(ui, can_prev, Sym::Play, t("Nur Auswahl abspielen"), "").clicked() {
                     pv_req = Some(PvMode::OnlySel);
                 }
-                ui.separator();
-                ui.checkbox(&mut self.show_view, t("Ansicht"))
-                    .on_hover_text(t("Das gewählte Bild oder Video unter der Liste zeigen"));
-            });
-            ui.add_space(4.0);
-        });
-
-        // ---------------- unten: Ausgabe, Start, Fortschritt
-        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                ui.label(t("Ausgabe:"));
-                ui.add_enabled(
-                    !running,
-                    egui::TextEdit::singleline(&mut self.out_path).desired_width((ui.available_width() - 110.0).max(120.0)),
-                );
-                if ui.add_enabled(!running, egui::Button::new(t("Wählen …"))).clicked() {
-                    if let Some(p) = rfd::FileDialog::new()
-                        .set_title(t("Diashow speichern unter"))
-                        .set_file_name(format!("Diashow.{}", self.s.format.ext()))
-                        .add_filter(t("Video"), &[self.s.format.ext()])
-                        .save_file()
-                    {
-                        self.out_path = p.display().to_string();
-                    }
+                if stil::gefahr(ui, can_edit, Sym::Papierkorb, t("Entfernen")).on_hover_text(t("Nur aus der Liste, die Dateien bleiben (Taste Entf)")).clicked() {
+                    self.remove_sel();
                 }
+                stil::rechts(ui, |ui| {
+                    if stil::leise(ui, true, Sym::Kreuz, t("Auswahl aufheben"), "").clicked() {
+                        self.sel.clear();
+                        self.anchor = None;
+                    }
+                });
             });
-            ui.add_space(4.0);
+        }
+
+        // ---------------- Fussleiste: Zusammenfassung, Ausgabe, Hauptknopf
+        stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
-                if let Some(job) = self.job.clone() {
-                    if ui.button(t("Abbrechen")).clicked() {
-                        job.cancel.store(true, Ordering::SeqCst);
-                    }
-                    let done = job.done.load(Ordering::Relaxed) as f32;
-                    let total = job.total.load(Ordering::Relaxed).max(1) as f32;
-                    let frac = (done / total).clamp(0.0, 1.0);
-                    let el = self.started.elapsed().as_secs_f32();
-                    let eta = if frac > 0.02 { el / frac - el } else { 0.0 };
-                    ui.add(egui::ProgressBar::new(frac).show_percentage().desired_width((ui.available_width() - 190.0).max(60.0)));
-                    if frac > 0.02 {
-                        let zeit = model::fmt_hms(eta);
-                        ui.label(tf("noch ca. {zeit}", &[("zeit", &zeit)]));
-                    }
-                } else {
-                    let can_start = self.ffmpeg.is_some() && !self.items.is_empty() && self.probing.is_none();
-                    let btn = egui::Button::new(egui::RichText::new(t("Diashow erstellen")).strong().color(egui::Color32::WHITE))
-                        .fill(vio_fill());
-                    let can_start = can_start && (!self.only_sel || !self.sel.is_empty());
-                    if ui.add_enabled(can_start, btn).clicked() {
-                        self.start_render();
-                    }
-                    ui.checkbox(&mut self.only_sel, tf("nur Auswahl ({n})", &[("n", &self.sel.len())]))
-                        .on_hover_text(t("Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm)."));
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
                     if !self.items.is_empty() {
                         let laenge = model::fmt_hms(total_len);
-                        ui.label(tf(
+                        ui.label(egui::RichText::new(tf(
                             "{bilder} Bilder · {panos} Panoramen · {videos} Videos · Länge ca. {laenge}",
                             &[("bilder", &n_img), ("panos", &n_pano), ("videos", &n_vid), ("laenge", &laenge)],
-                        ));
-                        if self.s.height > self.s.width && total_len > REEL_MAX_SECS {
-                            ui.colored_label(red(), t("Länger als 3 Minuten: zu lang für ein Instagram-Reel."));
+                        )).size(13.0).color(thema::muted()));
+                    }
+                    let col = if self.status_ok { thema::text() } else { stil::rot() };
+                    ui.label(egui::RichText::new(&self.status).size(13.0).color(col));
+                    if self.s.height > self.s.width && total_len > REEL_MAX_SECS {
+                        ui.label(egui::RichText::new(t("Länger als 3 Minuten: zu lang für ein Instagram-Reel.")).size(12.5).color(stil::rot()));
+                    }
+                });
+                stil::rechts(ui, |ui| {
+                    if let Some(job) = self.job.clone() {
+                        if stil::knopf(ui, Sym::Stopp, t("Abbrechen")).clicked() {
+                            job.cancel.store(true, Ordering::SeqCst);
+                        }
+                        let done = job.done.load(Ordering::Relaxed) as f32;
+                        let total = job.total.load(Ordering::Relaxed).max(1) as f32;
+                        let frac = (done / total).clamp(0.0, 1.0);
+                        let el = self.started.elapsed().as_secs_f32();
+                        if frac > 0.02 {
+                            let zeit = model::fmt_hms(el / frac - el);
+                            ui.label(egui::RichText::new(tf("noch ca. {zeit}", &[("zeit", &zeit)])).color(thema::muted()));
+                        }
+                        ui.add(egui::ProgressBar::new(frac).show_percentage().desired_width(260.0).fill(stil::farbe()));
+                    } else {
+                        let can_start = self.ffmpeg.is_some() && !self.items.is_empty() && self.probing.is_none() && (!self.only_sel || !self.sel.is_empty());
+                        if stil::haupt(ui, can_start, Sym::Play, t("Diashow erstellen")).clicked() {
+                            self.start_render();
+                        }
+                        ui.add_space(4.0);
+                        ui.scope(|ui| {
+                            ui.set_width(150.0);
+                            stil::schalter(ui, &mut self.only_sel, &tf("nur Auswahl ({n})", &[("n", &self.sel.len())]));
+                        })
+                        .response
+                        .on_hover_text(t("Nur die gewählten Bilder und Videos kommen in den Film (z. B. für einen kurzen Werbefilm)."));
+                        if stil::leise(ui, true, Sym::OrdnerAuf, "", t("Ausgabedatei wählen …")).clicked() {
+                            if let Some(p) = rfd::FileDialog::new()
+                                .set_title(t("Diashow speichern unter"))
+                                .set_file_name(format!("Diashow.{}", self.s.format.ext()))
+                                .add_filter(t("Video"), &[self.s.format.ext()])
+                                .save_file()
+                            {
+                                self.out_path = p.display().to_string();
+                            }
+                        }
+                        ui.add(egui::TextEdit::singleline(&mut self.out_path).desired_width(300.0).hint_text(t("Ausgabedatei")));
+                        if !self.notes.is_empty() {
+                            stil::menue(ui, true, Sym::Warnung, &tf("Hinweise ({n})", &[("n", &self.notes.len())]), |ui| {
+                                ui.set_max_width(520.0);
+                                egui::ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
+                                    for n in &self.notes {
+                                        ui.label(n);
+                                    }
+                                });
+                            });
                         }
                     }
-                }
-            });
-            ui.add_space(2.0);
-            let col = if self.status_ok { ui.visuals().text_color() } else { red() };
-            ui.label(egui::RichText::new(&self.status).color(col));
-            if !self.notes.is_empty() {
-                ui.collapsing(tf("Hinweise ({n})", &[("n", &self.notes.len())]), |ui| {
-                    egui::ScrollArea::vertical().max_height(110.0).show(ui, |ui| {
-                        for n in &self.notes {
-                            ui.label(n);
-                        }
-                    });
                 });
-            }
-            ui.add_space(4.0);
+            });
         });
 
-        // ---------------- rechts: Einstellungen
-        egui::SidePanel::right("settings").min_width(310.0).show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.add_enabled_ui(!running, |ui| {
-                    ui.add_space(4.0);
-                    ui.heading(t("Film"));
-                    if ui
-                        .button(t("Für Instagram einstellen"))
-                        .on_hover_text(t("Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge."))
-                        .clicked()
-                    {
+        // ---------------- rechts: Einstellungen als Karten
+        stil::seitenleiste(ctx, 330.0, |ui| {
+            ui.add_enabled_ui(!running, |ui| {
+                stil::karte(ui, "film", Sym::Film, t("Film"), true, |ui| {
+                    if stil::leise(ui, true, Sym::Kamera, t("Für Instagram einstellen"), t("Hochformat 1080×1920, 3 s pro Bild, schnelle Übergänge, MP4. Mit Auswahl: nur die gewählten Einträge.")).clicked() {
                         self.instagram_preset();
                     }
-                    egui::ComboBox::from_label(t("Auflösung"))
-                        .selected_text(t(RES[self.res].0))
-                        .show_ui(ui, |ui| {
-                            for (i, r) in RES.iter().enumerate() {
-                                ui.selectable_value(&mut self.res, i, t(r.0));
-                            }
-                        });
+                    stil::feld(ui, t("Auflösung"), |ui| {
+                        let opts: Vec<(usize, &str)> = RES.iter().enumerate().map(|(i, r)| (i, t(r.0))).collect();
+                        stil::liste(ui, "aufloesung", &mut self.res, &opts);
+                    });
                     self.s.width = RES[self.res].1;
                     self.s.height = RES[self.res].2;
-                    egui::ComboBox::from_label(t("Bilder pro Sekunde"))
-                        .selected_text(format!("{}", self.s.fps))
-                        .show_ui(ui, |ui| {
-                            for f in [24u32, 25, 30, 50, 60] {
-                                ui.selectable_value(&mut self.s.fps, f, format!("{f}"));
-                            }
+                    ui.columns(2, |c| {
+                        stil::feld(&mut c[0], t("Bilder pro Sekunde"), |ui| {
+                            let opts: Vec<(u32, String)> = [24u32, 25, 30, 50, 60].iter().map(|f| (*f, f.to_string())).collect();
+                            let refs: Vec<(u32, &str)> = opts.iter().map(|(f, s)| (*f, s.as_str())).collect();
+                            stil::liste(ui, "fps", &mut self.s.fps, &refs);
                         });
-                    egui::ComboBox::from_label(t("Qualität"))
-                        .selected_text(t(self.s.quality.label()))
-                        .show_ui(ui, |ui| {
-                            for q in Quality::ALL {
-                                ui.selectable_value(&mut self.s.quality, q, t(q.label()));
-                            }
+                        stil::feld(&mut c[1], t("Qualität"), |ui| {
+                            let opts: Vec<(Quality, &str)> = Quality::ALL.iter().map(|q| (*q, t(q.label()))).collect();
+                            stil::liste(ui, "qualitaet", &mut self.s.quality, &opts);
                         });
-                    {
+                    });
+                    stil::feld(ui, t("Format"), |ui| {
                         let before = self.s.format;
-                        egui::ComboBox::from_label(t("Format"))
-                            .selected_text(t(self.s.format.label()))
-                            .show_ui(ui, |ui| {
-                                for f in OutFmt::ALL {
-                                    ui.selectable_value(&mut self.s.format, f, t(f.label()));
-                                }
-                            });
+                        let opts: Vec<(OutFmt, &str)> = OutFmt::ALL.iter().map(|f| (*f, t(f.label()))).collect();
+                        stil::liste(ui, "format", &mut self.s.format, &opts);
                         if self.s.format != before {
                             let mut p = PathBuf::from(self.out_path.trim());
                             if !p.as_os_str().is_empty() {
@@ -1125,69 +1090,71 @@ impl eframe::App for App {
                                 self.out_path = p.display().to_string();
                             }
                         }
-                    }
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Bilder"));
-                    ui.add(egui::Slider::new(&mut self.s.still_secs, 2.0..=15.0).text(t("Sekunden pro Bild")).suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.zoom_pct, 0.0..=10.0).text(t("sanfter Zoom")).suffix(" %"));
-                    ui.checkbox(&mut self.s.crop_to_fill, t("Bilder nahe 16:9 füllen den Schirm"));
-                    ui.small(t("Aus: nichts wird abgeschnitten. Hoch- und 4:3-Bilder stehen immer ganz im Bild, vor unscharfem Hintergrund."));
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Panoramen"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_ratio, 1.8..=4.0).text(t("ab Seitenverhältnis")));
-                    ui.label(
-                        egui::RichText::new(tf("{n} Panoramen erkannt", &[("n", &n_pano)]))
-                            .color(if n_pano > 0 { orange() } else { ui.visuals().weak_text_color() }),
-                    );
-                    ui.add(egui::Slider::new(&mut self.s.pano_speed, 60.0..=500.0).text(t("Tempo")).suffix(" px/s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_min_secs, 3.0..=20.0).text(t("mindestens")).suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_max_secs, 8.0..=60.0).text(t("höchstens")).suffix(" s"));
-                    ui.add(egui::Slider::new(&mut self.s.pano_pause, 0.0..=2.0).text(t("Ruhe am Rand")).suffix(" s"));
-                    ui.small(t("Panoramen fahren von links nach rechts und bleiben länger stehen. Tempo gilt bei 1080 Zeilen Höhe."));
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Übergänge"));
-                    egui::ComboBox::from_label(t("Art"))
-                        .selected_text(t(self.s.transition.label()))
-                        .show_ui(ui, |ui| {
-                            for tr in Transition::ALL {
-                                ui.selectable_value(&mut self.s.transition, tr, t(tr.label()));
-                            }
-                        });
-                    ui.add(egui::Slider::new(&mut self.s.trans_secs, 0.0..=3.0).text(t("Dauer")).suffix(" s"));
-                    ui.small(t("Vor und nach Panoramen wird immer weich überblendet. Am Anfang und Ende blendet der Film aus Schwarz ein und aus."));
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Videos"));
-                    ui.add(egui::Slider::new(&mut self.s.video_max_secs, 0.0..=300.0).text(t("längstens")).suffix(" s"));
-                    ui.small(t("0 = ganze Länge. Der Ton der Videos wird weggelassen."));
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Musik"));
+                    });
+                });
+                stil::karte(ui, "bilder", Sym::Bild, t("Bilder"), true, |ui| {
+                    stil::feld(ui, t("Sekunden pro Bild"), |ui| {
+                        stil::schieber(ui, &mut self.s.still_secs, 2.0..=15.0, "s", 1);
+                    });
+                    stil::feld(ui, t("sanfter Zoom"), |ui| {
+                        stil::schieber(ui, &mut self.s.zoom_pct, 0.0..=10.0, "%", 0);
+                    });
+                    stil::schalter(ui, &mut self.s.crop_to_fill, t("Bilder nahe 16:9 füllen den Schirm"));
+                    stil::hinweis(ui, t("Aus: nichts wird abgeschnitten. Hoch- und 4:3-Bilder stehen immer ganz im Bild, vor unscharfem Hintergrund."));
+                });
+                stil::karte_farbe(ui, "panoramen", Sym::Panorama, stil::orange(), &format!("{} · {}", t("Panoramen"), n_pano), false, |ui| {
+                    stil::feld(ui, t("ab Seitenverhältnis"), |ui| {
+                        stil::schieber(ui, &mut self.s.pano_ratio, 1.8..=4.0, ": 1", 1);
+                    });
+                    stil::feld(ui, t("Tempo"), |ui| {
+                        stil::schieber(ui, &mut self.s.pano_speed, 60.0..=500.0, "px/s", 0);
+                    });
+                    stil::feld(ui, t("mindestens"), |ui| {
+                        stil::schieber(ui, &mut self.s.pano_min_secs, 3.0..=20.0, "s", 0);
+                    });
+                    stil::feld(ui, t("höchstens"), |ui| {
+                        stil::schieber(ui, &mut self.s.pano_max_secs, 8.0..=60.0, "s", 0);
+                    });
+                    stil::feld(ui, t("Ruhe am Rand"), |ui| {
+                        stil::schieber(ui, &mut self.s.pano_pause, 0.0..=2.0, "s", 1);
+                    });
+                    stil::hinweis(ui, t("Panoramen fahren von links nach rechts und bleiben länger stehen. Tempo gilt bei 1080 Zeilen Höhe."));
+                });
+                stil::karte(ui, "uebergaenge", Sym::Uebergang, t("Übergänge"), false, |ui| {
+                    stil::feld(ui, t("Art"), |ui| {
+                        let opts: Vec<(Transition, &str)> = Transition::ALL.iter().map(|tr| (*tr, t(tr.label()))).collect();
+                        stil::liste(ui, "uebergang", &mut self.s.transition, &opts);
+                    });
+                    stil::feld(ui, t("Dauer"), |ui| {
+                        stil::schieber(ui, &mut self.s.trans_secs, 0.0..=3.0, "s", 1);
+                    });
+                    stil::hinweis(ui, t("Vor und nach Panoramen wird immer weich überblendet. Am Anfang und Ende blendet der Film aus Schwarz ein und aus."));
+                });
+                stil::karte_farbe(ui, "videos", Sym::Film, stil::violett(), t("Videos"), false, |ui| {
+                    stil::feld(ui, t("längstens"), |ui| {
+                        stil::schieber(ui, &mut self.s.video_max_secs, 0.0..=300.0, "s", 0);
+                    });
+                    stil::hinweis(ui, t("0 = ganze Länge. Der Ton der Videos wird weggelassen."));
+                });
+                stil::karte(ui, "musik", Sym::Musik, t("Musik"), false, |ui| {
                     if self.s.music.is_empty() {
-                        ui.label(t("keine"));
+                        stil::grau(ui, t("keine"));
                     }
                     let mut remove: Option<usize> = None;
                     let mut up: Option<usize> = None;
                     for (i, m) in self.s.music.iter().enumerate() {
                         ui.horizontal(|ui| {
-                            ui.label(format!(
-                                "{}. {}",
-                                i + 1,
-                                m.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
-                            ));
-                            if i > 0 && ui.small_button("⬆").clicked() {
-                                up = Some(i);
-                            }
-                            if ui.small_button("✕").clicked() {
-                                remove = Some(i);
-                            }
+                            let name = m.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                            stil::symbol(ui, Sym::Musik, 15.0, stil::akzent());
+                            ui.add(egui::Label::new(format!("{}. {}", i + 1, name)).truncate());
+                            stil::rechts(ui, |ui| {
+                                if stil::leise(ui, true, Sym::Kreuz, "", t("Entfernen")).clicked() {
+                                    remove = Some(i);
+                                }
+                                if i > 0 && stil::leise(ui, true, Sym::Pfeil, "", t("Eine Stelle nach oben")).clicked() {
+                                    up = Some(i);
+                                }
+                            });
                         });
                     }
                     if let Some(i) = up {
@@ -1196,7 +1163,7 @@ impl eframe::App for App {
                     if let Some(i) = remove {
                         self.s.music.remove(i);
                     }
-                    if ui.button(t("MP3 hinzufügen …")).clicked() {
+                    if stil::knopf(ui, Sym::Plus, t("Musik hinzufügen …")).clicked() {
                         if let Some(files) = rfd::FileDialog::new()
                             .set_title(t("Musik wählen (mehrere möglich)"))
                             .add_filter(t("Musik"), &["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus"])
@@ -1205,84 +1172,88 @@ impl eframe::App for App {
                             self.s.music.extend(files);
                         }
                     }
-                    ui.small(t("Die Titel laufen der Reihe nach, werden bei Bedarf wiederholt, blenden ein und am Ende aus."));
-
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.heading(t("Vor- und Abspann"));
-                    ui.checkbox(&mut self.s.credits.intro, t("Vorspann mit dem Fotografen"));
-                    ui.checkbox(&mut self.s.credits.outro, t("Abspann mit Dank"));
-                    ui.add(egui::Slider::new(&mut self.s.credits.card_secs, 3.0..=20.0).text(t("Dauer")).suffix(" s"));
-                    ui.label(t("Name"));
-                    ui.text_edit_singleline(&mut self.s.credits.name);
-                    ui.label(t("Titelzeile (Vorspann)"));
-                    ui.text_edit_singleline(&mut self.s.credits.intro_kicker);
-                    ui.label(t("Text (Vorspann)"));
-                    ui.text_edit_multiline(&mut self.s.credits.intro_text);
-                    ui.label(t("Titelzeile (Abspann)"));
-                    ui.text_edit_singleline(&mut self.s.credits.outro_kicker);
-                    ui.label(t("Text (Abspann)"));
-                    ui.text_edit_multiline(&mut self.s.credits.outro_text);
+                    stil::hinweis(ui, t("Die Titel laufen der Reihe nach, werden bei Bedarf wiederholt, blenden ein und am Ende aus."));
+                });
+                stil::karte(ui, "abspann", Sym::Text, t("Vor- und Abspann"), false, |ui| {
+                    stil::schalter(ui, &mut self.s.credits.intro, t("Vorspann mit dem Fotografen"));
+                    stil::schalter(ui, &mut self.s.credits.outro, t("Abspann mit Dank"));
+                    stil::feld(ui, t("Dauer"), |ui| {
+                        stil::schieber(ui, &mut self.s.credits.card_secs, 3.0..=20.0, "s", 0);
+                    });
+                    let w = ui.available_width();
+                    stil::feld(ui, t("Name"), |ui| {
+                        ui.add(egui::TextEdit::singleline(&mut self.s.credits.name).desired_width(w));
+                    });
+                    stil::feld(ui, t("Titelzeile (Vorspann)"), |ui| {
+                        ui.add(egui::TextEdit::singleline(&mut self.s.credits.intro_kicker).desired_width(w));
+                    });
+                    stil::feld(ui, t("Text (Vorspann)"), |ui| {
+                        ui.add(egui::TextEdit::multiline(&mut self.s.credits.intro_text).desired_width(w).desired_rows(3));
+                    });
+                    stil::feld(ui, t("Titelzeile (Abspann)"), |ui| {
+                        ui.add(egui::TextEdit::singleline(&mut self.s.credits.outro_kicker).desired_width(w));
+                    });
+                    stil::feld(ui, t("Text (Abspann)"), |ui| {
+                        ui.add(egui::TextEdit::multiline(&mut self.s.credits.outro_text).desired_width(w).desired_rows(3));
+                    });
                     match self.s.credits.portrait.clone() {
                         Some(p) => {
                             let name = p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-                            ui.label(tf("Porträt: {name}", &[("name", &name)]));
-                            if ui.button(t("Porträt entfernen")).clicked() {
-                                self.s.credits.portrait = None;
-                            }
+                            ui.horizontal(|ui| {
+                                stil::symbol(ui, Sym::Kamera, 15.0, stil::akzent());
+                                ui.add(egui::Label::new(tf("Porträt: {name}", &[("name", &name)])).truncate());
+                                stil::rechts(ui, |ui| {
+                                    if stil::leise(ui, true, Sym::Kreuz, "", t("Porträt entfernen")).clicked() {
+                                        self.s.credits.portrait = None;
+                                    }
+                                });
+                            });
                         }
                         None => {
-                            ui.label(t("Porträt: keines"));
+                            stil::grau(ui, t("Porträt: keines"));
                         }
                     }
-                    if ui.button(t("Porträt wählen …")).clicked() {
-                        if let Some(p) = rfd::FileDialog::new()
-                            .set_title(t("Porträt des Fotografen"))
-                            .add_filter(t("Bilder"), &["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"])
-                            .pick_file()
-                        {
-                            self.s.credits.portrait = Some(p);
+                    ui.horizontal_wrapped(|ui| {
+                        if stil::knopf(ui, Sym::Kamera, t("Porträt wählen …")).clicked() {
+                            if let Some(p) = rfd::FileDialog::new()
+                                .set_title(t("Porträt des Fotografen"))
+                                .add_filter(t("Bilder"), &["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"])
+                                .pick_file()
+                            {
+                                self.s.credits.portrait = Some(p);
+                            }
                         }
-                    }
+                        if stil::knopf(ui, Sym::Text, t("Schrift wählen … (optional)")).clicked() {
+                            if let Some(p) = rfd::FileDialog::new().set_title(t("Schriftdatei")).add_filter(t("Schrift"), &["ttf", "otf"]).pick_file() {
+                                self.s.credits.font = Some(p);
+                            }
+                        }
+                    });
                     if model::find_font(self.s.credits.font.as_deref()).is_none() {
-                        ui.colored_label(red(), t("Keine Systemschrift gefunden – bitte eine Schrift wählen."));
+                        ui.colored_label(stil::rot(), t("Keine Systemschrift gefunden – bitte eine Schrift wählen."));
                     }
-                    if ui.button(t("Schrift wählen … (optional)")).clicked() {
-                        if let Some(p) = rfd::FileDialog::new()
-                            .set_title(t("Schriftdatei"))
-                            .add_filter(t("Schrift"), &["ttf", "otf"])
-                            .pick_file()
-                        {
-                            self.s.credits.font = Some(p);
-                        }
-                    }
-                    ui.small(t("Layout wie die Webseite des Fotografen: links Titel, Name und Text, rechts das Porträt."));
+                    stil::hinweis(ui, t("Layout wie die Webseite des Fotografen: links Titel, Name und Text, rechts das Porträt."));
                 });
             });
         });
 
         // ---------------- Mitte: die Liste
-        egui::CentralPanel::default().show(ctx, |ui| {
+        stil::mitte(ctx, |ui| {
             if self.items.is_empty() {
-                ui.add_space(40.0);
-                ui.vertical_centered(|ui| {
-                    ui.heading(t("Noch keine Bilder"));
-                    ui.label(t("Ordner oder Dateien hierher ziehen – oder oben hinzufügen."));
-                    ui.label(t("Videos (MP4, MOV …) kommen in die Liste wie Bilder."));
-                });
+                stil::leer(ui, Sym::Bild, t("Noch keine Bilder"), t("Ordner oder Dateien hierher ziehen – oder oben hinzufügen. Videos (MP4, MOV …) kommen in die Liste wie Bilder."));
                 return;
             }
             if self.show_view {
-                let can_edit = !running && self.probing.is_none();
                 egui::TopBottomPanel::bottom("ansicht")
                     .resizable(true)
-                    .default_height(300.0)
+                    .default_height(280.0)
                     .height_range(140.0..=900.0)
+                    .frame(egui::Frame::none().fill(thema::panel()).inner_margin(egui::Margin::symmetric(4.0, 8.0)))
                     .show_inside(ui, |ui| self.view_ui(ui, ctx, &tl_all.slots, can_edit));
             } else {
                 self.player = None;
             }
-            let row_h = ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y + 4.0;
+            let row_h = 34.0;
             let items = &self.items;
             let slots = &tl_all.slots;
             let fps = self.s.fps as f32;
@@ -1294,7 +1265,6 @@ impl eframe::App for App {
             let mut clicked: Option<usize> = None;
             let mut drag_started: Option<usize> = None;
             let mut rects: Vec<(usize, egui::Rect)> = Vec::new();
-            let can_edit = !running && self.probing.is_none();
             let scroll_to = self.scroll_to.take();
             let mut sa = egui::ScrollArea::vertical().auto_shrink([false, false]);
             if let Some(i) = scroll_to {
@@ -1303,6 +1273,7 @@ impl eframe::App for App {
                 sa = sa.vertical_scroll_offset(y);
             }
             sa.show_rows(ui, row_h, items.len(), |ui, range| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
                     if dragging {
                         if let Some(p) = ptr {
                             if p.y < area.top() + 28.0 {
@@ -1316,31 +1287,38 @@ impl eframe::App for App {
                         let it = &items[i];
                         let sl = &slots[i];
                         let (tag, col) = match (it.kind, sl.pano) {
-                            (Kind::Video, _) => (t("VIDEO"), vio()),
-                            (Kind::Intro | Kind::Outro, _) => (t("KARTE"), vio()),
-                            (_, true) => (t("PANORAMA"), orange()),
-                            _ if model::is_portrait(it) => (t("HOCH"), green()),
-                            _ => (t("BILD"), blue()),
+                            (Kind::Video, _) => (t("VIDEO"), stil::violett()),
+                            (Kind::Intro | Kind::Outro, _) => (t("KARTE"), stil::violett()),
+                            (_, true) => (t("PANORAMA"), stil::orange()),
+                            _ if model::is_portrait(it) => (t("HOCH"), stil::gruen()),
+                            _ => (t("BILD"), stil::blau()),
                         };
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new(format!("{:>4}", i + 1)).monospace().weak());
-                            ui.label(egui::RichText::new(format!("{tag:<8}")).monospace().strong().color(col));
-                            let hoch = if it.kind == Kind::Video && model::is_portrait(it) {
-                                format!(" · {}", t("hoch"))
-                            } else {
-                                String::new()
-                            };
-                            let text = format!("{}    {}×{}{hoch}    {:.1} s", it.name, it.w, it.h, sl.frames as f32 / fps);
-                            let r = ui.selectable_label(sel.contains(&i), text);
-                            let r = r.interact(egui::Sense::click_and_drag());
-                            rects.push((i, r.rect));
-                            if r.clicked() {
-                                clicked = Some(i);
-                            }
-                            if can_edit && r.drag_started() {
-                                drag_started = Some(i);
-                            }
+                        let (rect, r) = ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::click_and_drag());
+                        let on = sel.contains(&i);
+                        if on {
+                            ui.painter().rect_filled(rect.shrink2(egui::vec2(0.0, 1.0)), 8.0, stil::toenung());
+                        } else if r.hovered() {
+                            ui.painter().rect_filled(rect.shrink2(egui::vec2(0.0, 1.0)), 8.0, thema::hover());
+                        }
+                        let mut row = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(egui::vec2(10.0, 0.0))).layout(egui::Layout::left_to_right(egui::Align::Center)));
+                        row.spacing_mut().item_spacing.x = 12.0;
+                        row.add_sized([30.0, row_h], egui::Label::new(egui::RichText::new(format!("{}", i + 1)).color(thema::muted())).selectable(false));
+                        stil::marke(&mut row, tag, col, 72.0);
+                        let hoch = if it.kind == Kind::Video && model::is_portrait(it) { format!(" · {}", t("hoch")) } else { String::new() };
+                        row.with_layout(egui::Layout::right_to_left(egui::Align::Center), |row| {
+                            row.label(egui::RichText::new(format!("{:.1} s", sl.frames as f32 / fps)).color(thema::muted()));
+                            row.add_sized([96.0, row_h], egui::Label::new(egui::RichText::new(format!("{}×{}{hoch}", it.w, it.h)).color(thema::muted())).selectable(false));
+                            row.with_layout(egui::Layout::left_to_right(egui::Align::Center), |row| {
+                                row.add(egui::Label::new(egui::RichText::new(&it.name).color(thema::text())).truncate().selectable(false));
+                            });
                         });
+                        rects.push((i, rect));
+                        if r.clicked() {
+                            clicked = Some(i);
+                        }
+                        if can_edit && r.drag_started() {
+                            drag_started = Some(i);
+                        }
                     }
                 });
 
@@ -1388,7 +1366,7 @@ impl eframe::App for App {
                     }
                 }
                 if let Some((_, y)) = target {
-                    ui.painter().hline(area.x_range(), y, egui::Stroke::new(2.0, vio()));
+                    ui.painter().hline(area.x_range(), y, egui::Stroke::new(2.0, stil::akzent()));
                 }
                 if ctx.input(|i| i.pointer.any_released()) {
                     if let Some((before, _)) = target {
@@ -1416,10 +1394,10 @@ impl eframe::App for App {
                     ui.small(t("Die Dateien selbst bleiben unberührt."));
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
-                        if ui.button(t("Entfernen")).clicked() {
+                        if stil::gefahr(ui, true, Sym::Papierkorb, t("Entfernen")).clicked() {
                             yes = true;
                         }
-                        if ui.button(t("Abbrechen")).clicked() {
+                        if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
                             no = true;
                         }
                     });

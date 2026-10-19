@@ -141,3 +141,7 @@ Passwörter für die Archive dieses Pakets, eines pro Zeile. Sie werden vor der 
 Eine SHA-256-Prüfsumme hat 64 Zeichen (0–9, a–f)	A SHA-256 checksum has 64 characters (0–9, a–f)
 Eintrag nicht gefunden	Entry not found
 Proxy bitte als http://host:port oder socks5://host:port angeben	Please enter the proxy as http://host:port or socks5://host:port
+Auswahl aufheben	Clear selection
+Alle bereiten herunterladen	Download all ready
+Links annehmen	Accept links
+{n} gewählt	{n} selected

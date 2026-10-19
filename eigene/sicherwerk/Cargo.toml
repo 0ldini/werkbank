@@ -1,6 +1,6 @@
 [package]
 name = "sicherwerk"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Ordner regelmässig sichern – Teil der Werkbank"
 
@@ -19,6 +19,14 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 [lints.rust]
 # `ohne_serde` gilt nur für die Einzeltests mit rustc (siehe README).
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ohne_serde)'] }
+
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
+raw-window-handle = "0.6"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = 3
