@@ -528,13 +528,14 @@ impl App {
             .find(|it| !self.thumbs.contains_key(&it.path) && !self.thumb_err.contains_key(&it.path))
             .cloned();
         if let Some(it) = next {
+            let path = it.path.clone();
             let (tx, rx) = channel();
             let ctx2 = ctx.clone();
             std::thread::spawn(move || {
                 let _ = tx.send(sicht::load_still(&ff, &it));
                 ctx2.request_repaint();
             });
-            self.thumb_job = Some((it.path.clone(), rx));
+            self.thumb_job = Some((path, rx));
         }
     }
 
