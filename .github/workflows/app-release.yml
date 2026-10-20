@@ -224,7 +224,7 @@ jobs:
         run: |
           mkdir -p out
           shopt -s nullglob
-          for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/"$APP-$VERSION"-macos-aarch64.tar.gz src/dist/release/*-web-*.zip; do
+          for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/"$APP-$VERSION"-macos-*.tar.gz src/dist/release/*-web-*.zip; do
             cp "$f" out/
           done
           ls -l out
