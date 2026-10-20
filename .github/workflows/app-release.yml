@@ -91,12 +91,12 @@ jobs:
     name: ${{ matrix.item.app }} ${{ matrix.item.version }} (${{ matrix.kind }})
     needs: plan
     if: needs.plan.outputs.count != '0'
-    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || matrix.kind == 'linux' && 'ubuntu-22.04' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || matrix.kind == 'linux' && 'ubuntu-22.04' || matrix.kind == 'macos' && 'macos-latest' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
         item: ${{ fromJson(needs.plan.outputs.items) }}
-        kind: [windows, linux, web]
+        kind: [windows, linux, macos, web]
     defaults:
       run:
         shell: bash
@@ -188,9 +188,22 @@ jobs:
         working-directory: src
         run: |
           set -o pipefail
+          # Die Werk-Ausgabe bringt die Kiste werk-titel mit; das Original baut mit --locked,
+          # darum die Sperrdatei vorher um sie ergänzen (alles andere bleibt, wie es ist).
+          cargo update --workspace 2>&1 | tail -5
           case "${{ matrix.kind }}" in
             windows) pwsh ./packaging/windows/package.ps1 -Arch x64 ;;
             linux)   packaging/linux/package.sh --formats "tar" ;;
+            macos)
+              # Apple Silicon, ad hoc signiert (ohne Apple-Entwicklerkonto). Der Launcher braucht
+              # nur das .app-Bündel; die .dmg des Originals bleibt draussen.
+              packaging/macos/package.sh --arch aarch64
+              B=$(ls -d "${CARGO_TARGET_DIR:-target}"/macos-package/*.app | head -1)
+              D="$APP-$VERSION-macos-aarch64"; S="$RUNNER_TEMP/mac/$D"
+              rm -rf "$RUNNER_TEMP/mac"; mkdir -p "$S" dist/release
+              ditto "$B" "$S/$(basename "$B")"
+              xattr -cr "$S"
+              (cd "$RUNNER_TEMP/mac" && COPYFILE_DISABLE=1 tar czf "$GITHUB_WORKSPACE/src/dist/release/$D.tar.gz" "$D") ;;
             web)     packaging/web/package.sh ;;
           esac 2>&1 | tee "$RUNNER_TEMP/build.log"
 
@@ -211,7 +224,7 @@ jobs:
         run: |
           mkdir -p out
           shopt -s nullglob
-          for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/*-web-*.zip; do
+          for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/"$APP-$VERSION"-macos-*.tar.gz src/dist/release/*-web-*.zip; do
             cp "$f" out/
           done
           ls -l out

@@ -34,6 +34,7 @@ jobs:
         include:
           - { name: Windows, runner: windows-latest, file: werkbank.exe, asset: werkbank-windows-x64.zip }
           - { name: Linux, runner: ubuntu-22.04, file: werkbank, asset: werkbank-linux-x86_64.tar.gz }
+          - { name: macOS, runner: macos-latest, file: werkbank, asset: werkbank-macos-aarch64.zip }
     defaults:
       run:
         shell: bash
@@ -50,7 +51,8 @@ jobs:
           fi
           if [ -n "$version" ]; then
             echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$' || { echo "::error::Keine gültige Versionsnummer: $version"; exit 1; }
-            sed -i.bak "0,/^version = \".*\"/s//version = \"$version\"/" launcher/Cargo.toml && rm launcher/Cargo.toml.bak
+            # Erste «version = …»-Zeile (perl: gleich unter Linux, Windows und macOS).
+            perl -0pi -e "s/^version = \".*?\"/version = \"$version\"/m" launcher/Cargo.toml
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Linux-Abhängigkeiten
@@ -81,7 +83,17 @@ jobs:
           text=$( (grep -A16 -E '^error' "$log" || tail -40 "$log") | head -150 | cut -c1-240)
           text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
           echo "::error title=Launcher ${{ matrix.name }}::$text"
+      - name: Packen (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p out
+          V=$(awk -F'"' '/^version *=/{print $2; exit}' launcher/Cargo.toml)
+          werk/tools/mac_bundle.sh Werkbank launcher/target/release/werkbank launcher/icons/werkbank.icns ch.werkbank.launcher "$V" out
+          cp README.md LICENSE out/
+          xattr -cr out/Werkbank.app
+          (cd out && ditto -c -k --norsrc --keepParent Werkbank.app "${{ matrix.asset }}")
       - name: Packen
+        if: runner.os != 'macOS'
         run: |
           mkdir -p out/werkbank
           cp "launcher/target/release/${{ matrix.file }}" README.md LICENSE out/werkbank/
@@ -115,7 +127,7 @@ jobs:
             gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" $kind \
-              --title "Werkbank $VERSION" --notes "Werkbank-Launcher $VERSION für Windows und Linux."
+              --title "Werkbank $VERSION" --notes "Werkbank-Launcher $VERSION für Windows, Linux und macOS (Apple Silicon)."
           fi
 
   setup:

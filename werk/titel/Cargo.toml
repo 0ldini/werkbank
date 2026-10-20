@@ -1,0 +1,10 @@
+[package]
+name = "werk-titel"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Werkbank: Titelleiste in der Farbe des Programm-Logos (Windows), hell oder dunkel wie der Launcher"
+publish = false
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading"] }

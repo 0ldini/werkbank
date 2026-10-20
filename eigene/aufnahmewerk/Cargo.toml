@@ -1,6 +1,6 @@
 [package]
 name = "aufnahmewerk"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2021"
 description = "Bildschirm aufnehmen – Teil der Werkbank"
 
@@ -47,3 +47,4 @@ strip = true
 [package.metadata.werkbank]
 # Nur Windows (Bildschirmaufnahme über die Windows-Grafik-Schnittstelle).
 linux = false
+macos = false
