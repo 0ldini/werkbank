@@ -64,6 +64,21 @@ Welches Programm Standard ist, bestätigt man dort selbst (Windows erlaubt das k
 Die Zuordnung zeigt auf `werkbank.exe --open <app> <datei>`, überlebt also jedes Update. Welche
 Endungen ein Programm anbietet, steht in `launcher/apps.toml` (`types`).
 
+## Mac (Apple Silicon)
+
+Für Macs mit M1 oder neuer: im neuesten Release `werkbank-v…` die Datei
+`werkbank-macos-aarch64.zip` laden, entpacken und `Werkbank.app` in den Ordner «Programme» ziehen.
+
+Die Werkbank ist nicht bei Apple notarisiert. Beim ersten Öffnen meldet macOS deshalb, das Programm
+könne nicht überprüft werden. So gibt man es einmalig frei:
+
+1. Die Meldung mit «Fertig» schliessen.
+2. Systemeinstellungen → Datenschutz & Sicherheit, ganz nach unten: bei «Werkbank» auf
+   «Trotzdem öffnen» klicken und bestätigen.
+
+Danach startet die Werkbank normal. Die Programme, die sie installiert, brauchen keine Freigabe.
+Aufnahmewerk gibt es nur für Windows.
+
 ## Offline-Setup für Windows
 
 Reiter «Actions» → «Offline-Setup» → «Run workflow». Der Ablauf packt den neuesten Launcher und
@@ -75,12 +90,12 @@ Ersteinrichtung es festlegt. Deinstallieren über Windows-Einstellungen → Apps
 
 ## Launcher veröffentlichen
 
-Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versionsnummer angeben (z. B. `0.1.0`). Der Ablauf baut Windows und Linux und legt das Release `werkbank-v0.1.0` an.
+Reiter «Actions» → «Launcher-Release» → «Run workflow» und eine Versionsnummer angeben (z. B. `0.1.0`). Der Ablauf baut Windows, Linux und macOS (Apple Silicon) und legt das Release `werkbank-v0.1.0` an.
 
 ## Eigene Programme aufnehmen
 
 Rust-Programme (egui/eframe) liegen unter `eigene/<name>/`; der Ablauf «Eigene-Release» baut sie für
-Windows, Linux und den Browser und veröffentlicht sie wie die anderen (siehe `eigene/README.md`).
+Windows, Linux, macOS und den Browser und veröffentlicht sie wie die anderen (siehe `eigene/README.md`).
 Dazu gehören Codewerk, Diawerk, Umbenennwerk, Speicherwerk, Aufnahmewerk, Wandelwerk, Schutzwerk, Mediathekwerk und Diawerk (Übersicht: `eigene/WERKE-UEBERSICHT.md`). HTML5-Apps kommen mit `web_only = true` in `launcher/apps.toml`
 und als `<id>-web-<version>.zip` (ein Ordner mit `index.html`) in ein Release `<id>-v<version>`.
 
