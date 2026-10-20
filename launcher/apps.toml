@@ -192,6 +192,7 @@ color = "#B23A48"
 repo = "https://github.com/0ldini/werkbank"
 tag = "aufnahmewerk-v"
 no_web = true
+systeme = ["windows"]
 
 [[app]]
 id = "wandelwerk"

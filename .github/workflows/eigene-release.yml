@@ -58,6 +58,8 @@ jobs:
             # Nur Windows: in der Cargo.toml «[package.metadata.werkbank]» mit «linux = false».
             kinds="windows"
             grep -Eq '^linux *= *false' "eigene/$a/Cargo.toml" || kinds="$kinds linux"
+            # macOS (Apple Silicon); abschalten mit «macos = false».
+            grep -Eq '^macos *= *false' "eigene/$a/Cargo.toml" || kinds="$kinds macos"
             [ -f "eigene/$a/index.html" ] && kinds="$kinds web"
             for k in $kinds; do jobs=$(jq -c --arg a "$a" --arg k "$k" '. + [{app: $a, kind: $k}]' <<<"$jobs"); done
           done
@@ -69,7 +71,7 @@ jobs:
     name: ${{ matrix.app }} (${{ matrix.kind }})
     needs: plan
     if: needs.plan.outputs.apps != '[]'
-    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || 'ubuntu-22.04' }}
+    runs-on: ${{ matrix.kind == 'windows' && 'windows-latest' || matrix.kind == 'macos' && 'macos-latest' || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -88,7 +90,7 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "$APP $VERSION"
       - name: Linux-Abhängigkeiten
-        if: matrix.kind != 'windows'
+        if: matrix.kind == 'linux' || matrix.kind == 'web'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev pkg-config
@@ -124,6 +126,14 @@ jobs:
               D="$APP-$VERSION-linux-x86_64"; mkdir -p "stage/$D/bin"
               cp "target/release/$APP" "stage/$D/bin/"; cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
               (cd stage && tar czf "../out/$D.tar.gz" "$D") ;;
+            macos)
+              cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
+              D="$APP-$VERSION-macos-aarch64"; mkdir -p "stage/$D"
+              TITLE=$(echo "$APP" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+              ../../werk/tools/mac_bundle.sh "$TITLE" "target/release/$APP" icon.icns "ch.werkbank.$APP" "$VERSION" "stage/$D"
+              cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
+              xattr -cr "stage/$D"
+              (cd stage && COPYFILE_DISABLE=1 tar czf "../out/$D.tar.gz" "$D") ;;
             web)
               trunk build --release --public-url ./ 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-web-$VERSION"; mkdir -p stage; cp -r dist "stage/$D"
@@ -177,7 +187,7 @@ jobs:
             gh release upload "$TAG" * --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
-              --title "${NAME^} $VERSION" --notes "Eigenes Programm ${NAME^} $VERSION für Windows, Linux und den Browser."
+              --title "${NAME^} $VERSION" --notes "Eigenes Programm ${NAME^} $VERSION für Windows, Linux, macOS und den Browser."
           fi
 
   setup:

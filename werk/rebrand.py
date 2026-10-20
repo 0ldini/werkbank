@@ -154,8 +154,10 @@ def replace_images():
             put(icons / "icon-small.svg", p)
         elif ext == ".ico" and stem in (APP, "favicon"):
             put(icons / "icon.ico", p)
+        elif ext == ".icns" and stem == APP:
+            put(icons / "icon.icns", p)  # macOS-Programmsymbol
         else:
-            continue  # .icns (nur macOS), Dokument-Icons, Lizenztexte
+            continue  # Dokument-Icons, Lizenztexte
         count += 1
     if count == 0:
         problems.append("Icons: unter assets/app-icon wurde nichts ersetzt")
@@ -166,6 +168,20 @@ def replace_images():
             put(src, brand / src.name)
             count += 1
     print(f"  {count} Bilddateien ersetzt")
+
+
+def mac_bundle_id():
+    plist = ROOT / "packaging" / "macos" / "Info.plist.in"
+    if not plist.is_file():
+        return
+    text = read(plist)
+    new = text.replace(f"ai.storyteller.{APP}", f"ch.werkbank.{APP}")
+    if new == text:
+        problems.append(f"macOS: ai.storyteller.{APP} fehlt in packaging/macos/Info.plist.in")
+        return
+    if not CHECK:
+        plist.write_bytes(new.encode("utf-8"))
+    print(f"  macOS-Kennung ch.werkbank.{APP}")
 
 
 def extend_notice():
@@ -494,6 +510,7 @@ def main():
     extend_notice()
     print("Titelleiste:")
     titlebar()
+    mac_bundle_id()
     if problems:
         print("\nABBRUCH, das Original hat sich geändert:", file=sys.stderr)
         for p in problems:

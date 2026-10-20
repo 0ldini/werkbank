@@ -55,6 +55,9 @@ pub struct App {
     /// true: nur Browser-Version (z. B. eigene HTML5-Apps), keine Desktop-Programmdatei.
     #[serde(default)]
     pub web_only: bool,
+    /// Nur auf diesen Systemen anbieten ("windows", "linux", "macos"); leer: überall.
+    #[serde(default)]
+    pub systeme: Vec<String>,
 }
 
 impl App {
@@ -370,6 +373,12 @@ pub const MANIFEST_URL: &str = "https://raw.githubusercontent.com/0ldini/werkban
 /// sonst die aktuelle Liste aus dem Netz, sonst deren letzte gespeicherte Fassung, sonst die
 /// in den Launcher eingebaute.
 pub fn load_manifest() -> Result<Manifest> {
+    let mut m = load_manifest_all()?;
+    m.app.retain(|a| a.systeme.is_empty() || a.systeme.iter().any(|s| s == std::env::consts::OS));
+    Ok(m)
+}
+
+fn load_manifest_all() -> Result<Manifest> {
     let dir = data_dir();
     fs::create_dir_all(&dir).with_context(|| format!("Datenordner {} anlegen", dir.display()))?;
     let own = dir.join("apps.toml");
@@ -604,6 +613,7 @@ pub fn asset_name(app: &App, kind: Kind, v: Version) -> Result<String> {
         ("linux", "aarch64") => "linux-aarch64.tar.gz",
         ("linux", "riscv64") => "linux-riscv64.tar.gz",
         ("freebsd", "x86_64") => "freebsd-x86_64.tar.gz",
+        ("macos", "aarch64") => "macos-aarch64.tar.gz",
         (os, arch) => bail!("für {os}/{arch} gibt es keine Desktop-Version; nutze die Browser-Version"),
     };
     Ok(format!("{a}-{ver}-{suffix}"))
@@ -649,7 +659,36 @@ pub fn exe_path(app: &App) -> Option<PathBuf> {
     let v = installed_version(app, Kind::Native)?;
     let root = content_root(&version_dir(app, Kind::Native, v));
     let exe = if cfg!(windows) { format!("{}.exe", app.exe()) } else { app.exe().to_string() };
-    [root.join(&exe), root.join("bin").join(&exe)].into_iter().find(|p| p.is_file())
+    [root.join(&exe), root.join("bin").join(&exe)]
+        .into_iter()
+        .find(|p| p.is_file())
+        .or_else(|| bundle_exe(&root, &exe))
+}
+
+/// macOS: Programmdatei in einem .app-Bündel (`Name.app/Contents/MacOS/…`). Bevorzugt die Datei
+/// mit dem Namen des Programms, sonst die einzige Datei im Ordner.
+fn bundle_exe(root: &Path, exe: &str) -> Option<PathBuf> {
+    let mut bundles: Vec<PathBuf> = if root.extension().is_some_and(|e| e == "app") {
+        vec![root.to_path_buf()]
+    } else {
+        fs::read_dir(root).ok()?.flatten().map(|e| e.path()).filter(|p| p.is_dir() && p.extension().is_some_and(|e| e == "app")).collect()
+    };
+    bundles.sort();
+    for b in bundles {
+        let dir = b.join("Contents").join("MacOS");
+        let files: Vec<PathBuf> = fs::read_dir(&dir).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_file()).collect();
+        let named = files.iter().find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(exe)));
+        if let Some(p) = named.or(if files.len() == 1 { files.first() } else { None }) {
+            return Some(p.clone());
+        }
+    }
+    None
+}
+
+/// macOS: das .app-Bündel, in dem eine Programmdatei liegt (…/Name.app/Contents/MacOS/datei).
+pub fn bundle_of(exe: &Path) -> Option<PathBuf> {
+    let b = exe.parent()?.parent()?.parent()?;
+    (cfg!(target_os = "macos") && b.extension().is_some_and(|e| e == "app")).then(|| b.to_path_buf())
 }
 
 /// Fortschritt: Text und Anteil 0..1.
@@ -827,6 +866,8 @@ pub fn launcher_update_available() -> Result<Option<Version>> {
 fn launcher_asset() -> &'static str {
     if cfg!(windows) {
         "werkbank-windows-x64.zip"
+    } else if cfg!(target_os = "macos") {
+        "werkbank-macos-aarch64.zip"
     } else {
         "werkbank-linux-x86_64.tar.gz"
     }
@@ -861,7 +902,7 @@ pub fn update_launcher(v: Version, progress: Progress) -> Result<()> {
     let out = work.join("neu");
     extract(&archive, &out)?;
     let name = if cfg!(windows) { "werkbank.exe" } else { "werkbank" };
-    let new_exe = [out.join("werkbank").join(name), out.join(name)]
+    let new_exe = [out.join("werkbank").join(name), out.join(name), out.join("Werkbank.app/Contents/MacOS").join(name)]
         .into_iter()
         .find(|p| p.is_file())
         .ok_or_else(|| anyhow!("{name} fehlt im Archiv"))?;
@@ -881,6 +922,14 @@ pub fn update_launcher(v: Version, progress: Progress) -> Result<()> {
         return Err(e).context("neue Programmdatei einsetzen");
     }
     let _ = fs::remove_dir_all(&work);
+    // Unix: die laufende alte Datei darf gleich weg (unter macOS muss sie aus dem Bündel heraus,
+    // bevor es neu versiegelt wird).
+    #[cfg(unix)]
+    let _ = fs::remove_file(&old);
+    // macOS: das Bündel neu (ad hoc) versiegeln, sonst passt seine Signatur nicht mehr zur Datei.
+    if let Some(bundle) = bundle_of(&me) {
+        let _ = std::process::Command::new("/usr/bin/codesign").args(["--force", "--deep", "--sign", "-"]).arg(&bundle).status();
+    }
     Ok(())
 }
 
