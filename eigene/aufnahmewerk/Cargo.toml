@@ -1,6 +1,6 @@
 [package]
 name = "aufnahmewerk"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2021"
 description = "Bildschirm aufnehmen – Teil der Werkbank"
 
