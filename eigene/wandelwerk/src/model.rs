@@ -263,6 +263,17 @@ pub fn name_with_index(stem: &str, ext: &str, n: u32) -> String {
 
 // ---------------- ffmpeg-Argumente ----------------
 
+/// Lautstärke für Ton aus Filmen: +6 dB (doppelte Amplitude) mit Begrenzer knapp unter 0 dBFS.
+pub const FILM_LAUTER: &str = "volume=6dB,alimiter=limit=0.97:level=0";
+
+fn is_video_path(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .and_then(detect_kind)
+        == Some(MediaKind::Video)
+}
+
 /// Baut die vollständige ffmpeg-Argumentliste für Ton oder Video.
 /// (Bilder laufen über die image-Crate, nicht über ffmpeg.)
 /// `audio_track`: bei Ton als Ziel die gewünschte Tonspur (0 = erste Tonspur der Datei).
@@ -275,6 +286,11 @@ pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fi
             }
             // Nur Ton: Bild, Untertitel und Datenspuren weglassen (z. B. aus MKV-Filmen).
             push(&mut a, &["-vn", "-sn", "-dn"]);
+            // Ton aus Filmen ist leise (Kinomischung, 5.1 auf Stereo heruntergemischt): doppelt so
+            // laut (+6 dB); der Begrenzer fängt Spitzen ab, damit nichts verzerrt.
+            if is_video_path(input) {
+                push(&mut a, &["-af", FILM_LAUTER]);
+            }
             match f {
                 AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
                 AudioFmt::M4a => push(&mut a, &["-c:a", "aac", "-b:a", &kbps(q)]),
@@ -468,9 +484,13 @@ At least one output file must be specified";
     fn ton_aus_video() {
         let a = ffmpeg_args("film.mkv", "film.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Hoch, Some(1));
         let s = a.join(" ");
-        assert!(s.contains("-map 0:a:1 -vn -sn -dn -c:a libmp3lame -b:a 256k"), "{s}");
+        assert!(s.contains("-map 0:a:1 -vn -sn -dn -af volume=6dB,alimiter=limit=0.97:level=0 -c:a libmp3lame -b:a 256k"), "{s}");
         assert!(s.ends_with("film.mp3"));
         let b = ffmpeg_args("lied.wav", "lied.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Mittel, None).join(" ");
         assert!(!b.contains("-map"));
+        // Reine Tondateien bleiben so laut, wie sie sind.
+        assert!(!b.contains("volume="), "{b}");
+        let c = ffmpeg_args("Ferien.MP4", "Ferien.m4a", Target::Audio(AudioFmt::M4a), Aspect::Original, Fit::Crop, Quality::Mittel, None).join(" ");
+        assert!(c.contains("-af volume=6dB"), "{c}");
     }
 }
