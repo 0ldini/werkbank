@@ -19,7 +19,14 @@ case "$KIND" in
     BIN=vendor/ffmpeg ;;
   macos)
     # Apple Silicon: statischer Build von ffmpeg.martin-riedl.de (mit x264, vpx, opus, lame, freetype).
-    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.zip https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip
+    # Feste Version (die «latest»-Weiterleitung des Servers fällt zeitweise aus); Prüfsumme vom Server.
+    FF=https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.zip "$FF"
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.zip.sha256 "$FF.sha256"
+    want=$(grep -oE '[0-9a-f]{64}' vendor/ff.zip.sha256 | head -1)
+    have=$(shasum -a 256 vendor/ff.zip | cut -d' ' -f1)
+    [ -n "$want" ] && [ "$want" = "$have" ] || { echo "ffmpeg.zip: Prüfsumme stimmt nicht ($have / $want)"; exit 1; }
+    rm vendor/ff.zip.sha256
     unzip -q -o -j vendor/ff.zip ffmpeg -d vendor
     rm vendor/ff.zip
     chmod 755 vendor/ffmpeg
