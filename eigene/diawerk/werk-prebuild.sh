@@ -7,19 +7,19 @@ cd "$(dirname "$0")"
 mkdir -p vendor
 case "$KIND" in
   windows)
-    curl -fsSL -o vendor/ff.zip https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.zip https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
     unzip -q -o -j vendor/ff.zip '*/bin/ffmpeg.exe' '*/LICENSE.txt' -d vendor
     rm vendor/ff.zip
     BIN=vendor/ffmpeg.exe ;;
   linux)
-    curl -fsSL -o vendor/ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
     tar -xJf vendor/ff.tar.xz -C vendor --wildcards --strip-components=2 '*/bin/ffmpeg'
     tar -xJf vendor/ff.tar.xz -C vendor --wildcards --strip-components=1 '*/LICENSE.txt'
     rm vendor/ff.tar.xz
     BIN=vendor/ffmpeg ;;
   macos)
     # Apple Silicon: statischer Build von ffmpeg.martin-riedl.de (mit x264, vpx, opus, lame, freetype).
-    curl -fsSL -o vendor/ff.zip https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o vendor/ff.zip https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip
     unzip -q -o -j vendor/ff.zip ffmpeg -d vendor
     rm vendor/ff.zip
     chmod 755 vendor/ffmpeg
