@@ -1,0 +1,139 @@
+**********************
+PowerShell transcript start
+Start time: 20261023083531
+Username: runnervmdaln5\runneradmin
+RunAs User: runnervmdaln5\runneradmin
+Configuration Name: 
+Machine: runnervmdaln5 (Microsoft Windows NT 10.0.26100.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\8afec0ba-ce07-4f86-97ec-2c9e9ec77a16.ps1'
+Process ID: 4924
+PSVersion: 7.6.7
+PSEdition: Core
+GitCommitId: 7.6.7
+OS: Microsoft Windows 10.0.26100
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.4
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+===== 1. Internet-Downloads
+Entpacker: 7-Zip (eingebaut)
+
+found added duplicates notes
+----- ----- ---------- -----
+    3     3          0 {}
+
+
+stage status  pkg  name                                done     size conns extract extractMsg error
+----- ------  ---  ----                                ----     ---- ----- ------- ---------- -----
+grab  ready   Test rustup-init.exe                        0 12724224     0                    
+grab  ready   Test rust-1.0.0.zip                         0              0                    
+grab  offline Test https://gibt-es-nicht.invalid/x.zip    0              0                    Could not resolve host: gibt-es-nicht.invalid
+--- läuft (gedrosselt)
+
+stage status  pkg  name                                   done     size conns extract extractMsg error
+----- ------  ---  ----                                   ----     ---- ----- ------- ---------- -----
+queue running Test rustup-init.exe                     3908869 12724224     4                    
+queue running Test rust-1.0.0.zip                       723845              1                    
+grab  offline Test https://gibt-es-nicht.invalid/x.zip       0              0                    Could not resolve host: gibt-es-nicht.invalid
+--- pausiert
+
+stage status  pkg  name                                   done     size conns extract extractMsg error
+----- ------  ---  ----                                   ----     ---- ----- ------- ---------- -----
+queue paused  Test rustup-init.exe                     3908869 12724224     0                    
+queue paused  Test rust-1.0.0.zip                       723845              0                    
+grab  offline Test https://gibt-es-nicht.invalid/x.zip       0              0                    Could not resolve host: gibt-es-nicht.invalid
+SHA256 erwartet 00f139da614dced87d3c3d4121c43eebdac3c1bf8a5ee86b9d80dfd71c8d70fd
+SHA256 erhalten 00f139da614dced87d3c3d4121c43eebdac3c1bf8a5ee86b9d80dfd71c8d70fd
+SHA-256 aus der Linkzeile: übernommen und bestätigt
+
+stage status  pkg  name                                    done     size conns extract extractMsg error
+----- ------  ---  ----                                    ----     ---- ----- ------- ---------- -----
+queue done    Test rustup-init.exe                     12724224 12724224     0                    
+queue done    Test rust-1.0.0.zip                       9608706  9608706     0 ok                 
+grab  offline Test https://gibt-es-nicht.invalid/x.zip        0              0                    Could not resolve host: gibt-es-nicht.invalid
+Eingebautes 7-Zip: D:\a\werkbank\werkbank\eigene\ladewerk\t1\7zip\53dec26cd1e634ee\7z.exe – RAR, 7z, ZIP vorhanden
+Teil 1 bestanden
+7-Zip vorhanden: True (C:\ProgramData\Chocolatey\bin\7z.exe)
+
+Name           Length
+----           ------
+geheim.7z.001 1048576
+geheim.7z.002 1048576
+geheim.7z.003 1048576
+geheim.7z.004  413921
+===== 2. Entpacken mit Passwort, Konto, Zwischenablage
+
+found added duplicates notes
+----- ----- ---------- -----
+    4     4          0 {}
+
+
+stage status pkg    name             done    size conns extract extractMsg                                                                                       error
+----- ------ ---    ----             ----    ---- ----- ------- ----------                                                                                       -----
+queue done   geheim geheim.7z.001 1048576 1048576     0 error   Archiv ist passwortgeschützt – Passwort in den Einstellungen eintragen, dann «Entpacken» drücken 
+queue done   geheim geheim.7z.002 1048576 1048576     0                                                                                                          
+queue done   geheim geheim.7z.003 1048576 1048576     0                                                                                                          
+queue done   geheim geheim.7z.004  413921  413921     0
+Mehrteiliges 7z mit Passwort: in Ordnung
+Konto: rapidgator.net / oli@example.com -> ok=True Premium, noch 29 Tage, 50.0 GB Volumen übrig
+Konto (DPAPI) und Hoster-Ablauf: in Ordnung
+Prüfsumme falsch/nachgetragen: in Ordnung
+Passwort je Paket: in Ordnung
+Click'n'Load: bereit (Port 9666)
+
+pkg       url                             status
+---       ---                             ------
+Test      http://127.0.0.1:9911/cnl-a.zip offline
+Test      http://127.0.0.1:9911/cnl-b.zip offline
+CNL-Paket http://127.0.0.1:9911/cnl-c.zip offline
+CNL-Paket http://127.0.0.1:9911/cnl-d.rar offline
+Click'n'Load: in Ordnung
+Zwischenablage: in Ordnung
+
+stage status  pkg       name                                   done    size conns extract extractMsg error
+----- ------  ---       ----                                   ----    ---- ----- ------- ---------- -----
+queue done    geheim    geheim.7z.001                       1048576 1048576     0 ok                 
+queue done    geheim    geheim.7z.002                       1048576 1048576     0                    
+queue done    geheim    geheim.7z.003                       1048576 1048576     0                    
+queue done    geheim    geheim.7z.004                        413921  413921     0                    
+queue done    plain-rg  plain-rg.zip                        3572416 3572416     0 ok                 
+queue done    Falsch    plain.zip                           3572416 3572416     0 ok                 
+queue done    paketpw   paketpw.7z.001                      1048576 1048576     0 ok                 
+queue done    paketpw   paketpw.7z.002                      1048576 1048576     0                    
+queue done    paketpw   paketpw.7z.003                      1048576 1048576     0                    
+queue done    paketpw   paketpw.7z.004                       413921  413921     0                    
+grab  offline Test      http://127.0.0.1:9911/cnl-a.zip           0             0                    HTTP 404
+grab  offline Test      http://127.0.0.1:9911/cnl-b.zip           0             0                    HTTP 404
+grab  offline CNL-Paket http://127.0.0.1:9911/cnl-c.zip           0             0                    HTTP 404
+grab  offline CNL-Paket http://127.0.0.1:9911/cnl-d.rar           0             0                    HTTP 404
+grab  offline           http://127.0.0.1:9911/clip-test.zip       0             0                    HTTP 404
+Teil 2 bestanden
+===== 3. Entpacken ohne 7-Zip
+Entpacker: Windows-Bordmittel (für mehrteilige oder verschlüsselte RAR bitte 7-Zip installieren)
+PS>TerminatingError(Invoke-RestMethod): "
+{
+  "error": "Proxy bitte als http://host:port oder socks5://host:port angeben"
+}"
+>> TerminatingError(Invoke-RestMethod): "
+{
+  "error": "Proxy bitte als http://host:port oder socks5://host:port angeben"
+}"
+Über toten Proxy: Failed to connect to 127.0.0.1:9 over proxy 127.0.0.1 after 2004 ms: Could not connect to server
+Proxy: in Ordnung
+
+stage status pkg   name         done    size conns extract extractMsg error
+----- ------ ---   ----         ----    ---- ----- ------- ---------- -----
+queue done   plain plain.zip 3572416 3572416     0 ok
+Teil 3 bestanden
+===== 4. Fenster
+Fenstertitel: 'Ladewerk'
+Strg+V im Fenster: in Ordnung
+Hinweisfenster «läuft bereits» offen – schliesse es
+Ladewerk hat sich mit dem Fenster beendet
+ALLE TESTS BESTANDEN
+**********************
+PowerShell transcript end
+End time: 20261023083646
+**********************
