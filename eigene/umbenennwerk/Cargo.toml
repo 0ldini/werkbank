@@ -1,6 +1,6 @@
 [package]
 name = "umbenennwerk"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 description = "Umbenennwerk – Dateien stapelweise umbenennen (Teil der Werkbank-Suite)"
 authors = ["Oli"]

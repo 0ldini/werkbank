@@ -631,7 +631,7 @@ impl App {
 
     fn monitor_combo(&mut self, ui: &mut egui::Ui, salt: &str) {
         egui::ComboBox::from_id_salt(salt)
-            .width(ui.available_width() - 4.0)
+            .width((ui.available_width() - 2.0 * ui.spacing().button_padding.x - 6.0).max(40.0))
             .selected_text(
                 self.monitors
                     .get(self.cfg.monitor_index)
