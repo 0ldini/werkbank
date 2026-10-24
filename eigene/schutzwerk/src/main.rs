@@ -1,13 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod autoparse;
+mod autostart;
 mod netparse;
+mod prozparse;
 mod pwcheck;
 mod recycle;
+mod scan;
+mod scanparse;
+mod seiten;
 mod sprache;
 mod stil;
 mod sys;
 mod thema;
+mod waechter;
+mod zugriff;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
