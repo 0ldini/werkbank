@@ -287,7 +287,7 @@ impl App {
         match p.parent().filter(|d| !d.as_os_str().is_empty()) {
             Some(d) => {
                 let d = d.to_path_buf();
-                self.ordner_laden(ctx, &d, Some(&p));
+                self.ordner_laden(ctx, &d, Some(p.as_path()));
             }
             None => {
                 self.liste = Eintrag::neu(p).into_iter().collect();
@@ -495,7 +495,7 @@ impl App {
                     }
                     Engine::Fehlt(_) => Some(vlc_fehlt_text().to_string()),
                 };
-                self.meta_seit = Instant::now() - Duration::from_secs(5);
+                self.meta_seit = Instant::now().checked_sub(Duration::from_secs(5)).unwrap_or_else(Instant::now);
                 if let Some(f) = fehler {
                     self.melden(f);
                 }

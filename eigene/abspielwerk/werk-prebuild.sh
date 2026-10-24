@@ -4,6 +4,7 @@
 # Inhalt von vendor/bundle neben die Programmdatei (macOS: nach Contents/MacOS/).
 # Linux: nichts mitliefern, Abspielwerk lädt das libvlc.so.5 des Systems (Paket «vlc»).
 set -euo pipefail
+trap 'echo "::error title=werk-prebuild ($KIND)::Zeile $LINENO: $BASH_COMMAND"' ERR
 cd "$(dirname "$0")"
 VLC_VER=3.0.23
 
@@ -71,7 +72,7 @@ case "$KIND" in
       timeout 300 "$SRC/vlc-cache-gen.exe" "$(cygpath -w "$PWD/vendor/bundle/plugins" 2>/dev/null || echo "$PWD/vendor/bundle/plugins")" \
         || echo "::warning::vlc-cache-gen fehlgeschlagen; libVLC liest die Plugins beim Start ein"
     fi
-    ls vendor/bundle/plugins/plugins.dat 2>/dev/null || echo "kein plugins.dat"
+    if [ -f vendor/bundle/plugins/plugins.dat ]; then echo "::notice::plugins.dat neu geschrieben"; else echo "::warning::kein plugins.dat"; fi
     lizenz "$SRC/COPYING.txt" "$SRC/COPYING.LIB.txt" "$SRC/COPYING.LIB"
     rm -rf vendor/tmp ;;
   macos)
@@ -82,7 +83,7 @@ case "$KIND" in
     [ -n "$DMG" ] || { echo "::error::VLC für macOS nicht ladbar"; exit 1; }
     pruefen vendor/vlc.dmg "$DMG"
     MNT=$(mktemp -d)
-    yes | hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$MNT" vendor/vlc.dmg >/dev/null
+    hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$MNT" vendor/vlc.dmg >/dev/null
     APPD=$(find "$MNT" -maxdepth 2 -name 'VLC.app' | head -1)
     [ -n "$APPD" ] || { echo "::error::VLC.app fehlt im dmg"; ls -la "$MNT"; exit 1; }
     M="$APPD/Contents/MacOS"
