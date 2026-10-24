@@ -259,7 +259,7 @@ color = "#B5179E"
 repo = "https://github.com/0ldini/werkbank"
 tag = "abspielwerk-v"
 no_web = true
-types = [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav"]
+types = [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"]
 
 [[app]]
 id = "mailwerk"
