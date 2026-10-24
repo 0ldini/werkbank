@@ -1,6 +1,7 @@
 //! Eingebaute Programm-Icons (128 px, aus werk/apps/*/icons). Neu erzeugen: werk/tools/make_icons.py.
 
 pub const ICONS: &[(&str, &[u8])] = &[
+    ("abspielwerk", include_bytes!("../icons/abspielwerk.png")),
     ("aufnahmewerk", include_bytes!("../icons/aufnahmewerk.png")),
     ("cadcraft", include_bytes!("../icons/cadcraft.png")),
     ("codewerk", include_bytes!("../icons/codewerk.png")),

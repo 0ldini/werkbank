@@ -35,6 +35,7 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "deckcraft": ("Schauwerk", "#3B4BA8", '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 12l3-3 2 2 4-4"/>'),
     "ladewerk": ("Ladewerk", "#0E7490", '<path d="M12 3v11M7.5 9.5L12 14l4.5-4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>'),
     "packwerk": ("Packwerk", "#B7791F", '<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/>'),
+    "abspielwerk": ("Abspielwerk", "#B5179E", '<circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.7v6.6l5.2-3.3z" fill="#fff"/>'),
     "sicherwerk": ("Sicherwerk", "#3D5A80", '<path d="M5 9a7.5 7.5 0 1 1-1 4"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"

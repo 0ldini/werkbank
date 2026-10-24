@@ -2,7 +2,8 @@ name: Eigene-Release
 
 # Baut ein eigenes Programm aus eigene/<name> für Windows, Linux und den Browser und
 # veröffentlicht es als Release <name>-v<version> (Version aus seiner Cargo.toml).
-# Start: Reiter «Actions» → «Eigene-Release» → «Run workflow». Bei Änderungen an einem
+# Start: Reiter «Actions» → «Eigene-Release» → «Run workflow». Veröffentlicht wird nur von main;
+# auf jedem anderen Branch wird nur gebaut (Probe). Bei Änderungen an einem
 # Programm auf main läuft der Build automatisch.
 
 on:
@@ -160,7 +161,7 @@ jobs:
   release:
     name: ${{ matrix.app }} veröffentlichen
     needs: [plan, build]
-    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref != 'refs/heads/probe' }}
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -193,7 +194,7 @@ jobs:
   setup:
     name: Offline-Setup neu bauen
     needs: [plan, release]
-    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref != 'refs/heads/probe' }}
+    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
