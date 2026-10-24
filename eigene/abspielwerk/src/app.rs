@@ -658,7 +658,7 @@ impl App {
             Aktion::Weiter => self.weiter(ctx, false),
             Aktion::PlayPause => self.play_pause(ctx),
             Aktion::Spulen(d) => {
-                let ziel = (self.zeit + d).clamp(0, self.laenge.max(0));
+                let ziel = if self.laenge > 0 { (self.zeit + d).clamp(0, self.laenge) } else { (self.zeit + d).max(0) };
                 if let Some(p) = self.player() {
                     p.setze_zeit(ziel);
                 }

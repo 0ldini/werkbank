@@ -99,6 +99,17 @@ case "$KIND" in
     for pat in 'libmacosx_*' 'liblua_*' 'libgoom_*' 'libprojectm_*' 'libvisual_*' 'libglspectrum_*' 'libstream_out_*' 'libaccess_output_*' 'libmux_*' 'libchromecast_*' 'libupnp_*' 'libmicrodns_*' 'libbonjour_*'; do
       find vendor/bundle/plugins -name "$pat" -delete
     done
+    # libvlc und die Plugins verweisen auf @rpath/libvlccore.dylib, ohne eigenen Suchpfad
+    # (VLC.app setzt ihn in der Programmdatei; Abspielwerk ebenso, siehe build.rs). Zusätzlich
+    # eigene Suchpfade eintragen, damit es auch ohne den der Programmdatei klappt.
+    for f in vendor/bundle/lib/*.dylib; do
+      [ -L "$f" ] || install_name_tool -add_rpath @loader_path "$f" 2>/dev/null || true
+    done
+    find vendor/bundle/plugins -type f -name '*.dylib' | while read -r f; do
+      rel=${f#vendor/bundle/plugins/}; up="../"; d=$(dirname "$rel")
+      while [ "$d" != "." ]; do up="../$up"; d=$(dirname "$d"); done
+      install_name_tool -add_rpath "@loader_path/${up}lib" "$f" 2>/dev/null || true
+    done
     # Hinweise für die Fehlersuche (Abhängigkeiten von libvlc und einem Plugin).
     echo "::notice title=libvlc.dylib::$(otool -L vendor/bundle/lib/libvlc.dylib | tr '\n' ' ') RPATH: $(otool -l vendor/bundle/lib/libvlc.dylib | grep -A2 LC_RPATH | grep path | tr '\n' ' ')"
     P1=$(find vendor/bundle/plugins -name 'libavcodec_plugin.dylib' | head -1)
