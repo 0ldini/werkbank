@@ -1,32 +1,41 @@
-//! Oberfläche (egui): linke Navigation mit vier defensiven Bereichen
-//! (Passwort-Check, Netzwerk, System-Schutz, Papierkorb) und einer Übersicht.
-//! Netz-/System-/Papierkorb-Abfragen laufen in Hintergrund-Threads.
+//! Oberfläche (egui): linke Navigation mit den defensiven Bereichen (Passwort-Check,
+//! Netzwerk, System-Schutz, Virenscan, Ressourcen-Wächter, Autostart, Verbindungen,
+//! Kamera & Mikrofon, Fernzugriff, Papierkorb) und einer Übersicht mit Gesamtpunktzahl.
+//! Alle Abfragen laufen in Hintergrund-Threads; die Oberfläche blockiert nie.
+//! Die neuen Bereiche stehen in `seiten.rs`.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use crate::autostart::{self, Eintrag, Sicherung};
 use crate::netparse::{self, Device};
+use crate::prozparse::Sig;
+use crate::pwcheck;
+use crate::scan::{self, Clam, DefStatus, Laeufer};
+use crate::scanparse::Bedrohung;
 use crate::sprache::{t, tf};
-use crate::pwcheck::{self, PwResult};
-use crate::sys::{self, Check, PortInfo, RecItem, State};
 use crate::stil::{self, Sym};
+use crate::sys::{self, sperre, Check, PortInfo, RecItem, State};
 use crate::thema;
+use crate::waechter::{self, Messung, Wache};
+use crate::zugriff::{self, FernBefund, KamBefund, VerbProz};
 
 // Schrift-, Linien- und Statusfarben je Design (hell/dunkel), lesbar auf dem Hintergrund.
-fn grn() -> egui::Color32 {
+pub(crate) fn grn() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0x15, 0x7a, 0x3a), egui::Color32::from_rgb(0x4a, 0xde, 0x80))
 }
 /// Hintergrund für Gewähltes und Hinweise.
-fn grn_soft() -> egui::Color32 {
+pub(crate) fn grn_soft() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xe7, 0xf6, 0xee), egui::Color32::from_rgb(0x1b, 0x3a, 0x2a))
 }
-fn amber() -> egui::Color32 {
+pub(crate) fn amber() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xb4, 0x53, 0x09), egui::Color32::from_rgb(0xfb, 0xbf, 0x24))
 }
-fn orange() -> egui::Color32 {
+pub(crate) fn orange() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xc2, 0x41, 0x0c), egui::Color32::from_rgb(0xfb, 0x92, 0x3c))
 }
-fn red() -> egui::Color32 {
+pub(crate) fn red() -> egui::Color32 {
     thema::pick(egui::Color32::from_rgb(0xb9, 0x1c, 0x1c), egui::Color32::from_rgb(0xf8, 0x71, 0x71))
 }
 
@@ -37,28 +46,34 @@ const COMMON: &[&str] = &[
     "passwort1", "12341234", "1q2w3e4r", "abc123", "test123", "zaq12wsx", "superman",
 ];
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Section {
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum Section {
     Password,
     Network,
     System,
+    Virenscan,
+    Ressourcen,
+    Autostart,
+    Verbindungen,
+    Kamera,
+    Fernzugriff,
     Recycle,
     Overview,
 }
 
-struct Job<T> {
-    data: Arc<Mutex<Option<T>>>,
+pub(crate) struct Job<T> {
+    pub(crate) data: Arc<Mutex<Option<T>>>,
     running: Arc<AtomicBool>,
 }
 
 impl<T: Send + 'static> Job<T> {
-    fn idle() -> Self {
+    pub(crate) fn idle() -> Self {
         Job {
             data: Arc::new(Mutex::new(None)),
             running: Arc::new(AtomicBool::new(false)),
         }
     }
-    fn start(&self, f: impl FnOnce() -> T + Send + 'static) {
+    pub(crate) fn start(&self, f: impl FnOnce() -> T + Send + 'static) {
         if self.running.load(Ordering::SeqCst) {
             return;
         }
@@ -67,24 +82,70 @@ impl<T: Send + 'static> Job<T> {
         let r = self.running.clone();
         std::thread::spawn(move || {
             let out = f();
-            *d.lock().unwrap() = Some(out);
+            *sperre(&d) = Some(out);
             r.store(false, Ordering::SeqCst);
         });
     }
-    fn running(&self) -> bool {
+    pub(crate) fn running(&self) -> bool {
         self.running.load(Ordering::SeqCst)
+    }
+    /// Ergebnis herausnehmen (danach wieder leer).
+    pub(crate) fn take(&self) -> Option<T> {
+        if self.running() {
+            return None;
+        }
+        sperre(&self.data).take()
+    }
+    pub(crate) fn fertig(&self) -> bool {
+        sperre(&self.data).is_some()
     }
 }
 
+/// Rückfrage vor einem Eingriff.
+pub(crate) enum Frage {
+    Deaktivieren(Eintrag),
+    Wiederherstellen(Sicherung),
+}
+
 pub struct App {
-    section: Section,
+    pub(crate) section: Section,
     pw: String,
     show_pw: bool,
     ports: Job<Vec<PortInfo>>,
     lan: Job<Vec<Device>>,
-    checks: Job<Vec<Check>>,
+    pub(crate) checks: Job<Vec<Check>>,
     recycle: Job<Vec<RecItem>>,
     restore_msg: String,
+    /// Bereiche, die schon einmal offen waren (beim ersten Öffnen wird geprüft).
+    besucht: HashSet<Section>,
+    // Virenscan
+    pub(crate) defender: Job<DefStatus>,
+    pub(crate) bedrohungen: Job<Vec<Bedrohung>>,
+    pub(crate) clam: Job<Option<Clam>>,
+    pub(crate) scan: Laeufer,
+    pub(crate) scan_pfad: String,
+    // Ressourcen-Wächter
+    pub(crate) messung: Job<Messung>,
+    pub(crate) wache: Wache,
+    pub(crate) wache_an: bool,
+    pub(crate) schwelle: f32,
+    pub(crate) dauer_min: f32,
+    pub(crate) nur_auffaellig: bool,
+    pub(crate) alarm_weg: HashSet<u32>,
+    pub(crate) sig_job: Job<Vec<(String, Sig)>>,
+    /// Geprüfte Signaturen (Pfad klein geschrieben).
+    pub(crate) sigs: HashMap<String, Sig>,
+    // Autostart
+    pub(crate) autostart: Job<autostart::Ergebnis>,
+    pub(crate) auto_system: bool,
+    pub(crate) sicherungen: Vec<Sicherung>,
+    pub(crate) aktion: Job<Result<&'static str, String>>,
+    pub(crate) aktion_msg: Option<Result<&'static str, String>>,
+    pub(crate) frage: Option<Frage>,
+    // Verbindungen, Kamera & Mikrofon, Fernzugriff
+    pub(crate) verb: Job<Vec<VerbProz>>,
+    pub(crate) kamera: Job<KamBefund>,
+    pub(crate) fern: Job<FernBefund>,
 }
 
 impl App {
@@ -106,23 +167,149 @@ impl App {
             checks: Job::idle(),
             recycle: Job::idle(),
             restore_msg: String::new(),
+            besucht: HashSet::new(),
+            defender: Job::idle(),
+            bedrohungen: Job::idle(),
+            clam: Job::idle(),
+            scan: Laeufer::new(),
+            scan_pfad: scan::standard_pfad(),
+            messung: Job::idle(),
+            wache: Wache::new(),
+            wache_an: false,
+            schwelle: 80.0,
+            dauer_min: 2.0,
+            nur_auffaellig: true,
+            alarm_weg: HashSet::new(),
+            sig_job: Job::idle(),
+            sigs: HashMap::new(),
+            autostart: Job::idle(),
+            auto_system: false,
+            sicherungen: autostart::sicherungen(),
+            aktion: Job::idle(),
+            aktion_msg: None,
+            frage: None,
+            verb: Job::idle(),
+            kamera: Job::idle(),
+            fern: Job::idle(),
         }
     }
 
+    /// Gesamtpunktzahl aus System-Schutz und den Befunden der übrigen Bereiche.
     fn score(&self) -> Option<u32> {
-        let g = self.checks.data.lock().unwrap();
-        g.as_ref().map(|c| sys::score(c))
+        let mut v: Vec<Check> = sperre(&self.checks.data).as_ref().cloned().unwrap_or_default();
+        for b in self.befunde() {
+            v.push(Check { name: b.titel, state: b.state, detail: b.detail });
+        }
+        if v.is_empty() {
+            None
+        } else {
+            Some(sys::score(&v))
+        }
+    }
+
+    /// Startet die Prüfung eines Bereichs (nur Lesen).
+    pub(crate) fn pruefen(&mut self, s: Section) {
+        match s {
+            Section::System => self.checks.start(sys::protection_status),
+            Section::Virenscan => {
+                if cfg!(windows) {
+                    self.defender.start(scan::defender_status);
+                    self.bedrohungen.start(scan::defender_bedrohungen);
+                } else {
+                    self.clam.start(scan::clam_finden);
+                }
+            }
+            Section::Ressourcen => self.messung.start(|| waechter::messen(3)),
+            Section::Autostart => {
+                self.sicherungen = autostart::sicherungen();
+                self.autostart.start(autostart::pruefen);
+            }
+            Section::Verbindungen => self.verb.start(zugriff::verbindungen),
+            Section::Kamera => self.kamera.start(zugriff::kamera_mikro),
+            Section::Fernzugriff => self.fern.start(zugriff::fernzugriff),
+            Section::Network => {
+                self.ports.start(sys::open_ports);
+                self.lan.start(sys::lan_devices);
+            }
+            Section::Recycle | Section::Password | Section::Overview => {}
+        }
+    }
+
+    fn alles_pruefen(&mut self) {
+        for s in [Section::System, Section::Virenscan, Section::Ressourcen, Section::Autostart, Section::Verbindungen, Section::Kamera, Section::Fernzugriff] {
+            self.pruefen(s);
+            self.besucht.insert(s);
+        }
+    }
+
+    fn busy(&self, s: Section) -> bool {
+        match s {
+            Section::Network => self.ports.running() || self.lan.running(),
+            Section::System => self.checks.running(),
+            Section::Virenscan => self.defender.running() || self.bedrohungen.running() || self.clam.running(),
+            Section::Ressourcen => self.messung.running() || self.sig_job.running(),
+            Section::Autostart => self.autostart.running() || self.aktion.running(),
+            Section::Verbindungen => self.verb.running(),
+            Section::Kamera => self.kamera.running(),
+            Section::Fernzugriff => self.fern.running(),
+            Section::Recycle => self.recycle.running(),
+            Section::Password => false,
+            Section::Overview => [Section::System, Section::Virenscan, Section::Ressourcen, Section::Autostart, Section::Verbindungen, Section::Kamera, Section::Fernzugriff]
+                .iter()
+                .any(|s| self.busy(*s)),
+        }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.ports.running() || self.lan.running() || self.checks.running() || self.recycle.running() {
-            ctx.request_repaint();
+        let alle = [
+            Section::Network,
+            Section::System,
+            Section::Virenscan,
+            Section::Ressourcen,
+            Section::Autostart,
+            Section::Verbindungen,
+            Section::Kamera,
+            Section::Fernzugriff,
+            Section::Recycle,
+        ];
+        if alle.iter().any(|s| self.busy(*s)) || self.aktion.running() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(150));
+        }
+        if self.scan.laeuft() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(400));
+        }
+        // Beim ersten Öffnen eines neuen Bereichs gleich prüfen (nur Lesen).
+        if matches!(self.section, Section::Virenscan | Section::Ressourcen | Section::Autostart | Section::Verbindungen | Section::Kamera | Section::Fernzugriff)
+            && self.besucht.insert(self.section)
+        {
+            self.pruefen(self.section);
+        }
+        // Fertige Signaturprüfungen übernehmen.
+        if let Some(v) = self.sig_job.take() {
+            for (p, s) in v {
+                self.sigs.insert(p.to_lowercase(), s);
+            }
+        }
+        // Ergebnis eines Eingriffs (Autostart): Meldung zeigen und neu prüfen.
+        if let Some(r) = self.aktion.take() {
+            self.aktion_msg = Some(r);
+            self.sicherungen = autostart::sicherungen();
+            self.autostart.start(autostart::pruefen);
+        }
+        // Hintergrund-Wache an/aus und Grenzen übernehmen.
+        *sperre(&self.wache.grenzen) = (self.schwelle, (self.dauer_min * 60.0).round().max(30.0) as u64);
+        if self.wache_an && !self.wache.laeuft() {
+            self.wache.starten(ctx.clone());
+        } else if !self.wache_an && self.wache.laeuft() {
+            self.wache.stoppen();
         }
         self.top_bar(ctx);
+        self.alarm_leiste(ctx);
         self.footer(ctx);
         self.nav(ctx);
+        self.frage_fenster(ctx);
         stil::mitte(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 ui.add_space(6.0);
@@ -130,6 +317,12 @@ impl eframe::App for App {
                     Section::Password => self.page_password(ui),
                     Section::Network => self.page_network(ui),
                     Section::System => self.page_system(ui),
+                    Section::Virenscan => self.page_scan(ui),
+                    Section::Ressourcen => self.page_waechter(ui),
+                    Section::Autostart => self.page_autostart(ui),
+                    Section::Verbindungen => self.page_verbindungen(ui),
+                    Section::Kamera => self.page_kamera(ui),
+                    Section::Fernzugriff => self.page_fern(ui),
                     Section::Recycle => self.page_recycle(ui),
                     Section::Overview => self.page_overview(ui),
                 }
@@ -160,17 +353,20 @@ impl App {
 
     /// Fussleiste: links der Stand, rechts der Hauptknopf des gewählten Bereichs.
     fn footer(&mut self, ctx: &egui::Context) {
-        let busy = match self.section {
-            Section::Network => self.ports.running() || self.lan.running(),
-            Section::System | Section::Overview => self.checks.running(),
-            Section::Recycle => self.recycle.running(),
-            Section::Password => false,
-        };
+        let busy = self.busy(self.section);
+        let scan_text = self.scan_status_text();
         stil::fussleiste(ctx, |ui| {
             ui.horizontal(|ui| {
-                if busy {
+                if self.section == Section::Virenscan && scan_text.is_some() {
                     ui.spinner();
-                    stil::grau(ui, if self.section == Section::Recycle { t("wird gelesen …") } else { t("wird geprüft …") });
+                    stil::grau(ui, scan_text.as_deref().unwrap_or(""));
+                } else if busy {
+                    ui.spinner();
+                    stil::grau(ui, match self.section {
+                        Section::Recycle => t("wird gelesen …"),
+                        Section::Ressourcen => t("wird gemessen …"),
+                        _ => t("wird geprüft …"),
+                    });
                 } else if self.section == Section::Recycle && !self.restore_msg.is_empty() {
                     ui.colored_label(grn(), self.restore_msg.as_str());
                 } else {
@@ -179,13 +375,29 @@ impl App {
                 stil::rechts(ui, |ui| match self.section {
                     Section::Network => {
                         if stil::haupt(ui, !busy, Sym::Suche, t("Scannen")).clicked() {
-                            self.ports.start(sys::open_ports);
-                            self.lan.start(sys::lan_devices);
+                            self.pruefen(Section::Network);
                         }
                     }
-                    Section::System | Section::Overview => {
+                    Section::System => {
                         if stil::haupt(ui, !busy, Sym::Schild, t("Prüfen")).clicked() {
                             self.checks.start(sys::protection_status);
+                        }
+                    }
+                    Section::Overview => {
+                        if stil::haupt(ui, !busy, Sym::Schild, t("Alles prüfen")).clicked() {
+                            self.alles_pruefen();
+                        }
+                    }
+                    Section::Virenscan => self.scan_hauptknopf(ui),
+                    Section::Ressourcen => {
+                        if stil::haupt(ui, !self.messung.running(), Sym::Diagramm, t("Messen")).clicked() {
+                            self.pruefen(Section::Ressourcen);
+                        }
+                    }
+                    Section::Autostart | Section::Verbindungen | Section::Kamera | Section::Fernzugriff => {
+                        if stil::haupt(ui, !busy, Sym::Aktualisieren, t("Prüfen")).clicked() {
+                            self.aktion_msg = None;
+                            self.pruefen(self.section);
                         }
                     }
                     Section::Recycle => {
@@ -201,20 +413,39 @@ impl App {
     }
 
     fn nav(&mut self, ctx: &egui::Context) {
+        let punkte: HashMap<Section, State> = self.befunde().into_iter().fold(HashMap::new(), |mut m, b| {
+            let e = m.entry(b.bereich).or_insert(State::Ok);
+            if rang(b.state) > rang(*e) {
+                *e = b.state;
+            }
+            m
+        });
         egui::SidePanel::left("nav")
             .resizable(false)
             .exact_width(236.0)
             .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(10.0)).stroke(egui::Stroke::new(1.0, thema::border())))
             .show(ctx, |ui| {
-                ui.add_space(4.0);
-                nav_item(ui, &mut self.section, Section::Password, Sym::Schluessel, t("Passwort-Check"), None);
-                nav_item(ui, &mut self.section, Section::Network, Sym::Link, t("Netzwerk"), None);
-                nav_item(ui, &mut self.section, Section::System, Sym::Schild, t("System-Schutz"), None);
-                nav_item(ui, &mut self.section, Section::Recycle, Sym::Papierkorb, t("Papierkorb"), None);
-                ui.add_space(6.0);
-                ui.separator();
-                ui.add_space(6.0);
-                nav_item(ui, &mut self.section, Section::Overview, Sym::Diagramm, t("Übersicht"), None);
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    ui.add_space(4.0);
+                    let p = |s: Section| punkte.get(&s).copied();
+                    nav_item(ui, &mut self.section, Section::Overview, Sym::Raster, t("Übersicht"), None);
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(4.0);
+                    nav_item(ui, &mut self.section, Section::System, Sym::Schild, t("System-Schutz"), None);
+                    nav_item(ui, &mut self.section, Section::Virenscan, Sym::Suche, t("Virenscan"), p(Section::Virenscan));
+                    nav_item(ui, &mut self.section, Section::Ressourcen, Sym::Diagramm, t("Ressourcen-Wächter"), p(Section::Ressourcen));
+                    nav_item(ui, &mut self.section, Section::Autostart, Sym::Play, t("Autostart"), p(Section::Autostart));
+                    nav_item(ui, &mut self.section, Section::Verbindungen, Sym::Extern, t("Verbindungen"), p(Section::Verbindungen));
+                    nav_item(ui, &mut self.section, Section::Kamera, Sym::Kamera, t("Kamera & Mikrofon"), p(Section::Kamera));
+                    nav_item(ui, &mut self.section, Section::Fernzugriff, Sym::Auge, t("Fernzugriff"), p(Section::Fernzugriff));
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(4.0);
+                    nav_item(ui, &mut self.section, Section::Network, Sym::Link, t("Netzwerk"), None);
+                    nav_item(ui, &mut self.section, Section::Password, Sym::Schluessel, t("Passwort-Check"), None);
+                    nav_item(ui, &mut self.section, Section::Recycle, Sym::Papierkorb, t("Papierkorb"), None);
+                });
             });
     }
 
@@ -285,7 +516,7 @@ impl App {
         card(ui, |ui| {
             ui.label(egui::RichText::new(t("OFFENE PORTS (DIESER PC)")).size(11.0).strong().color(thema::muted()));
             ui.add_space(8.0);
-            let g = self.ports.data.lock().unwrap();
+            let g = self.ports.data.lock().unwrap_or_else(|e| e.into_inner());
             match g.as_ref() {
                 None => { ui.weak(t("Noch nicht geprüft.")); }
                 Some(list) if list.is_empty() => { ui.weak(t("Keine offenen Ports gefunden.")); }
@@ -316,7 +547,7 @@ impl App {
         card(ui, |ui| {
             ui.label(egui::RichText::new(t("GERÄTE IM NETZ")).size(11.0).strong().color(thema::muted()));
             ui.add_space(8.0);
-            let g = self.lan.data.lock().unwrap();
+            let g = self.lan.data.lock().unwrap_or_else(|e| e.into_inner());
             match g.as_ref() {
                 None => { ui.weak(t("Noch nicht geprüft.")); }
                 Some(list) if list.is_empty() => { ui.weak(t("Keine Geräte gefunden.")); }
@@ -335,7 +566,7 @@ impl App {
     // ---------- System-Schutz ----------
     fn page_system(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("System-Schutz"), t("Status von Firewall, Virenschutz, Updates und SmartScreen."));
-        let g = self.checks.data.lock().unwrap();
+        let g = self.checks.data.lock().unwrap_or_else(|e| e.into_inner());
         match g.as_ref() {
             None => { stil::leer(ui, Sym::Schild, t("System-Schutz"), t("Noch nicht geprüft – auf 'Prüfen' klicken.")); }
             Some(checks) => {
@@ -363,7 +594,7 @@ impl App {
 
         let mut do_restore: Option<usize> = None;
         {
-            let g = self.recycle.data.lock().unwrap();
+            let g = self.recycle.data.lock().unwrap_or_else(|e| e.into_inner());
             match g.as_ref() {
                 None => { ui.weak(t("Noch nicht gelesen.")); }
                 Some(list) if list.is_empty() => { ui.weak(t("Der Papierkorb ist leer.")); }
@@ -395,7 +626,7 @@ impl App {
         }
         if let Some(i) = do_restore {
             let item = {
-                let g = self.recycle.data.lock().unwrap();
+                let g = self.recycle.data.lock().unwrap_or_else(|e| e.into_inner());
                 g.as_ref().and_then(|l| l.get(i).cloned())
             };
             if let Some(item) = item {
@@ -413,22 +644,29 @@ impl App {
     // ---------- Übersicht ----------
     fn page_overview(&mut self, ui: &mut egui::Ui) {
         h1(ui, t("Übersicht"), t("Kurzer Gesamtstatus. Für Details die Bereiche links öffnen."));
-        card(ui, |ui| {
-            match self.score() {
-                Some(s) => {
-                    let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(format!("{s}")).size(40.0).strong().color(col));
-                        ui.label(egui::RichText::new(t("/ 100 Schutzpunkte")).size(15.0).weak());
-                    });
-                }
-                None => { ui.weak(t("Noch keine Prüfung. Öffne 'System-Schutz' und klicke auf 'Prüfen'.")); }
+        let score = self.score();
+        card(ui, |ui| match score {
+            Some(s) => {
+                let col = if s >= 75 { grn() } else if s >= 50 { amber() } else { red() };
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(format!("{s}")).size(40.0).strong().color(col));
+                    ui.label(egui::RichText::new(t("/ 100 Schutzpunkte")).size(15.0).weak());
+                });
+                ui.weak(t("Grobe Orientierung aus allen geprüften Bereichen. «Achtung» heisst: kurz ansehen – nicht gleich Alarm."));
+            }
+            None => {
+                ui.weak(t("Noch keine Prüfung. Unten auf «Alles prüfen» klicken."));
             }
         });
-        card(ui, |ui| {
-            let g = self.checks.data.lock().unwrap();
-            if let Some(checks) = g.as_ref() {
-                for c in checks {
+
+        // System-Schutz
+        let checks = sperre(&self.checks.data).as_ref().cloned();
+        if let Some(checks) = checks {
+            card(ui, |ui| {
+                ui.label(egui::RichText::new(t("SYSTEM-SCHUTZ")).size(11.0).strong().color(thema::muted()));
+                ui.add_space(6.0);
+                let mut schlecht = false;
+                for c in &checks {
                     ui.horizontal(|ui| {
                         state_dot(ui, c.state);
                         ui.label(c.name.as_str());
@@ -436,17 +674,80 @@ impl App {
                             ui.label(egui::RichText::new(state_label(c.state)).color(state_color(c.state)));
                         });
                     });
+                    schlecht |= matches!(c.state, State::Warn | State::Bad);
                 }
-            } else {
-                ui.weak(t("System-Schutz noch nicht geprüft."));
-            }
-        });
+                if schlecht {
+                    ui.add_space(6.0);
+                    erklaerung(
+                        ui,
+                        t("Ein Grundschutz von Windows ist aus oder eingeschränkt (Firewall, Virenschutz, Updates oder SmartScreen)."),
+                        t("Öffne die Windows-Sicherheit und schalte den Schutz wieder ein. Läuft ein anderes Virenschutzprogramm, ist ein ausgeschalteter Defender normal."),
+                    );
+                    if cfg!(windows) && stil::knopf(ui, Sym::Extern, t("Windows-Sicherheit öffnen")).clicked() {
+                        sys::oeffnen("windowsdefender:");
+                    }
+                }
+            });
+        }
+
+        let befunde = self.befunde();
+        if befunde.is_empty() && score.is_none() {
+            stil::leer(ui, Sym::Schild, t("Noch nichts geprüft"), t("«Alles prüfen» liest den Zustand dieses Rechners – es wird nichts verändert."));
+        }
+        let mut gehe: Option<Section> = None;
+        for b in &befunde {
+            card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    state_dot(ui, b.state);
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(b.titel.as_str()).strong().size(14.0));
+                        ui.weak(b.detail.as_str());
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if stil::leise(ui, true, Sym::Pfeil, t("Öffnen"), "").clicked() {
+                            gehe = Some(b.bereich);
+                        }
+                        ui.label(egui::RichText::new(state_label(b.state)).color(state_color(b.state)).strong());
+                    });
+                });
+                if b.state != State::Ok {
+                    ui.add_space(6.0);
+                    erklaerung(ui, b.was, b.tun);
+                }
+            });
+        }
+        if let Some(s) = gehe {
+            self.section = s;
+        }
+        note(ui, t("Schutzwerk nutzt für die Virenerkennung Microsoft Defender bzw. ClamAV und ergänzt eigene Überwachung. Es ersetzt keine vollständige Sicherheits-Suite."));
     }
+}
+
+/// Schwere eines Zustands (für Punkte in der Navigation).
+pub(crate) fn rang(s: State) -> u8 {
+    match s {
+        State::Ok => 0,
+        State::Unknown => 1,
+        State::Warn => 2,
+        State::Bad => 3,
+    }
+}
+
+/// «Was heisst das? / Was kann ich tun?»
+pub(crate) fn erklaerung(ui: &mut egui::Ui, was: &str, tun: &str) {
+    egui::Frame::none().fill(stil::toenung()).rounding(10.0).inner_margin(egui::Margin::symmetric(12.0, 9.0)).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(egui::RichText::new(t("Was heisst das?")).strong().size(12.5));
+        ui.label(egui::RichText::new(was).size(12.5));
+        ui.add_space(4.0);
+        ui.label(egui::RichText::new(t("Was kann ich tun?")).strong().size(12.5));
+        ui.label(egui::RichText::new(tun).size(12.5));
+    });
 }
 
 // ---------- Bausteine ----------
 
-fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
+pub(crate) fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
     egui::Frame::none()
         .fill(thema::panel())
         .rounding(14.0)
@@ -458,14 +759,14 @@ fn card<R>(ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui) -> R) {
     ui.add_space(14.0);
 }
 
-fn h1(ui: &mut egui::Ui, title: &str, sub: &str) {
+pub(crate) fn h1(ui: &mut egui::Ui, title: &str, sub: &str) {
     ui.label(egui::RichText::new(title).size(19.0).strong());
     ui.add_space(2.0);
     ui.label(egui::RichText::new(sub).size(13.0).color(thema::muted()));
     ui.add_space(16.0);
 }
 
-fn note(ui: &mut egui::Ui, text: &str) {
+pub(crate) fn note(ui: &mut egui::Ui, text: &str) {
     egui::Frame::none()
         .fill(stil::toenung())
         .rounding(10.0)
@@ -475,7 +776,7 @@ fn note(ui: &mut egui::Ui, text: &str) {
         });
 }
 
-fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, sym: Sym, label: &str, _dot: Option<State>) {
+fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, sym: Sym, label: &str, dot: Option<State>) {
     let sel = *cur == val;
     let fill = if sel { stil::toenung() } else { egui::Color32::TRANSPARENT };
     let resp = egui::Frame::none()
@@ -488,7 +789,13 @@ fn nav_item(ui: &mut egui::Ui, cur: &mut Section, val: Section, sym: Sym, label:
                 stil::symbol(ui, sym, 17.0, if sel { stil::akzent() } else { thema::muted() });
                 ui.add_space(4.0);
                 ui.label(egui::RichText::new(label).size(13.5).color(thema::text()).strong());
-                ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(d) = dot.filter(|d| *d != State::Ok) {
+                        let (c, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
+                        ui.painter().circle_filled(c.center(), 4.5, state_color(d));
+                    }
+                    ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
+                });
             });
         })
         .response
@@ -557,12 +864,12 @@ fn stat_colored(ui: &mut egui::Ui, value: &str, key: &str, col: egui::Color32) {
     });
 }
 
-fn state_dot(ui: &mut egui::Ui, s: State) {
+pub(crate) fn state_dot(ui: &mut egui::Ui, s: State) {
     let (c, _) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
     ui.painter().circle_filled(c.center(), 6.0, state_color(s));
     ui.add_space(4.0);
 }
-fn state_color(s: State) -> egui::Color32 {
+pub(crate) fn state_color(s: State) -> egui::Color32 {
     match s {
         State::Ok => grn(),
         State::Warn => amber(),
@@ -570,7 +877,7 @@ fn state_color(s: State) -> egui::Color32 {
         State::Unknown => thema::muted(),
     }
 }
-fn state_label(s: State) -> &'static str {
+pub(crate) fn state_label(s: State) -> &'static str {
     match s {
         State::Ok => t("In Ordnung"),
         State::Warn => t("Achtung"),
@@ -607,10 +914,10 @@ fn crack_text(s: &str) -> String {
 }
 
 
-fn file_name(path: &str) -> String {
+pub(crate) fn file_name(path: &str) -> String {
     path.rsplit(['\\', '/']).next().unwrap_or(path).to_string()
 }
-fn short_path(path: &str) -> String {
+pub(crate) fn short_path(path: &str) -> String {
     let parts: Vec<&str> = path.split(['\\', '/']).filter(|s| !s.is_empty()).collect();
     if parts.len() <= 2 {
         path.to_string()
@@ -618,7 +925,7 @@ fn short_path(path: &str) -> String {
         format!("…\\{}\\{}", parts[parts.len() - 2], parts[parts.len() - 1])
     }
 }
-fn human_size(b: u64) -> String {
+pub(crate) fn human_size(b: u64) -> String {
     if b < 1024 {
         return format!("{b} B");
     }

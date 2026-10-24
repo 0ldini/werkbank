@@ -1,17 +1,21 @@
-//! Systemschicht (defensiv, Windows): fragt lauschende Ports, Geräte im Netz
-//! und den Schutzstatus ab und listet/​stellt Papierkorb-Dateien wieder her.
-//! Ausschliesslich Lesen bzw. Status prüfen – keine Angriffs- oder
-//! Auslese-Funktionen.
+//! Systemschicht (defensiv): fragt lauschende Ports, Geräte im Netz und den
+//! Schutzstatus ab und listet/​stellt Papierkorb-Dateien wieder her. Dazu gemeinsame
+//! Helfer der übrigen Bereiche (Befehle ohne Konsolenfenster, PowerShell, Einstellungsordner,
+//! Signaturen, Dateien zeigen). Ausschliesslich Lesen bzw. Status prüfen – keine Angriffs-
+//! oder Auslese-Funktionen.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Mutex, MutexGuard};
 
 use crate::netparse::{self, Device, Listen};
+use crate::prozparse::{self, Sig, SigStatus};
 use crate::recycle::{self, Recycled};
 use crate::sprache::{t, tf};
 
-fn cmd(program: &str) -> Command {
+/// Befehl ohne Konsolenfenster (Windows: CREATE_NO_WINDOW).
+pub fn cmd(program: impl AsRef<std::ffi::OsStr>) -> Command {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -25,9 +29,169 @@ fn cmd(program: &str) -> Command {
     }
 }
 
-fn run(program: &str, args: &[&str]) -> Option<String> {
+pub fn run(program: &str, args: &[&str]) -> Option<String> {
     let out = cmd(program).args(args).output().ok()?;
     Some(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// Sperre, die auch nach einem abgestürzten Hintergrund-Thread weiter funktioniert.
+pub fn sperre<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Base64 (für `powershell -EncodedCommand`).
+fn base64(bytes: &[u8]) -> String {
+    const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for ch in bytes.chunks(3) {
+        let b = [ch[0], *ch.get(1).unwrap_or(&0), *ch.get(2).unwrap_or(&0)];
+        let n = (b[0] as u32) << 16 | (b[1] as u32) << 8 | b[2] as u32;
+        for i in 0..4 {
+            if i <= ch.len() {
+                s.push(A[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                s.push('=');
+            }
+        }
+    }
+    s
+}
+
+/// Führt ein PowerShell-Skript aus (UTF-8-Ausgabe, ohne Profil, ohne Fenster).
+/// Das Skript wird kodiert übergeben – keine Probleme mit Anführungszeichen.
+pub fn ps(script: &str) -> Option<String> {
+    let full = format!("$ProgressPreference='SilentlyContinue';[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;{script}");
+    let utf16: Vec<u8> = full.encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
+    let enc = base64(&utf16);
+    run("powershell", &["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", &enc])
+}
+
+/// Text als PowerShell-Zeichenkette in einfachen Anführungszeichen.
+pub fn ps_str(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "''").replace('\u{2018}', "\u{2018}\u{2018}").replace('\u{2019}', "\u{2019}\u{2019}"))
+}
+
+/// Einstellungsordner von Schutzwerk (Grundlage, Sicherungen).
+pub fn config_dir() -> Option<PathBuf> {
+    let f = crate::sprache::werkbank_file()?;
+    Some(f.parent()?.join("schutzwerk"))
+}
+
+/// Öffnet eine Adresse (https://…, ms-settings:…, windowsdefender:…) mit dem System.
+pub fn oeffnen(ziel: &str) {
+    #[cfg(windows)]
+    let _ = cmd("explorer").arg(ziel).spawn();
+    #[cfg(target_os = "macos")]
+    let _ = cmd("open").arg(ziel).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let _ = cmd("xdg-open").arg(ziel).spawn();
+}
+
+/// Startet ein Programm ohne zu warten (z. B. Systemeinstellungen).
+pub fn starten(programm: &str) {
+    let _ = Command::new(programm).spawn();
+}
+
+/// Zeigt eine Datei im Explorer/Finder bzw. öffnet ihren Ordner.
+pub fn im_ordner_zeigen(pfad: &str) {
+    if pfad.is_empty() {
+        return;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let p = pfad.replace('"', "");
+        let _ = Command::new("explorer").raw_arg(format!("/select,\"{p}\"")).spawn();
+    }
+    #[cfg(target_os = "macos")]
+    let _ = cmd("open").arg("-R").arg(pfad).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let dir = Path::new(pfad).parent().map(|d| d.to_path_buf()).unwrap_or_else(|| PathBuf::from(pfad));
+        let _ = cmd("xdg-open").arg(dir).spawn();
+    }
+}
+
+/// Sekunden seit 1970.
+pub fn jetzt_s() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// FILETIME (100 ns seit 1601) -> Sekunden seit 1970 (0, wenn davor).
+pub fn filetime_zu_unix(ft: u64) -> u64 {
+    (ft / 10_000_000).saturating_sub(11_644_473_600)
+}
+
+/// FILETIME als lokales Datum «TT.MM.JJJJ hh:mm».
+pub fn filetime_text(ft: u64) -> String {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::FILETIME;
+        use windows_sys::Win32::Storage::FileSystem::FileTimeToLocalFileTime;
+        let utc = FILETIME { dwLowDateTime: ft as u32, dwHighDateTime: (ft >> 32) as u32 };
+        let mut lokal = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        // SAFETY: beide Zeiger zeigen auf gültige, lokale FILETIME-Werte.
+        let ok = unsafe { FileTimeToLocalFileTime(&utc, &mut lokal) };
+        if ok != 0 {
+            return recycle::fmt_date((lokal.dwHighDateTime as u64) << 32 | lokal.dwLowDateTime as u64);
+        }
+    }
+    format!("{} UTC", recycle::fmt_date(ft))
+}
+
+/// Prüft die Signatur von Programmdateien (Windows: Authenticode, macOS: codesign).
+/// Nur für gewählte bzw. auffällige Dateien aufrufen – nicht für alle auf einmal.
+pub fn signaturen(pfade: Vec<String>) -> Vec<(String, Sig)> {
+    let mut pfade: Vec<String> = pfade.into_iter().filter(|p| !p.is_empty()).collect();
+    pfade.sort();
+    pfade.dedup();
+    let mut v = Vec::new();
+    if cfg!(windows) {
+        for teil in pfade.chunks(25) {
+            let liste: Vec<String> = teil.iter().map(|p| ps_str(p)).collect();
+            let script = format!(
+                "$ErrorActionPreference='SilentlyContinue';foreach($p in @({})){{$s=Get-AuthenticodeSignature -LiteralPath $p;$sub='';if($s.SignerCertificate){{$sub=$s.SignerCertificate.Subject}};\"$p`t$($s.Status)`t$sub\"}}",
+                liste.join(",")
+            );
+            let out = ps(&script).unwrap_or_default();
+            v.extend(prozparse::parse_authenticode(&out));
+        }
+        // Was PowerShell nicht meldete, bleibt unbekannt.
+        for p in &pfade {
+            if !v.iter().any(|(q, _)| q.eq_ignore_ascii_case(p)) {
+                v.push((p.clone(), Sig { status: SigStatus::Unbekannt, von: String::new() }));
+            }
+        }
+    } else if cfg!(target_os = "macos") {
+        for p in pfade {
+            let sig = match cmd("codesign").args(["-dv", "--verbose=2"]).arg(&p).output() {
+                Ok(o) => prozparse::parse_codesign(&String::from_utf8_lossy(&o.stderr), o.status.success()),
+                Err(_) => Sig { status: SigStatus::Unbekannt, von: String::new() },
+            };
+            v.push((p, sig));
+        }
+    } else {
+        for p in pfade {
+            v.push((p, Sig { status: SigStatus::Unbekannt, von: String::new() }));
+        }
+    }
+    v
+}
+
+/// Signaturprüfung gibt es nur unter Windows und macOS.
+pub fn signatur_moeglich() -> bool {
+    cfg!(windows) || cfg!(target_os = "macos")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn b64() {
+        assert_eq!(super::base64(b"Man"), "TWFu");
+        assert_eq!(super::base64(b"Ma"), "TWE=");
+        assert_eq!(super::base64(b"M"), "TQ==");
+        assert_eq!(super::ps_str("O'Neil"), "'O''Neil'");
+    }
 }
 
 // ---------------- Offene Ports ----------------
@@ -89,6 +253,7 @@ pub enum State {
     Unknown,
 }
 
+#[derive(Clone)]
 pub struct Check {
     pub name: String,
     pub state: State,
