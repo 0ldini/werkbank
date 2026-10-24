@@ -99,6 +99,28 @@ Windows, Linux, macOS und den Browser und veröffentlicht sie wie die anderen (s
 Dazu gehören Codewerk, Diawerk, Umbenennwerk, Speicherwerk, Aufnahmewerk, Wandelwerk, Schutzwerk, Mediathekwerk und Diawerk (Übersicht: `eigene/WERKE-UEBERSICHT.md`). HTML5-Apps kommen mit `web_only = true` in `launcher/apps.toml`
 und als `<id>-web-<version>.zip` (ein Ordner mit `index.html`) in ein Release `<id>-v<version>`.
 
+## Fremdprogramme
+
+Bekannte Programme anderer Hersteller (als erstes der Browser Brave) stehen in `launcher/apps.toml`
+in einer eigenen Liste `[[fremd]]`; ältere Launcher übergehen sie. Die Werkbank zeigt sie wie die
+eigenen Programme (Rubrik «Internet», «Alle Programme», Schnellzugriff), markiert als «Fremdprogramm».
+Sie installiert und startet sie, baut und aktualisiert sie aber nicht – sie aktualisieren sich selbst.
+
+- **Windows:** lädt das offizielle Installationsprogramm (`windows = …`) in `downloads` im Datenordner,
+  führt es aus (mit eigener Oberfläche bzw. UAC-Abfrage) und löscht es danach wieder.
+- **macOS:** lädt das Disk-Image (`macos = …`), hängt es ein und kopiert das `.app` nach `/Applications`
+  (ohne Schreibrecht nach `~/Applications`).
+- **Linux:** keine automatische Installation; «Anleitung öffnen» zeigt die Seite des Herstellers
+  (`linux_hilfe`), installiert wird über die Paketverwaltung.
+- «Installiert» heisst: einer der Pfade (`pfade_windows` mit `%VARIABLEN%`, `pfade_macos` mit `~`)
+  existiert bzw. einer der Befehle (`befehle_linux`) liegt im PATH. Die Werkbank sucht beim Start,
+  alle paar Sekunden und wenn ihr Fenster wieder den Fokus bekommt.
+- «Deinstallieren» löscht nie selbst etwas: Windows öffnet die Einstellungen «Apps», macOS zeigt das
+  Programm im Finder.
+
+Weitere Programme (Thunderbird, LibreOffice, OBS …) brauchen nur einen neuen `[[fremd]]`-Eintrag.
+Symbole sind neutral (z. B. `fremd-browser`), nie das Logo des Herstellers.
+
 ## Was (noch) fehlt
 
 - Kein macOS-Build (bräuchte Apple-Zertifikat).

@@ -19,6 +19,11 @@ pub struct Manifest {
     /// Adresse für Spenden (z. B. Buy Me a Coffee); leer = kein Spenden-Knopf.
     #[serde(default)]
     pub spenden: Option<String>,
+    /// Fremdprogramme (z. B. Brave): bekannte Programme anderer Hersteller, die der Launcher
+    /// mit ihrem offiziellen Installationsprogramm einrichtet und startet, aber nicht selbst
+    /// baut oder aktualisiert. Eigene Liste, damit ältere Launcher sie nicht sehen.
+    #[serde(default)]
+    pub fremd: Vec<Fremd>,
 }
 
 fn default_title() -> String {
@@ -58,6 +63,97 @@ pub struct App {
     /// Nur auf diesen Systemen anbieten ("windows", "linux", "macos"); leer: überall.
     #[serde(default)]
     pub systeme: Vec<String>,
+    /// Gesetzt bei Fremdprogrammen (aus `[[fremd]]`), nie aus der Datei gelesen.
+    #[serde(skip)]
+    pub fremd: Option<Box<Fremd>>,
+}
+
+/// Ein Fremdprogramm aus `[[fremd]]` in apps.toml. Neue Programme brauchen nur Daten.
+#[derive(Deserialize, Clone, Debug, Default)]
+pub struct Fremd {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub about: String,
+    #[serde(default)]
+    pub about_en: Option<String>,
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// Webseite des Herstellers.
+    #[serde(default)]
+    pub homepage: Option<String>,
+    /// Windows: Adresse des offiziellen Installationsprogramms (.exe).
+    #[serde(default)]
+    pub windows: Option<String>,
+    /// macOS: Adresse des offiziellen Disk-Images (.dmg) mit dem .app-Bündel.
+    #[serde(default)]
+    pub macos: Option<String>,
+    /// Linux: Anleitung des Herstellers (Installation über die Paketverwaltung).
+    #[serde(default)]
+    pub linux_hilfe: Option<String>,
+    /// Windows: mögliche Orte der Programmdatei, mit %VARIABLEN%.
+    #[serde(default)]
+    pub pfade_windows: Vec<String>,
+    /// macOS: mögliche Orte des .app-Bündels, ~ für den Benutzerordner.
+    #[serde(default)]
+    pub pfade_macos: Vec<String>,
+    /// Linux: Befehle, unter denen das Programm im PATH liegen kann.
+    #[serde(default)]
+    pub befehle_linux: Vec<String>,
+    /// Nur auf diesen Systemen anbieten; leer: überall, wo es Angaben gibt.
+    #[serde(default)]
+    pub systeme: Vec<String>,
+}
+
+impl Fremd {
+    /// Auf diesem System anbieten?
+    pub fn available(&self) -> bool {
+        let os = std::env::consts::OS;
+        if !self.systeme.is_empty() && !self.systeme.iter().any(|s| s == os) {
+            return false;
+        }
+        match os {
+            "windows" => self.windows.is_some() || !self.pfade_windows.is_empty(),
+            "macos" => self.macos.is_some() || !self.pfade_macos.is_empty(),
+            _ => self.linux_hilfe.is_some() || !self.befehle_linux.is_empty(),
+        }
+    }
+
+    /// Kann der Launcher es auf diesem System selbst installieren (Windows, macOS)?
+    pub fn can_install(&self) -> bool {
+        match std::env::consts::OS {
+            "windows" => self.windows.as_deref().is_some_and(|u| u.starts_with("https://")),
+            "macos" => self.macos.as_deref().is_some_and(|u| u.starts_with("https://")),
+            _ => false,
+        }
+    }
+
+    /// Als Eintrag der Programmliste, damit es überall erscheint, wo Programme stehen.
+    fn as_app(&self) -> App {
+        App {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            about: self.about.clone(),
+            category: self.category.clone(),
+            about_en: self.about_en.clone(),
+            repo: String::new(),
+            asset: None,
+            exe: None,
+            pin: None,
+            color: self.color.clone(),
+            tag: None,
+            icon: self.icon.clone(),
+            types: Vec::new(),
+            no_web: true,
+            web_only: false,
+            systeme: Vec::new(),
+            fremd: Some(Box::new(self.clone())),
+        }
+    }
 }
 
 impl App {
@@ -375,7 +471,17 @@ pub const MANIFEST_URL: &str = "https://raw.githubusercontent.com/0ldini/werkban
 pub fn load_manifest() -> Result<Manifest> {
     let mut m = load_manifest_all()?;
     m.app.retain(|a| a.systeme.is_empty() || a.systeme.iter().any(|s| s == std::env::consts::OS));
+    add_fremd(&mut m);
     Ok(m)
+}
+
+/// Hängt die Fremdprogramme dieses Systems als Einträge an (ohne doppelte Kennungen).
+pub fn add_fremd(m: &mut Manifest) {
+    for f in &m.fremd {
+        if f.available() && !f.id.is_empty() && !m.app.iter().any(|a| a.id == f.id) {
+            m.app.push(f.as_app());
+        }
+    }
 }
 
 fn load_manifest_all() -> Result<Manifest> {
@@ -477,11 +583,16 @@ fn fetch(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
 }
 
 fn fetch_accept(url: &str, accept: Option<&str>) -> Result<ureq::http::Response<ureq::Body>> {
+    fetch_with(url, accept, true)
+}
+
+/// Wie `fetch_accept`; `auth` false schickt den GitHub-Schlüssel nie mit (fremde Downloads).
+fn fetch_with(url: &str, accept: Option<&str>, auth: bool) -> Result<ureq::http::Response<ureq::Body>> {
     let agent = agent();
     let mut url = url.to_string();
     for _ in 0..6 {
         let mut req = agent.get(&url);
-        if let Some(a) = auth_header(&url) {
+        if let Some(a) = auth_header(&url).filter(|_| auth) {
             req = req.header("Authorization", a);
         }
         if let Some(a) = accept {
@@ -587,6 +698,9 @@ fn release_text(app: &App, v: Version, file: &str) -> Result<String> {
 
 /// Neueste Version, zu der tatsächlich ein Release mit Dateien existiert.
 pub fn latest_version(app: &App) -> Result<Version> {
+    if app.fremd.is_some() {
+        bail!("{} aktualisiert sich selbst", app.name);
+    }
     if let Some(pin) = &app.pin {
         return parse_version(pin).ok_or_else(|| anyhow!("pin \"{pin}\" ist keine Version"));
     }
@@ -632,6 +746,9 @@ fn current_file(app: &App, kind: Kind) -> PathBuf {
 }
 
 pub fn installed_version(app: &App, kind: Kind) -> Option<Version> {
+    if app.fremd.is_some() {
+        return None;
+    }
     let v = parse_version(&fs::read_to_string(current_file(app, kind)).ok()?)?;
     version_dir(app, kind, v).is_dir().then_some(v)
 }
@@ -800,6 +917,9 @@ fn activate(app: &App, kind: Kind, v: Version, archive: &Path, progress: Progres
 /// Installiert oder aktualisiert genau eine App auf die neueste Version.
 /// Gibt die nun installierte Version zurück.
 pub fn install(app: &App, kind: Kind, progress: Progress) -> Result<Version> {
+    if app.fremd.is_some() {
+        bail!("{} ist ein Fremdprogramm und wird mit fremd_install eingerichtet", app.name);
+    }
     progress(crate::sprache::t("Suche neueste Version …"), 0.0);
     let v = latest_version(app)?;
     if installed_version(app, kind) == Some(v) {
@@ -971,7 +1091,7 @@ pub fn bundle_entries(manifest: &Manifest, dir: &Path) -> Vec<BundleEntry> {
         let name = entry.file_name().to_string_lossy().into_owned();
         let Some(version) = name.split('-').find_map(|part| parse_version(part.trim_end_matches(".zip"))) else { continue };
         let kind = if name.contains("-web-") { Kind::Web } else { Kind::Native };
-        let Some(app) = manifest.app.iter().find(|a| name.starts_with(&format!("{}-", a.asset()))) else { continue };
+        let Some(app) = manifest.app.iter().filter(|a| a.fremd.is_none()).find(|a| name.starts_with(&format!("{}-", a.asset()))) else { continue };
         if name.ends_with(".zip") || name.ends_with(".tar.gz") {
             out.push(BundleEntry { app: app.clone(), kind, version, path });
         }
@@ -1017,6 +1137,10 @@ pub fn install_bundle(
 }
 
 pub fn uninstall(app: &App) -> Result<()> {
+    if app.fremd.is_some() {
+        // Nie selbst löschen: Fremdprogramme deinstalliert das System.
+        bail!("{} wird in den Einstellungen des Systems deinstalliert", app.name);
+    }
     let dir = app_dir(app);
     if dir.exists() {
         fs::remove_dir_all(&dir)?;
@@ -1030,6 +1154,9 @@ pub fn run(app: &App) -> Result<()> {
 
 /// Startet das Programm, optional mit einer zu öffnenden Datei.
 pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
+    if let Some(f) = &app.fremd {
+        return fremd_run(f, file);
+    }
     let exe = exe_path(app).ok_or_else(|| anyhow!("{} ist nicht installiert", app.name))?;
     let file = file.map(|f| std::path::absolute(f).unwrap_or_else(|_| f.to_path_buf()));
     if let Some(f) = &file {
@@ -1043,6 +1170,219 @@ pub fn run_with(app: &App, file: Option<&Path>) -> Result<()> {
         .current_dir(exe.parent().unwrap_or(Path::new(".")))
         .spawn()
         .with_context(|| format!("Start von {}", exe.display()))?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------------------------
+// Fremdprogramme: finden, mit dem offiziellen Installationsprogramm einrichten, starten.
+// Der Launcher aktualisiert und löscht sie nie; das tun die Programme bzw. das System selbst.
+
+/// Setzt `%NAME%` durch Umgebungsvariablen. None, wenn eine fehlt oder ein `%` offen bleibt.
+pub fn expand_vars(s: &str, var: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    let parts: Vec<&str> = s.split('%').collect();
+    if parts.len() % 2 == 0 {
+        return None;
+    }
+    let mut out = String::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i % 2 == 0 {
+            out.push_str(part);
+        } else {
+            out.push_str(&var(part).filter(|v| !v.is_empty())?);
+        }
+    }
+    Some(out)
+}
+
+/// `~/…` → Benutzerordner.
+fn expand_home(s: &str) -> Option<PathBuf> {
+    match s.strip_prefix("~/") {
+        Some(rest) => Some(PathBuf::from(std::env::var_os("HOME")?).join(rest)),
+        None if s == "~" => std::env::var_os("HOME").map(PathBuf::from),
+        None => Some(PathBuf::from(s)),
+    }
+}
+
+/// Befehl im PATH suchen (nur ausführbare Dateien).
+fn which(cmd: &str) -> Option<PathBuf> {
+    if cmd.is_empty() || cmd.contains('/') {
+        return None;
+    }
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path).map(|d| d.join(cmd)).find(|p| executable(p))
+}
+
+#[cfg(unix)]
+fn executable(p: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(p).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn executable(p: &Path) -> bool {
+    p.is_file()
+}
+
+/// Wo das Fremdprogramm installiert ist: Programmdatei (Windows), .app-Bündel (macOS) oder
+/// Befehl im PATH (Linux und andere). Nur ein paar Dateiabfragen, also billig.
+pub fn fremd_find(f: &Fremd) -> Option<PathBuf> {
+    match std::env::consts::OS {
+        "windows" => f
+            .pfade_windows
+            .iter()
+            .filter_map(|p| expand_vars(p, &|k: &str| std::env::var(k).ok()))
+            .map(PathBuf::from)
+            .find(|p| p.is_file()),
+        "macos" => f.pfade_macos.iter().filter_map(|p| expand_home(p)).find(|p| p.is_dir()),
+        _ => f.befehle_linux.iter().find_map(|c| which(c)),
+    }
+}
+
+/// Dateiname am Ende einer Adresse, nur aus harmlosen Zeichen.
+fn file_name_of(url: &str, fallback: &str) -> String {
+    let last = url.split(['?', '#']).next().unwrap_or("").rsplit('/').next().unwrap_or("");
+    let clean: String = last.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')).collect();
+    if clean.is_empty() || clean.starts_with('.') {
+        fallback.to_string()
+    } else {
+        clean
+    }
+}
+
+/// Lädt das offizielle Installationsprogramm und führt es aus (Windows), bzw. kopiert das
+/// .app-Bündel aus dem Disk-Image nach /Applications oder ~/Applications (macOS).
+/// Unter Linux gibt es keine automatische Installation (Paketverwaltung).
+pub fn fremd_install(f: &Fremd, progress: Progress) -> Result<()> {
+    let url = match std::env::consts::OS {
+        "windows" => f.windows.as_deref(),
+        "macos" => f.macos.as_deref(),
+        _ => None,
+    }
+    .filter(|u| u.starts_with("https://"))
+    .ok_or_else(|| anyhow!("{} wird auf diesem System über die Paketverwaltung installiert", f.name))?;
+    let dir = data_dir().join("downloads");
+    fs::create_dir_all(&dir).with_context(|| format!("{} anlegen", dir.display()))?;
+    let fallback = if cfg!(windows) { "setup.exe" } else { "setup.dmg" };
+    let file = dir.join(format!("{}-{}", f.id, file_name_of(url, fallback)));
+    progress(crate::sprache::t("Lade herunter …"), 0.0);
+    // Ohne GitHub-Schlüssel: der gehört nur zur Werkbank, nicht zu fremden Downloads.
+    let result = fetch_with(url, None, false).and_then(|resp| download(resp, &file, progress)).and_then(|_| {
+        progress(crate::sprache::t("Installationsprogramm läuft …"), 1.0);
+        if cfg!(windows) {
+            run_installer(&file)
+        } else {
+            install_dmg(&file)
+        }
+    });
+    let _ = fs::remove_file(&file);
+    result?;
+    if fremd_find(f).is_none() {
+        bail!("{} wurde nicht gefunden – Installation abgebrochen?", f.name);
+    }
+    Ok(())
+}
+
+/// Windows: Installationsprogramm starten und warten. Verlangt es Administratorrechte
+/// (Fehler 740), über PowerShell mit UAC-Abfrage.
+fn run_installer(exe: &Path) -> Result<()> {
+    match std::process::Command::new(exe).status() {
+        Ok(_) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(740) => {
+            let script = format!(
+                "$p = Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode",
+                exe.display().to_string().replace('\'', "''")
+            );
+            std::process::Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+                .status()
+                .context("Installationsprogramm mit Administratorrechten starten")?;
+            Ok(())
+        }
+        Err(e) => Err(e).with_context(|| format!("{} starten", exe.display())),
+    }
+}
+
+/// macOS: Disk-Image einhängen, das .app-Bündel mit ditto kopieren, wieder aushängen.
+fn install_dmg(dmg: &Path) -> Result<()> {
+    let mount = std::env::temp_dir().join(format!("werkbank-dmg-{}", std::process::id()));
+    let _ = fs::create_dir_all(&mount);
+    let status = std::process::Command::new("/usr/bin/hdiutil")
+        .args(["attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint"])
+        .arg(&mount)
+        .arg(dmg)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .status()
+        .context("hdiutil attach")?;
+    if !status.success() {
+        let _ = fs::remove_dir(&mount);
+        bail!("Disk-Image liess sich nicht öffnen");
+    }
+    let result = copy_app(&mount);
+    let detached = std::process::Command::new("/usr/bin/hdiutil").arg("detach").arg(&mount).arg("-quiet").status().is_ok_and(|s| s.success());
+    if !detached {
+        let _ = std::process::Command::new("/usr/bin/hdiutil").arg("detach").arg(&mount).arg("-force").arg("-quiet").status();
+    }
+    let _ = fs::remove_dir(&mount);
+    result
+}
+
+fn copy_app(volume: &Path) -> Result<()> {
+    let app = fs::read_dir(volume)
+        .context("Disk-Image lesen")?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|e| e == "app") && p.is_dir())
+        .ok_or_else(|| anyhow!("kein Programm (.app) im Disk-Image"))?;
+    let name = app.file_name().ok_or_else(|| anyhow!("Programmname fehlt"))?;
+    let system = PathBuf::from("/Applications");
+    let dest_dir = if writable(&system) {
+        system
+    } else {
+        let home = expand_home("~/Applications").ok_or_else(|| anyhow!("Benutzerordner unbekannt"))?;
+        fs::create_dir_all(&home).with_context(|| format!("{} anlegen", home.display()))?;
+        home
+    };
+    let dest = dest_dir.join(name);
+    if dest.exists() {
+        bail!("{} existiert bereits", dest.display());
+    }
+    let ok = std::process::Command::new("/usr/bin/ditto").arg(&app).arg(&dest).status().context("ditto")?.success();
+    if !ok {
+        bail!("{} liess sich nicht nach {} kopieren", name.to_string_lossy(), dest_dir.display());
+    }
+    Ok(())
+}
+
+/// Startet das Fremdprogramm, losgelöst wie die anderen Programme.
+pub fn fremd_run(f: &Fremd, file: Option<&Path>) -> Result<()> {
+    let found = fremd_find(f).ok_or_else(|| anyhow!("{} ist nicht installiert", f.name))?;
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut c = std::process::Command::new("/usr/bin/open");
+        c.arg("-a").arg(&found);
+        c
+    } else {
+        let mut c = std::process::Command::new(&found);
+        if let Some(dir) = found.parent().filter(|_| cfg!(windows)) {
+            c.current_dir(dir);
+        }
+        c
+    };
+    cmd.args(file).spawn().with_context(|| format!("Start von {}", found.display()))?;
+    Ok(())
+}
+
+/// «Deinstallieren»: zeigt den Ort, an dem das System das Programm entfernt
+/// (Windows: Einstellungen «Apps», macOS: Bündel im Finder). Löscht selbst nichts.
+pub fn fremd_uninstall_help(f: &Fremd) -> Result<()> {
+    match std::env::consts::OS {
+        "windows" => open::that("ms-settings:appsfeatures").context("Einstellungen öffnen")?,
+        "macos" => {
+            let found = fremd_find(f).ok_or_else(|| anyhow!("{} ist nicht installiert", f.name))?;
+            std::process::Command::new("/usr/bin/open").arg("-R").arg(&found).spawn().context("Finder öffnen")?;
+        }
+        _ => {}
+    }
     Ok(())
 }
 
@@ -1141,4 +1481,49 @@ pub fn serve_web(manifest: Manifest) -> Result<String> {
         }
     });
     Ok(addr)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variablen_einsetzen() {
+        let var = |k: &str| match k {
+            "LOCALAPPDATA" => Some(r"C:\Users\oli\AppData\Local".to_string()),
+            "ProgramFiles(x86)" => Some(r"C:\Program Files (x86)".to_string()),
+            _ => None,
+        };
+        assert_eq!(expand_vars(r"%LOCALAPPDATA%\Brave\brave.exe", &var).as_deref(), Some(r"C:\Users\oli\AppData\Local\Brave\brave.exe"));
+        assert_eq!(expand_vars(r"%ProgramFiles(x86)%\b.exe", &var).as_deref(), Some(r"C:\Program Files (x86)\b.exe"));
+        assert_eq!(expand_vars(r"%FEHLT%\b.exe", &var), None);
+        assert_eq!(expand_vars(r"%offen\b.exe", &var), None);
+        assert_eq!(expand_vars(r"C:\b.exe", &var).as_deref(), Some(r"C:\b.exe"));
+    }
+
+    #[test]
+    fn dateiname_aus_adresse() {
+        assert_eq!(file_name_of("https://x/y/BraveBrowserStandaloneSetup.exe?a=1", "s.exe"), "BraveBrowserStandaloneSetup.exe");
+        assert_eq!(file_name_of("https://x/y/", "s.exe"), "s.exe");
+        assert_eq!(file_name_of("https://x/..", "s.exe"), "s.exe");
+    }
+
+    #[test]
+    fn fremdprogramme_in_der_liste() {
+        let mut m: Manifest = toml::from_str(DEFAULT_MANIFEST).expect("eingebaute Liste");
+        let brave = m.fremd.iter().find(|f| f.id == "brave").cloned().expect("Brave");
+        assert!(brave.homepage.is_some() && !brave.pfade_windows.is_empty());
+        let before = m.app.len();
+        add_fremd(&mut m);
+        add_fremd(&mut m);
+        let fremd: Vec<&App> = m.app.iter().filter(|a| a.fremd.is_some()).collect();
+        assert_eq!(m.app.len(), before + fremd.len());
+        assert!(fremd.len() <= 1);
+        for a in fremd {
+            assert!(installed_version(a, Kind::Native).is_none());
+            assert!(latest_version(a).is_err());
+            assert!(uninstall(a).is_err());
+            assert!(a.types.is_empty() && a.no_web);
+        }
+    }
 }

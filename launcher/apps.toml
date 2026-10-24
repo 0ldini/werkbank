@@ -12,6 +12,17 @@
 #   category  (optional) Rubrik: buero, foto, video oder system
 #   web_only  (optional) true für eigene HTML5-Apps: nur Browser-Version,
 #             Release-Datei <id>-web-<version>.zip
+#
+# Fremdprogramme ([[fremd]] ganz unten): bekannte Programme anderer Hersteller. Der Launcher
+# lädt ihr offizielles Installationsprogramm, führt es aus und startet das Programm; er baut
+# und aktualisiert sie nicht (sie aktualisieren sich selbst) und löscht sie nie.
+#   windows        Adresse des Installationsprogramms (.exe)
+#   macos          Adresse des Disk-Images (.dmg), das .app wird nach /Applications kopiert
+#   linux_hilfe    Anleitung des Herstellers (Linux: Installation über die Paketverwaltung)
+#   pfade_windows  mögliche Orte der .exe (%LOCALAPPDATA% usw. erlaubt) → «installiert»
+#   pfade_macos    mögliche Orte des .app-Bündels (~ erlaubt)
+#   befehle_linux  Befehle im PATH
+#   homepage, category ("internet" usw.), color, icon, systeme wie oben
 
 title = "Werkbank"
 # Spenden-Knopf im Launcher (Kaffeetasse oben rechts und in den Einstellungen), z. B.
@@ -303,3 +314,22 @@ repo = "https://github.com/0ldini/werkbank"
 tag = "packwerk-v"
 types = [".zip", ".7z", ".tar", ".gz", ".tgz"]
 no_web = true
+
+# ---------------------------------------------------------------------------------------------
+# Fremdprogramme
+
+[[fremd]]
+id = "brave"
+name = "Brave"
+about = "Webbrowser mit eingebautem Werbeblocker"
+about_en = "Web browser with built-in ad blocker"
+category = "internet"
+color = "#FB542B"
+icon = "fremd-browser"
+homepage = "https://brave.com"
+windows = "https://github.com/brave/brave-browser/releases/latest/download/BraveBrowserStandaloneSetup.exe"
+macos = "https://github.com/brave/brave-browser/releases/latest/download/Brave-Browser-arm64.dmg"
+linux_hilfe = "https://brave.com/linux/"
+pfade_windows = ['%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe']
+pfade_macos = ["/Applications/Brave Browser.app", "~/Applications/Brave Browser.app"]
+befehle_linux = ["brave-browser", "brave-browser-stable", "brave"]

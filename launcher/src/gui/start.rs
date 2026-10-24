@@ -451,14 +451,7 @@ impl Gui {
             p.circle_filled(c, 10.0, rgb(0xC8102E));
             glyph(p, Rect::from_center_size(c, Vec2::splat(14.0)), Glyph::Close, Color32::WHITE);
         }
-        let mut hint = format!("{}\n{}", app.name, app.about_text());
-        if let Some(v) = st.current() {
-            hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
-        }
-        if let (true, Some(l)) = (update, st.latest) {
-            hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
-        }
-        let resp = resp.on_hover_text(hint);
+        let resp = resp.on_hover_text(hover_hint(app, st, update));
         if resp.clicked() {
             if self.quick_edit {
                 act = Some(QuickAct::Remove(app.id.clone()));
@@ -467,7 +460,7 @@ impl Gui {
             }
         }
         resp.context_menu(|ui| {
-            if st.native.is_some() && !app.web_only && ui.button(t("Starten")).clicked() {
+            if ((st.native.is_some() && !app.web_only) || st.fremd) && ui.button(t("Starten")).clicked() {
                 self.launch(ctx, app, st);
                 ui.close_menu();
             }
@@ -516,7 +509,7 @@ impl Gui {
         }
         let s = (icon * 0.24).round();
         let c = r.center();
-        for (i, cat) in CATEGORIES.iter().enumerate() {
+        for (i, cat) in CATEGORIES.iter().take(4).enumerate() {
             let dx = if i % 2 == 0 { -s / 2.0 - 3.0 } else { s / 2.0 + 3.0 };
             let dy = if i < 2 { -s / 2.0 - 3.0 } else { s / 2.0 + 3.0 };
             p.rect_filled(Rect::from_center_size(c + egui::vec2(dx, dy), Vec2::splat(s)), 5.0, cat_color(*cat));
@@ -651,7 +644,7 @@ impl Gui {
                 None => {
                     p.rect_stroke(ir, icon * 0.25, Stroke::new(1.0, outline()), egui::StrokeKind::Inside);
                     let s = icon * 0.22;
-                    for (k, cat) in CATEGORIES.iter().enumerate() {
+                    for (k, cat) in CATEGORIES.iter().take(4).enumerate() {
                         let dx = if k % 2 == 0 { -s / 2.0 - 1.5 } else { s / 2.0 + 1.5 };
                         let dy = if k < 2 { -s / 2.0 - 1.5 } else { s / 2.0 + 1.5 };
                         p.rect_filled(Rect::from_center_size(c + egui::vec2(dx, dy), Vec2::splat(s)), 2.0, cat_color(*cat));
