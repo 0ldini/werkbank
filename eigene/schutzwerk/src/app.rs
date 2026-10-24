@@ -67,13 +67,13 @@ pub(crate) struct Job<T> {
 }
 
 impl<T: Send + 'static> Job<T> {
-    fn idle() -> Self {
+    pub(crate) fn idle() -> Self {
         Job {
             data: Arc::new(Mutex::new(None)),
             running: Arc::new(AtomicBool::new(false)),
         }
     }
-    fn start(&self, f: impl FnOnce() -> T + Send + 'static) {
+    pub(crate) fn start(&self, f: impl FnOnce() -> T + Send + 'static) {
         if self.running.load(Ordering::SeqCst) {
             return;
         }
