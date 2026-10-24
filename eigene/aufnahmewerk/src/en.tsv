@@ -134,3 +134,16 @@ Das Fenster liegt ausserhalb des Bildschirms.	The window is outside the screen.
 Bilddaten ungültig.	Invalid image data.
 Ecke	Corner
 Strg + S	Ctrl + S
+Bitte zuerst ein Fenster wählen.	Please choose a window first.
+Ordner für Bildschirmfotos wählen	Choose folder for screenshots
+Keine Fenster gefunden – «Aktualisieren» drücken.	No windows found – press “Refresh”.
+Fotografiert genau dieses Fenster, auch wenn es verdeckt ist.	Captures exactly this window, even if it is covered.
+Gleich in die Zwischenablage kopieren	Copy to clipboard right away
+Tastenkürzel	Shortcut
+Strg + Umschalt + F	Ctrl + Shift + F
+Funktioniert auch, wenn Aufnahmewerk im Hintergrund ist (Video: Strg + Umschalt + R)	Works even when Aufnahmewerk is in the background (video: Ctrl + Shift + R)
+Ordner	Folder
+Ändern …	Change …
+Ordner nicht verfügbar: {e}	Folder not available: {e}
+Das Fenster ist nicht mehr offen.	The window is no longer open.
+Kein Bild vom Fenster erhalten.	No image received from the window.

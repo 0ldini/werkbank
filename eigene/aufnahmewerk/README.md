@@ -41,10 +41,22 @@ Rust + egui, passend zu Codewerk, Umbenennwerk und Speicherwerk. Nur Windows
   Schwärzen und Verpixeln ersetzen die Pixel im gespeicherten Bild – darunter
   ist nichts mehr vorhanden (Verpixeln mit groben Blöcken von mind. 10 px).
 - **Speichern** als PNG oder JPG in den Zielordner, Name mit Datum/Uhrzeit
-  (`Bildschirmfoto 2026-10-18 14-22-05.png`, bei Gleichstand ` (2)`);
+  (`Bildschirmfoto 2026-10-18 14.22.05.png`, bei Gleichstand ` (2)`);
   `Strg + S` nimmt das gewählte Format. **Kopieren** in die Zwischenablage
   (`Strg + C`), **Ordner öffnen**, «Im Ordner zeigen» in der Liste.
 - Fragt beim Schliessen nach, wenn das Bild weder gespeichert noch kopiert ist.
+
+**Bildschirmfoto 1.5.0:**
+
+- Neuer Modus **Fenster**: ein Fenster aus der Liste wählen (dieselbe wie
+  bei Video) – es wird direkt über Windows.Graphics.Capture fotografiert, auch
+  wenn es verdeckt ist; minimierte Fenster werden vorher wiederhergestellt,
+  der unsichtbare Fensterrand wird abgeschnitten.
+- Eigener **Ordner für Bildschirmfotos**, Standard `Bilder\Bildschirmfotos`
+  (getrennt vom Videoordner), wählbar in der Kopfleiste oder in der Karte.
+- **Gleich in die Zwischenablage kopieren** nach dem Foto (Schalter).
+- Tastenkürzel `Strg + Umschalt + F` steht jetzt auch in den Einstellungen.
+- Dateiname wie `Bildschirmfoto 2026-10-24 23.30.12.png`.
 
 **Etappe 2 (folgt):**
 
