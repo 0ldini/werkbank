@@ -234,7 +234,7 @@ fn foreground_rect() -> Option<(i32, i32, i32, i32)> {
     use windows::Win32::UI::WindowsAndMessaging::{
         GetForegroundWindow, GetWindowThreadProcessId, IsIconic,
     };
-    unsafe {
+    let h = unsafe {
         let h = GetForegroundWindow();
         if h == HWND::default() {
             return None;
@@ -247,7 +247,8 @@ fn foreground_rect() -> Option<(i32, i32, i32, i32)> {
         if IsIconic(h).as_bool() {
             return None;
         }
-    }
+        h
+    };
     window_rects(h).map(|(_, vis)| vis)
 }
 
