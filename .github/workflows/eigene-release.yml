@@ -121,17 +121,21 @@ jobs:
               cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-$VERSION-windows-x64-portable"; mkdir -p "stage/$D"
               cp "target/release/$APP.exe" "stage/$D/"; cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
+              # Optional: Mitgeliefertes aus werk-prebuild.sh (vendor/bundle) neben die .exe.
+              if [ -d vendor/bundle ]; then cp -R vendor/bundle/. "stage/$D/"; fi
               (cd stage && 7z a -bso0 "../out/$D.zip" "$D") ;;
             linux)
               cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-$VERSION-linux-x86_64"; mkdir -p "stage/$D/bin"
               cp "target/release/$APP" "stage/$D/bin/"; cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
+              if [ -d vendor/bundle ]; then cp -R vendor/bundle/. "stage/$D/bin/"; fi
               (cd stage && tar czf "../out/$D.tar.gz" "$D") ;;
             macos)
               cargo build --release 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-$VERSION-macos-aarch64"; mkdir -p "stage/$D"
               TITLE=$(echo "$APP" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-              ../../werk/tools/mac_bundle.sh "$TITLE" "target/release/$APP" icon.icns "ch.werkbank.$APP" "$VERSION" "stage/$D"
+              EXTRA=""; if [ -d vendor/bundle ]; then EXTRA=vendor/bundle; fi
+              ../../werk/tools/mac_bundle.sh "$TITLE" "target/release/$APP" icon.icns "ch.werkbank.$APP" "$VERSION" "stage/$D" "$EXTRA"
               cp README.md LICENSE* "stage/$D/" 2>/dev/null || true
               xattr -cr "stage/$D"
               (cd stage && COPYFILE_DISABLE=1 tar czf "../out/$D.tar.gz" "$D") ;;

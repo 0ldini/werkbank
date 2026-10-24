@@ -1,0 +1,80 @@
+# Abspielwerk: deutsch → englisch
+VLC fehlt – bitte installieren, z. B. sudo apt install vlc	VLC is missing – please install it, e.g. sudo apt install vlc
+libVLC wurde nicht gefunden. Videos und Musik lassen sich nicht abspielen; Bilder gehen weiter.	libVLC was not found. Videos and music cannot be played; pictures still work.
+{name}: Dateityp wird nicht unterstützt.	{name}: file type not supported.
+In diesem Ordner gibt es keine Videos, Musik oder Bilder.	This folder contains no videos, music or pictures.
+Ordner nicht lesbar: {e}	Folder not readable: {e}
+Keine Videos, Musik oder Bilder dabei.	No videos, music or pictures among them.
+Dateien öffnen	Open files
+Videos, Musik und Bilder	Videos, music and pictures
+Videos	Videos
+Musik	Music
+Bilder	Pictures
+Ordner öffnen	Open folder
+Nicht in den Papierkorb verschoben: {e}	Not moved to the trash: {e}
+{name} lässt sich nicht abspielen.	{name} cannot be played.
+Öffnen …	Open …
+Ordner öffnen …	Open folder …
+Wiedergabeliste ausblenden	Hide playlist
+Wiedergabeliste einblenden	Show playlist
+Wiedergabeliste	Playlist
+libVLC wird geladen …	Loading libVLC …
+Mehr	More
+Diashow beenden	Stop slideshow
+Diashow starten	Start slideshow
+Diashow: Sekunden pro Bild	Slideshow: seconds per picture
+Nach links drehen	Rotate left
+Nach rechts drehen	Rotate right
+Einpassen	Fit
+In Papierkorb …	Move to trash …
+Liste leeren	Clear list
+Dateien hineinziehen oder einen Ordner öffnen.	Drag files in or open a folder.
+VIDEO	VIDEO
+MUSIK	MUSIC
+BILD	PICTURE
+Anzeigen	Show
+Aus der Liste nehmen	Remove from list
+Zurück (P)	Previous (P)
+Abspielen / Pause (Leertaste)	Play / pause (space)
+Weiter (N)	Next (N)
+Ton einschalten (M)	Unmute (M)
+Stumm (M)	Mute (M)
+Tonspur	Audio track
+Keine Tonspur	No audio track
+Aus	Off
+Spur {n}	Track {n}
+Untertitel	Subtitles
+Keine Untertitel	No subtitles
+Wiedergabe-Geschwindigkeit	Playback speed
+Zufall	Shuffle
+Alle wiederholen	Repeat all
+Eines wiederholen	Repeat one
+Der Reihe nach	In order
+Wiederholen	Repeat
+Nicht wiederholen	Don't repeat
+Ganze Liste wiederholen	Repeat whole list
+Aktuelles Stück wiederholen	Repeat current item
+Zufällige Reihenfolge	Shuffle
+Vollbild beenden (Esc)	Exit full screen (Esc)
+Vollbild (F)	Full screen (F)
+Vorheriges (←)	Previous (←)
+Diashow anhalten (Leertaste)	Pause slideshow (space)
+Diashow starten (Leertaste)	Start slideshow (space)
+Nächstes (→)	Next (→)
+Diashow: {s} s pro Bild	Slideshow: {s} s per picture
+In Papierkorb … (Entf)	Move to trash … (Del)
+Dateien hineinziehen oder oben öffnen.	Drag files in or open them above.
+Wird geöffnet …	Opening …
+Loslassen, um zur Wiedergabeliste hinzuzufügen	Drop to add to the playlist
+{name} lässt sich nicht anzeigen: {e}	{name} cannot be shown: {e}
+Bild wird geladen …	Loading picture …
+In Papierkorb verschieben?	Move to trash?
+«{name}» in den Papierkorb verschieben?	Move “{name}” to the trash?
+In Papierkorb	Move to trash
+Abbrechen	Cancel
+Datei zu gross	File too large
+Bild ist leer	Picture is empty
+Bild nicht lesbar	Picture not readable
+Dateiname nicht lesbar	File name not readable
+Datei lässt sich nicht öffnen	File cannot be opened
+Wiedergabe startet nicht	Playback does not start
