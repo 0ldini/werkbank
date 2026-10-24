@@ -1,6 +1,6 @@
 # Werke – eigene Rust-Programme für die Werkbank
 
-Zehn eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
+Elf eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
 ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 (`cargo run --release`); Details stehen im jeweiligen README.
 
@@ -22,6 +22,8 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    Server dazwischen; Beispielkonto zum Ausprobieren)
 10. **organiwerk** – Organigramme und Diagramme (Karten, Verbinder, automatisches
    Anordnen als Baum, SVG-Export; auch im Browser)
+11. **abspielwerk** – Videos, Musik und Bilder ansehen (libVLC; Wiedergabeliste gemischt,
+   Tonspur/Untertitel, Albumbild, Bildbetrachter mit Zoom, Drehen und Diashow)
 
 ## Stand
 
@@ -41,4 +43,6 @@ meckert: Meldung zurückgeben, dann wird es punktgenau angepasst.
 - **mediathekwerk**: egui_extras (Poster), ureq, serde; TMDB-API-Schlüssel
 - **mailwerk**: ehttp (JMAP), rustls + webpki-roots (nur Desktop), rfd; IMAP, SMTP, MIME, JSON
   sind eigener Code
+- **abspielwerk**: libloading (libVLC wird zur Laufzeit geladen und für Windows/macOS beim
+  Release-Build mitgeliefert; Linux: System-VLC), image, kamadak-exif, trash, rfd
 - die übrigen: nur egui/eframe (schutzwerk nutzt bordeigene Windows-Befehle)
