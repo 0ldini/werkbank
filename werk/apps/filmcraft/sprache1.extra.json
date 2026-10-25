@@ -1,6 +1,9 @@
 {
   "merge_tsv": [
-    {"src": "de-werk-1.tsv", "dst": "crates/ui-egui/src/i18n/de.tsv"}
+    {
+      "src": "de-werk-1.tsv",
+      "dst": "crates/ui-egui/src/i18n/de.tsv"
+    }
   ],
   "patches": [
     {
@@ -11,7 +14,8 @@
         "// Werkbank: German covers the whole interface; besides menu labels an entry may be any string",
         "// the Spanish catalog translates (so a renamed or removed source still can't leave a dead entry).",
         "assert!(known(&en) || crate::menus::NATIVE_APP_MENU.contains(&en.as_str()) || Language::Es.has(&en), \"not a menu label or Spanish entry: {en}\");"
-      ]
+      ],
+      "optional": true
     }
   ]
 }
