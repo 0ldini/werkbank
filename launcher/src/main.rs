@@ -101,8 +101,16 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
             println!("{:<13} {:<11} {:<11} {}", "Programm", "Desktop", "Browser", "Neueste");
             for app in &manifest.app {
                 if let Some(f) = &app.fremd {
-                    let state = if core::fremd_find(f).is_some() { "installiert" } else { "–" };
-                    println!("{:<13} {:<11} {:<11} {}", app.id, state, "–", "Fremdprogramm, aktualisiert sich selbst");
+                    let state = match (core::fremd_find(f).is_some(), core::fremd_version(f)) {
+                        (true, Some(v)) => fmt_version(v),
+                        (true, None) => "installiert".into(),
+                        _ => "–".into(),
+                    };
+                    let latest = match &f.github {
+                        Some(_) => core::fremd_latest(f).map(fmt_version).unwrap_or_else(|e| format!("? ({e:#})")),
+                        None => "Fremdprogramm, aktualisiert sich selbst".into(),
+                    };
+                    println!("{:<13} {:<11} {:<11} {}", app.id, state, "–", latest);
                     continue;
                 }
                 let latest = core::latest_version(app).map(fmt_version).unwrap_or_else(|e| format!("? ({e:#})"));

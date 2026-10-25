@@ -267,3 +267,5 @@ Deinstallieren …	Uninstall …
 Fremdprogramm	Third-party
 Fremdprogramm · aktualisiert sich selbst	Third-party program · updates itself
 Programm eines anderen Herstellers: die Werkbank installiert und startet es, es aktualisiert sich selbst.	Program from another vendor: Werkbank installs and starts it, it updates itself.
+Neue Version verfügbar: {neu} · installiert {alt}	New version available: {neu} · installed {alt}
+{name} ist entfernt.	{name} has been removed.

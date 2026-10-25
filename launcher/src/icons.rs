@@ -12,6 +12,7 @@ pub const ICONS: &[(&str, &[u8])] = &[
     ("filmcraft", include_bytes!("../icons/filmcraft.png")),
     // Neutrales Symbol für Fremdprogramme (kein Logo des Herstellers).
     ("fremd-browser", include_bytes!("../icons/fremd-browser.png")),
+    ("fremd-tresor", include_bytes!("../icons/fremd-tresor.png")),
     ("gridcraft", include_bytes!("../icons/gridcraft.png")),
     ("ladewerk", include_bytes!("../icons/ladewerk.png")),
     ("lightcraft", include_bytes!("../icons/lightcraft.png")),

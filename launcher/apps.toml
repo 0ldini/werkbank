@@ -23,6 +23,11 @@
 #   pfade_macos    mögliche Orte des .app-Bündels (~ erlaubt)
 #   befehle_linux  Befehle im PATH
 #   homepage, category ("internet" usw.), color, icon, systeme wie oben
+#   github         (optional) «besitzer/repo»: die Datei kommt aus dem neuesten Release,
+#                  Name nach windows_datei / macos_datei / linux_datei ({v} = Version,
+#                  {tag} = Tag). Linux: ein .AppImage, das die Werkbank im Datenordner ablegt
+#                  und auch aktualisiert. Windows: .exe oder .msi, macOS: .dmg.
+#   digest         (optional) Endung der Prüfsummen-Datei neben dem Download, z. B. ".DIGEST"
 
 title = "Werkbank"
 # Spenden-Knopf im Launcher (Kaffeetasse oben rechts und in den Einstellungen), z. B.
@@ -333,3 +338,22 @@ linux_hilfe = "https://brave.com/linux/"
 pfade_windows = ['%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe']
 pfade_macos = ["/Applications/Brave Browser.app", "~/Applications/Brave Browser.app"]
 befehle_linux = ["brave-browser", "brave-browser-stable", "brave"]
+
+[[fremd]]
+id = "keepassxc"
+name = "KeePassXC"
+about = "Passwort-Tresor, verschlüsselt auf deinem Rechner"
+about_en = "Password vault, encrypted on your computer"
+category = "system"
+color = "#6CAC4D"
+icon = "fremd-tresor"
+homepage = "https://keepassxc.org"
+github = "keepassxreboot/keepassxc"
+windows_datei = "KeePassXC-{v}-x64.msi"
+macos_datei = "KeePassXC-{v}-arm64.dmg"
+linux_datei = "KeePassXC-{v}-x86_64.AppImage"
+digest = ".DIGEST"
+linux_hilfe = "https://keepassxc.org/download/#linux"
+pfade_windows = ['%ProgramFiles%\KeePassXC\KeePassXC.exe', '%LOCALAPPDATA%\Programs\KeePassXC\KeePassXC.exe']
+pfade_macos = ["/Applications/KeePassXC.app", "~/Applications/KeePassXC.app"]
+befehle_linux = ["keepassxc"]

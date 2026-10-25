@@ -110,13 +110,24 @@ Sie installiert und startet sie, baut und aktualisiert sie aber nicht – sie ak
   führt es aus (mit eigener Oberfläche bzw. UAC-Abfrage) und löscht es danach wieder.
 - **macOS:** lädt das Disk-Image (`macos = …`), hängt es ein und kopiert das `.app` nach `/Applications`
   (ohne Schreibrecht nach `~/Applications`).
-- **Linux:** keine automatische Installation; «Anleitung öffnen» zeigt die Seite des Herstellers
-  (`linux_hilfe`), installiert wird über die Paketverwaltung.
+- **Linux:** ohne AppImage keine automatische Installation; «Anleitung öffnen» zeigt die Seite des
+  Herstellers (`linux_hilfe`), installiert wird über die Paketverwaltung.
 - «Installiert» heisst: einer der Pfade (`pfade_windows` mit `%VARIABLEN%`, `pfade_macos` mit `~`)
   existiert bzw. einer der Befehle (`befehle_linux`) liegt im PATH. Die Werkbank sucht beim Start,
   alle paar Sekunden und wenn ihr Fenster wieder den Fokus bekommt.
 - «Deinstallieren» löscht nie selbst etwas: Windows öffnet die Einstellungen «Apps», macOS zeigt das
   Programm im Finder.
+
+**Mit GitHub-Quelle** (z. B. KeePassXC: `github = "keepassxreboot/keepassxc"`, `windows_datei =
+"KeePassXC-{v}-x64.msi"`, `macos_datei`, `linux_datei`) sucht die Werkbank zuerst das neueste Release
+(Weiterleitung von `github.com/<repo>/releases/latest`, sonst die GitHub-API) und bildet daraus den
+Dateinamen. Mit `digest = ".DIGEST"` prüft sie die SHA-256-Prüfsumme; stimmt sie nicht, wird der
+Download verworfen. Windows führt `.msi` mit `msiexec /i` aus, macOS kopiert das `.app` aus dem `.dmg`
+(eine ältere Fassung kommt in den Papierkorb), Linux legt das AppImage unter `fremd/<id>/` im
+Datenordner ab und startet es von dort. Wo sich die installierte Version lesen lässt (AppImage-Name,
+`Info.plist` unter macOS), zeigt die Karte «Neue Version verfügbar» und «Aktualisieren» installiert
+die neueste Fassung neu; unter Windows ohne Versionsanzeige. Ein selbst abgelegtes AppImage entfernt
+«Deinstallieren» selbst.
 
 Weitere Programme (Thunderbird, LibreOffice, OBS …) brauchen nur einen neuen `[[fremd]]`-Eintrag.
 Symbole sind neutral (z. B. `fremd-browser`), nie das Logo des Herstellers.

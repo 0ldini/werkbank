@@ -107,6 +107,20 @@ pub struct Fremd {
     /// Nur auf diesen Systemen anbieten; leer: überall, wo es Angaben gibt.
     #[serde(default)]
     pub systeme: Vec<String>,
+    /// GitHub-Repository («besitzer/name»): das neueste Release liefert die Datei, deren Name
+    /// nach `windows_datei`/`macos_datei`/`linux_datei` gebildet wird (`{v}` = Version).
+    #[serde(default)]
+    pub github: Option<String>,
+    #[serde(default)]
+    pub windows_datei: Option<String>,
+    #[serde(default)]
+    pub macos_datei: Option<String>,
+    /// Linux: ein AppImage, das die Werkbank im Datenordner ablegt und startet.
+    #[serde(default)]
+    pub linux_datei: Option<String>,
+    /// Endung der Prüfsummen-Datei neben dem Download (z. B. ".DIGEST"); gibt es sie, wird geprüft.
+    #[serde(default)]
+    pub digest: Option<String>,
 }
 
 impl Fremd {
@@ -117,14 +131,28 @@ impl Fremd {
             return false;
         }
         match os {
-            "windows" => self.windows.is_some() || !self.pfade_windows.is_empty(),
-            "macos" => self.macos.is_some() || !self.pfade_macos.is_empty(),
-            _ => self.linux_hilfe.is_some() || !self.befehle_linux.is_empty(),
+            "windows" => self.windows.is_some() || !self.pfade_windows.is_empty() || self.datei().is_some(),
+            "macos" => self.macos.is_some() || !self.pfade_macos.is_empty() || self.datei().is_some(),
+            _ => self.linux_hilfe.is_some() || !self.befehle_linux.is_empty() || self.datei().is_some(),
         }
     }
 
-    /// Kann der Launcher es auf diesem System selbst installieren (Windows, macOS)?
+    /// Dateimuster des Releases für dieses System (nur mit `github`).
+    pub fn datei(&self) -> Option<&str> {
+        self.github.as_ref()?;
+        match std::env::consts::OS {
+            "windows" => self.windows_datei.as_deref(),
+            "macos" => self.macos_datei.as_deref(),
+            _ => self.linux_datei.as_deref(),
+        }
+        .filter(|p| !p.trim().is_empty())
+    }
+
+    /// Kann der Launcher es auf diesem System selbst installieren?
     pub fn can_install(&self) -> bool {
+        if self.datei().is_some() {
+            return true;
+        }
         match std::env::consts::OS {
             "windows" => self.windows.as_deref().is_some_and(|u| u.starts_with("https://")),
             "macos" => self.macos.as_deref().is_some_and(|u| u.starts_with("https://")),
@@ -1223,21 +1251,6 @@ fn executable(p: &Path) -> bool {
     p.is_file()
 }
 
-/// Wo das Fremdprogramm installiert ist: Programmdatei (Windows), .app-Bündel (macOS) oder
-/// Befehl im PATH (Linux und andere). Nur ein paar Dateiabfragen, also billig.
-pub fn fremd_find(f: &Fremd) -> Option<PathBuf> {
-    match std::env::consts::OS {
-        "windows" => f
-            .pfade_windows
-            .iter()
-            .filter_map(|p| expand_vars(p, &|k: &str| std::env::var(k).ok()))
-            .map(PathBuf::from)
-            .find(|p| p.is_file()),
-        "macos" => f.pfade_macos.iter().filter_map(|p| expand_home(p)).find(|p| p.is_dir()),
-        _ => f.befehle_linux.iter().find_map(|c| which(c)),
-    }
-}
-
 /// Dateiname am Ende einer Adresse, nur aus harmlosen Zeichen.
 fn file_name_of(url: &str, fallback: &str) -> String {
     let last = url.split(['?', '#']).next().unwrap_or("").rsplit('/').next().unwrap_or("");
@@ -1249,10 +1262,146 @@ fn file_name_of(url: &str, fallback: &str) -> String {
     }
 }
 
-/// Lädt das offizielle Installationsprogramm und führt es aus (Windows), bzw. kopiert das
-/// .app-Bündel aus dem Disk-Image nach /Applications oder ~/Applications (macOS).
-/// Unter Linux gibt es keine automatische Installation (Paketverwaltung).
-pub fn fremd_install(f: &Fremd, progress: Progress) -> Result<()> {
+/// Eigener Ordner eines Fremdprogramms im Datenordner (Linux: dort liegt das AppImage).
+fn fremd_dir(f: &Fremd) -> Option<PathBuf> {
+    let ok = !f.id.is_empty() && f.id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'));
+    ok.then(|| data_dir().join("fremd").join(&f.id))
+}
+
+/// Das von der Werkbank eingerichtete AppImage (Linux), falls vorhanden.
+fn fremd_appimage(f: &Fremd) -> Option<PathBuf> {
+    let dir = fremd_dir(f)?;
+    let mut found: Vec<PathBuf> = fs::read_dir(&dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.file_name().is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".appimage")))
+        .collect();
+    found.sort();
+    found.pop()
+}
+
+/// Wo das Fremdprogramm installiert ist: Programmdatei (Windows), .app-Bündel (macOS),
+/// eigenes AppImage oder Befehl im PATH (Linux und andere). Nur ein paar Dateiabfragen.
+pub fn fremd_find(f: &Fremd) -> Option<PathBuf> {
+    match std::env::consts::OS {
+        "windows" => f
+            .pfade_windows
+            .iter()
+            .filter_map(|p| expand_vars(p, &|k: &str| std::env::var(k).ok()))
+            .map(PathBuf::from)
+            .find(|p| p.is_file()),
+        "macos" => f.pfade_macos.iter().filter_map(|p| expand_home(p)).find(|p| p.is_dir()),
+        _ => fremd_appimage(f).or_else(|| f.befehle_linux.iter().find_map(|c| which(c))),
+    }
+}
+
+/// Installierte Version, wo sie sich billig lesen lässt: Name des eigenen AppImage (Linux) oder
+/// CFBundleShortVersionString des .app-Bündels (macOS). Nur bei Programmen mit GitHub-Quelle.
+pub fn fremd_version(f: &Fremd) -> Option<Version> {
+    f.github.as_ref()?;
+    match std::env::consts::OS {
+        "macos" => plist_version(&fremd_find(f)?),
+        "windows" => None,
+        _ => {
+            let file = fremd_appimage(f)?;
+            let name = file.file_name()?.to_string_lossy().into_owned();
+            version_from_name(f.datei()?, &name)
+        }
+    }
+}
+
+/// Version aus `Contents/Info.plist` eines .app-Bündels (XML-Fassung).
+fn plist_version(app: &Path) -> Option<Version> {
+    let text = fs::read_to_string(app.join("Contents").join("Info.plist")).ok()?;
+    let after = text.split("<key>CFBundleShortVersionString</key>").nth(1)?;
+    let v = after.split("<string>").nth(1)?.split("</string>").next()?;
+    parse_version(v)
+}
+
+/// Version aus einem Dateinamen nach Muster («KeePassXC-{v}-x86_64.AppImage»).
+pub fn version_from_name(pattern: &str, name: &str) -> Option<Version> {
+    let (pre, post) = pattern.split_once("{v}")?;
+    parse_version(name.strip_prefix(pre)?.strip_suffix(post)?)
+}
+
+/// Muster mit Release-Tag füllen: `{v}` = Tag ohne führendes «v», `{tag}` = Tag.
+pub fn fill_pattern(pattern: &str, tag: &str) -> String {
+    pattern.replace("{tag}", tag).replace("{v}", tag.strip_prefix('v').unwrap_or(tag))
+}
+
+/// Erste Prüfsumme (64 Hex-Zeichen) in einer .DIGEST-/SHA256-Datei.
+pub fn parse_digest(text: &str) -> Option<String> {
+    text.split_whitespace().find(|t| t.len() == 64 && t.chars().all(|c| c.is_ascii_hexdigit())).map(str::to_lowercase)
+}
+
+fn safe_tag(t: &str) -> Option<String> {
+    let t = t.trim();
+    (!t.is_empty() && t.len() < 100 && t.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))).then(|| t.to_string())
+}
+
+/// Tag aus der Weiterleitung von …/releases/latest (…/releases/tag/2.8.0).
+pub fn tag_from_location(loc: &str) -> Option<String> {
+    safe_tag(loc.split("/releases/tag/").nth(1)?.split(['?', '#', '/']).next()?)
+}
+
+/// Neuester stabiler Release-Tag eines GitHub-Repositorys: zuerst über die Weiterleitung von
+/// github.com/<repo>/releases/latest (ohne Abfragegrenze), sonst über die GitHub-API.
+pub fn latest_tag(repo: &str) -> Result<String> {
+    let repo = repo.trim().trim_matches('/');
+    let valid = repo.split('/').count() == 2
+        && !repo.contains("..")
+        && repo.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'));
+    if !valid {
+        bail!("ungültiges GitHub-Repository: {repo}");
+    }
+    if let Ok(resp) = agent().get(&format!("https://github.com/{repo}/releases/latest")).call() {
+        if resp.status().is_redirection() {
+            if let Some(tag) = resp.headers().get("location").and_then(|h| h.to_str().ok()).and_then(tag_from_location) {
+                return Ok(tag);
+            }
+        }
+    }
+    let api = format!("https://api.github.com/repos/{repo}/releases/latest");
+    let mut resp = match fetch_with(&api, Some("application/vnd.github+json"), false) {
+        Ok(r) => r,
+        Err(e) => {
+            let text = format!("{e:#}");
+            if text.contains("403") || text.contains("429") {
+                bail!("GitHub lässt gerade keine weiteren Abfragen zu (Abfragegrenze); bitte später nochmals versuchen");
+            }
+            return Err(e).context("neueste Version bei GitHub abfragen");
+        }
+    };
+    let mut buf = Vec::new();
+    resp.body_mut().as_reader().take(1 << 20).read_to_end(&mut buf)?;
+    let json: serde_json::Value = serde_json::from_slice(&buf).context("Antwort der GitHub-API")?;
+    json["tag_name"].as_str().and_then(safe_tag).ok_or_else(|| anyhow!("kein Release bei {repo} gefunden"))
+}
+
+/// Neueste Version eines Fremdprogramms mit GitHub-Quelle.
+pub fn fremd_latest(f: &Fremd) -> Result<Version> {
+    let repo = f.github.as_deref().ok_or_else(|| anyhow!("keine GitHub-Quelle"))?;
+    let tag = latest_tag(repo)?;
+    parse_version(tag.strip_prefix('v').unwrap_or(&tag)).ok_or_else(|| anyhow!("Tag {tag} ist keine Version"))
+}
+
+/// Woher das Installationsprogramm kommt: Adresse und Dateiname.
+struct Quelle {
+    url: String,
+    file: String,
+}
+
+fn fremd_source(f: &Fremd) -> Result<Quelle> {
+    if let (Some(repo), Some(pattern)) = (f.github.as_deref(), f.datei()) {
+        let tag = latest_tag(repo)?;
+        let file = file_name_of(&fill_pattern(pattern, &tag), "");
+        if file.is_empty() {
+            bail!("ungültiges Dateimuster: {pattern}");
+        }
+        let url = format!("https://github.com/{}/releases/download/{tag}/{file}", repo.trim().trim_matches('/'));
+        return Ok(Quelle { url, file });
+    }
     let url = match std::env::consts::OS {
         "windows" => f.windows.as_deref(),
         "macos" => f.macos.as_deref(),
@@ -1260,25 +1409,86 @@ pub fn fremd_install(f: &Fremd, progress: Progress) -> Result<()> {
     }
     .filter(|u| u.starts_with("https://"))
     .ok_or_else(|| anyhow!("{} wird auf diesem System über die Paketverwaltung installiert", f.name))?;
-    let dir = data_dir().join("downloads");
-    fs::create_dir_all(&dir).with_context(|| format!("{} anlegen", dir.display()))?;
     let fallback = if cfg!(windows) { "setup.exe" } else { "setup.dmg" };
-    let file = dir.join(format!("{}-{}", f.id, file_name_of(url, fallback)));
+    Ok(Quelle { url: url.to_string(), file: file_name_of(url, fallback) })
+}
+
+/// Lädt das offizielle Installationsprogramm (mit Prüfsumme, wenn es eine gibt) und richtet
+/// das Programm ein: .exe/.msi ausführen (Windows), .app aus dem .dmg kopieren (macOS),
+/// AppImage im Datenordner ablegen (Linux). Auch für Aktualisierungen: installiert neu.
+pub fn fremd_install(f: &Fremd, progress: Progress) -> Result<()> {
+    progress(crate::sprache::t("Suche neueste Version …"), 0.0);
+    let q = fremd_source(f)?;
+    let expected = match f.digest.as_deref().filter(|d| !d.is_empty()) {
+        Some(suffix) => fetch_with(&format!("{}{suffix}", q.url), None, false).ok().and_then(|mut r| {
+            let mut buf = Vec::new();
+            r.body_mut().as_reader().take(64 << 10).read_to_end(&mut buf).ok()?;
+            parse_digest(&String::from_utf8_lossy(&buf))
+        }),
+        None => None,
+    };
+    let appimage = q.file.to_lowercase().ends_with(".appimage");
+    let dir = if appimage { fremd_dir(f).ok_or_else(|| anyhow!("ungültige Kennung {}", f.id))? } else { data_dir().join("downloads") };
+    fs::create_dir_all(&dir).with_context(|| format!("{} anlegen", dir.display()))?;
+    let file = if appimage { dir.join(format!("{}.teil", q.file)) } else { dir.join(format!("{}-{}", f.id, q.file)) };
     progress(crate::sprache::t("Lade herunter …"), 0.0);
     // Ohne GitHub-Schlüssel: der gehört nur zur Werkbank, nicht zu fremden Downloads.
-    let result = fetch_with(url, None, false).and_then(|resp| download(resp, &file, progress)).and_then(|_| {
-        progress(crate::sprache::t("Installationsprogramm läuft …"), 1.0);
-        if cfg!(windows) {
-            run_installer(&file)
-        } else {
-            install_dmg(&file)
-        }
+    let loaded = fetch_with(&q.url, None, false).and_then(|resp| download(resp, &file, progress));
+    let checked = loaded.and_then(|actual| match expected {
+        Some(e) if e != actual => Err(anyhow!("Prüfsumme von {} stimmt nicht; Download verworfen", q.file)),
+        _ => Ok(()),
     });
+    if let Err(e) = checked {
+        let _ = fs::remove_file(&file);
+        return Err(e);
+    }
+    if appimage {
+        return place_appimage(&dir, &file, &q.file);
+    }
+    progress(crate::sprache::t("Installationsprogramm läuft …"), 1.0);
+    let lower = q.file.to_lowercase();
+    let result = if lower.ends_with(".msi") {
+        run_msi(&file)
+    } else if lower.ends_with(".dmg") {
+        install_dmg(&file)
+    } else if lower.ends_with(".exe") {
+        run_installer(&file)
+    } else {
+        Err(anyhow!("unbekannte Art von Installationsprogramm: {}", q.file))
+    };
     let _ = fs::remove_file(&file);
     result?;
     if fremd_find(f).is_none() {
         bail!("{} wurde nicht gefunden – Installation abgebrochen?", f.name);
     }
+    Ok(())
+}
+
+/// Linux: geladenes AppImage ausführbar machen und an die Stelle des alten setzen.
+fn place_appimage(dir: &Path, part: &Path, name: &str) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(part, fs::Permissions::from_mode(0o755))?;
+    }
+    let final_path = dir.join(name);
+    fs::rename(part, &final_path).with_context(|| format!("{} ablegen", final_path.display()))?;
+    // Ältere AppImages dieses Programms wegräumen (sie gehören der Werkbank).
+    for e in fs::read_dir(dir).into_iter().flatten().flatten() {
+        let p = e.path();
+        if p != final_path && p.is_file() {
+            let _ = fs::remove_file(&p);
+        }
+    }
+    Ok(())
+}
+
+/// Windows: .msi mit dem Windows-Installer ausführen (eigene Oberfläche und UAC) und warten.
+fn run_msi(msi: &Path) -> Result<()> {
+    let windir = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    let msiexec = PathBuf::from(windir).join("System32").join("msiexec.exe");
+    let exe = if msiexec.is_file() { msiexec } else { PathBuf::from("msiexec") };
+    std::process::Command::new(exe).arg("/i").arg(msi).status().context("msiexec starten")?;
     Ok(())
 }
 
@@ -1344,13 +1554,24 @@ fn copy_app(volume: &Path) -> Result<()> {
         home
     };
     let dest = dest_dir.join(name);
-    if dest.exists() {
-        bail!("{} existiert bereits", dest.display());
-    }
-    let ok = std::process::Command::new("/usr/bin/ditto").arg(&app).arg(&dest).status().context("ditto")?.success();
+    // Erst daneben kopieren; eine ältere Fassung kommt danach in den Papierkorb.
+    let fresh = dest_dir.join(format!(".{}.neu", name.to_string_lossy()));
+    let _ = fs::remove_dir_all(&fresh);
+    let ok = std::process::Command::new("/usr/bin/ditto").arg(&app).arg(&fresh).status().context("ditto")?.success();
     if !ok {
+        let _ = fs::remove_dir_all(&fresh);
         bail!("{} liess sich nicht nach {} kopieren", name.to_string_lossy(), dest_dir.display());
     }
+    if dest.exists() {
+        let trash = expand_home("~/.Trash").ok_or_else(|| anyhow!("Benutzerordner unbekannt"))?;
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let old = trash.join(format!("{} {stamp}.app", name.to_string_lossy().trim_end_matches(".app")));
+        if let Err(e) = fs::rename(&dest, &old) {
+            let _ = fs::remove_dir_all(&fresh);
+            return Err(e).with_context(|| format!("alte Fassung {} in den Papierkorb legen", dest.display()));
+        }
+    }
+    fs::rename(&fresh, &dest).with_context(|| format!("{} einsetzen", dest.display()))?;
     Ok(())
 }
 
@@ -1373,8 +1594,14 @@ pub fn fremd_run(f: &Fremd, file: Option<&Path>) -> Result<()> {
 }
 
 /// «Deinstallieren»: zeigt den Ort, an dem das System das Programm entfernt
-/// (Windows: Einstellungen «Apps», macOS: Bündel im Finder). Löscht selbst nichts.
-pub fn fremd_uninstall_help(f: &Fremd) -> Result<()> {
+/// (Windows: Einstellungen «Apps», macOS: Bündel im Finder). Löscht selbst nichts – ausser
+/// einem AppImage, das die Werkbank selbst im Datenordner abgelegt hat (dann `true`).
+pub fn fremd_uninstall_help(f: &Fremd) -> Result<bool> {
+    if let (false, false, Some(_)) = (cfg!(windows), cfg!(target_os = "macos"), fremd_appimage(f)) {
+        let dir = fremd_dir(f).ok_or_else(|| anyhow!("ungültige Kennung {}", f.id))?;
+        fs::remove_dir_all(&dir).with_context(|| format!("{} entfernen", dir.display()))?;
+        return Ok(true);
+    }
     match std::env::consts::OS {
         "windows" => open::that("ms-settings:appsfeatures").context("Einstellungen öffnen")?,
         "macos" => {
@@ -1383,7 +1610,7 @@ pub fn fremd_uninstall_help(f: &Fremd) -> Result<()> {
         }
         _ => {}
     }
-    Ok(())
+    Ok(false)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1518,12 +1745,48 @@ mod tests {
         add_fremd(&mut m);
         let fremd: Vec<&App> = m.app.iter().filter(|a| a.fremd.is_some()).collect();
         assert_eq!(m.app.len(), before + fremd.len());
-        assert!(fremd.len() <= 1);
+        assert!(fremd.len() <= m.fremd.len());
         for a in fremd {
             assert!(installed_version(a, Kind::Native).is_none());
             assert!(latest_version(a).is_err());
             assert!(uninstall(a).is_err());
             assert!(a.types.is_empty() && a.no_web);
         }
+    }
+
+    #[test]
+    fn release_dateien() {
+        assert_eq!(fill_pattern("KeePassXC-{v}-x64.msi", "2.8.0"), "KeePassXC-2.8.0-x64.msi");
+        assert_eq!(fill_pattern("app-{v}-{tag}.zip", "v1.2.3"), "app-1.2.3-v1.2.3.zip");
+        assert_eq!(version_from_name("KeePassXC-{v}-x86_64.AppImage", "KeePassXC-2.8.0-x86_64.AppImage"), Some((2, 8, 0)));
+        assert_eq!(version_from_name("KeePassXC-{v}-x86_64.AppImage", "KeePassXC-2.8.0-aarch64.AppImage"), None);
+        assert_eq!(version_from_name("ohne-platzhalter", "ohne-platzhalter"), None);
+        assert_eq!(tag_from_location("https://github.com/keepassxreboot/keepassxc/releases/tag/2.8.0").as_deref(), Some("2.8.0"));
+        assert_eq!(tag_from_location("https://github.com/a/b/releases/tag/v1.0.0?x=1").as_deref(), Some("v1.0.0"));
+        assert_eq!(tag_from_location("https://github.com/a/b/releases"), None);
+        assert_eq!(tag_from_location("https://github.com/a/b/releases/tag/..%2F"), None);
+        assert!(latest_tag("nicht gültig").is_err());
+        assert!(latest_tag("a/../b").is_err());
+    }
+
+    #[test]
+    fn pruefsumme_lesen() {
+        let d = "4f105af5ba780428718c8be5614cf95deceed5cb3b474a9bd624c5df81cec6e5  KeePassXC-2.8.0-x64.msi\n";
+        assert_eq!(parse_digest(d).as_deref(), Some("4f105af5ba780428718c8be5614cf95deceed5cb3b474a9bd624c5df81cec6e5"));
+        let upper = "SHA256 (x) = 4F105AF5BA780428718C8BE5614CF95DECEED5CB3B474A9BD624C5DF81CEC6E5";
+        assert_eq!(parse_digest(upper).as_deref(), Some("4f105af5ba780428718c8be5614cf95deceed5cb3b474a9bd624c5df81cec6e5"));
+        assert_eq!(parse_digest("<html>Not Found</html>"), None);
+    }
+
+    #[test]
+    fn keepassxc_eintrag() {
+        let m: Manifest = toml::from_str(DEFAULT_MANIFEST).expect("eingebaute Liste");
+        let k = m.fremd.iter().find(|f| f.id == "keepassxc").expect("KeePassXC");
+        assert_eq!(k.github.as_deref(), Some("keepassxreboot/keepassxc"));
+        assert_eq!(k.digest.as_deref(), Some(".DIGEST"));
+        assert!(k.datei().is_some_and(|p| p.contains("{v}")));
+        assert!(k.can_install() && k.available());
+        let brave = m.fremd.iter().find(|f| f.id == "brave").expect("Brave");
+        assert!(brave.datei().is_none());
     }
 }
