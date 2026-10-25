@@ -115,10 +115,31 @@ jobs:
           ref: ${{ matrix.item.ref }}
           path: src
 
+      # Neuere Originale (z. B. WordCraft ab 0.11) holen ihre Übersetzungen beim Bauen aus
+      # storytold/craft-i18n, im Stand aus craft-i18n.rev. Sie kommen wie im Flatpak des Originals
+      # als Unterordner src/craft-i18n dazu, damit die Werk-Ausgabe sie mit umbenennt und ergänzt.
+      - name: Übersetzungsstand lesen
+        id: i18n
+        run: |
+          if [ -f src/craft-i18n.rev ]; then
+            echo "rev=$(tr -d '[:space:]' < src/craft-i18n.rev)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Übersetzungen holen
+        if: steps.i18n.outputs.rev != ''
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/craft-i18n
+          ref: ${{ steps.i18n.outputs.rev }}
+          path: src/craft-i18n
+
       - name: Werk-Ausgabe anwenden
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then PY=python; else PY=python3; fi
           "$PY" werkbank/werk/rebrand.py "$APP" src
+          if [ -d src/craft-i18n/locales ]; then
+            { echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/src/craft-i18n"; echo "CRAFT_I18N_REQUIRED=1"; } >> "$GITHUB_ENV"
+          fi
           UP=$(echo "$APP" | tr '[:lower:]' '[:upper:]')
           # Stand der Zusatzschriften, wie ihn das Original für seine Releases festlegt. Zwei Schreibweisen:
           # über den gemeinsamen Ablauf (craft-fonts-ref) oder als eigener Checkout (ref nach repository).

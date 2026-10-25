@@ -2,7 +2,10 @@
   "merge_tsv": [
     {
       "src": "de-werk.tsv",
-      "dst": "crates/ui-egui/src/i18n/de.tsv"
+      "dst": [
+        "craft-i18n/locales/de/wordcraft.tsv",
+        "crates/ui-egui/src/i18n/de.tsv"
+      ]
     }
   ],
   "patches": [
@@ -13,7 +16,8 @@
       "lines": [
         "// Werkbank: Deutsch hat zusätzlich die Schlüssel der grösseren Kataloge (de-werk.tsv).",
         "assert!(keys(lang(\"zh-hans\").0.source).is_subset(&keys(de.0.source)), \"zh-hans has keys German lacks\");"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/tests.rs",
@@ -22,7 +26,8 @@
       "lines": [
         "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
         "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"pl\" | \"it\" | \"hu\" | \"bg\" | \"vi\" | \"sv\" | \"hr\" | \"de\")) {"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/tests.rs",
@@ -31,7 +36,8 @@
       "lines": [
         "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
         "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"hr\" | \"de\")) {"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/tests.rs",
@@ -40,7 +46,8 @@
       "lines": [
         "// Werkbank: de-werk.tsv ergänzt auch Texte aus dem Code, die noch kein Katalog hat; Deutsch ist hier ausgenommen.",
         "for other in Lang::all().filter(|l| *l != Lang::EN && !matches!(l.code(), \"vi\" | \"de\")) {"
-      ]
+      ],
+      "optional": true
     }
   ]
 }

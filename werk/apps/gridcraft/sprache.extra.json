@@ -147,18 +147,18 @@
     },
     {
       "file": "crates/ui-egui/src/tabs.rs",
-      "anchor": "ui.label(egui::RichText::new(format!(\"Circular References: {name}!{}\", c.a1())).font(theme::ui_font(12.5)).color(t.danger));",
+      "anchor": "Some((_, c)) => format!(\"Circular References: {}\", c.a1()),",
       "kind": "replace",
       "lines": [
-        "ui.label(egui::RichText::new(format!(\"{}: {name}!{}\", crate::werk_de::t(\"Circular References\"), c.a1())).font(theme::ui_font(12.5)).color(t.danger));"
+        "Some((_, c)) => format!(\"{}: {}\", crate::werk_de::t(\"Circular References\"), c.a1()),"
       ]
     },
     {
       "file": "crates/ui-egui/src/tabs.rs",
-      "anchor": "if ui.button(if protected { \"Unprotect Sheet…\" } else { \"Protect Sheet…\" }).clicked() {",
+      "anchor": "None => \"Circular References\".to_owned(),",
       "kind": "replace",
       "lines": [
-        "if ui.button(crate::werk_de::t(if protected { \"Unprotect Sheet…\" } else { \"Protect Sheet…\" })).clicked() {"
+        "None => crate::werk_de::t(\"Circular References\").to_owned(),"
       ]
     },
     {

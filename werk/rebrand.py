@@ -41,7 +41,10 @@ UPSTREAM = CFG["upstream"]  # z. B. "storytold/pdfcraft": das Original
 OWNER = GITHUB.split("/")[0]
 
 # Ordner mit Quelltext und Paketierung. Lizenztexte und Urheberhinweise bleiben, wie sie sind.
-TEXT_DIRS = ["crates", "apps", "xtask", "packaging"]
+TEXT_DIRS = ["crates", "apps", "xtask", "packaging", "craft-i18n/locales"]
+# Neuere Originale holen ihre Übersetzungen beim Bauen aus storytold/craft-i18n (Stand in
+# craft-i18n.rev); App-Release legt sie als Unterordner craft-i18n in den Quellcode, wie das
+# Flatpak des Originals. Dort gelten dieselben Umbenennungen und Ergänzungen.
 KEEP = ("LICENSE", "LICENCE", "NOTICE", "ATTRIBUTION", "OFL", "COPYING")
 # Zeilen mit Urheberhinweis werden nie angefasst.
 COPYRIGHT = re.compile(r"Copyright|©|\(c\) ?(19|20)\d\d", re.IGNORECASE)
@@ -310,18 +313,24 @@ def patch_language():
 #                 Ein Zeichenketten-Literal direkt nach einem der Aufrufe wird zu func("…").
 #                 Zeilen mit «const », «static », «#[» oder Kommentaren bleiben unberührt.
 
-def _patch_lines(rel, kind, anchor, skip, lines):
+def _patch_lines(rel, kind, anchor, skip, lines, optional=False):
     path = ROOT / rel
     if not path.is_file():
+        if optional:
+            print(f"  (Einschub entfällt, {rel} fehlt)")
+            return False
         problems.append(f"Einschub: {rel} fehlt")
-        return
+        return False
     text = read(path)
     nl = "\r\n" if "\r\n" in text else "\n"
     rows = text.split(nl)
     hits = [i for i, r in enumerate(rows) if r.strip() == anchor.strip()]
     if len(hits) != 1:
+        if optional and not hits:
+            print(f"  (Einschub entfällt, Ankerzeile fehlt in {rel})")
+            return False
         problems.append(f"Einschub: Ankerzeile {len(hits)}× statt 1× in {rel}: {anchor}")
-        return
+        return False
     i = hits[0]
     indent = rows[i][: len(rows[i]) - len(rows[i].lstrip())]
     if kind == "after":
@@ -337,6 +346,7 @@ def _patch_lines(rel, kind, anchor, skip, lines):
         rows[i : i + 1] = [indent + l for l in lines]
     if not CHECK:
         path.write_bytes(nl.join(rows).encode("utf-8"))
+    return True
 
 
 def _tsv_key(line):
@@ -355,9 +365,13 @@ def extras():
             cfg.setdefault(key, []).extend(data.get(key, []))
     n = 0
     for m in cfg.get("merge_tsv", []):
-        dst, src = ROOT / m["dst"], WERK / m["src"]
+        # «dst» darf eine Liste sein: das erste Ziel, das es gibt (neue und alte Ablage des Originals).
+        dsts = m["dst"] if isinstance(m["dst"], list) else [m["dst"]]
+        rel = next((d for d in dsts if (ROOT / d).is_file()), dsts[0])
+        dst, src = ROOT / rel, WERK / m["src"]
+        m = {**m, "dst": rel}
         if not dst.is_file() or not src.is_file():
-            problems.append(f"merge_tsv: {m['dst']} oder {m['src']} fehlt")
+            problems.append(f"merge_tsv: {' / '.join(dsts)} oder {m['src']} fehlt")
             continue
         text = read(dst)
         nl = "\r\n" if "\r\n" in text else "\n"
@@ -399,8 +413,8 @@ def extras():
             shutil.copyfile(src, ROOT / m["dst"])
         print(f"  Datei {m['dst']}")
     for m in cfg.get("patches", []):
-        _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"])
-        print(f"  Einschub in {m['file']}")
+        if _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"], m.get("optional", False)):
+            print(f"  Einschub in {m['file']}")
     for m in cfg.get("wrap", []):
         calls = sorted(m["calls"], key=len, reverse=True)
         pat = re.compile("(" + "|".join(re.escape(c) for c in calls) + r')\s*("(?:[^"\\\n]|\\.)*")')
@@ -442,6 +456,8 @@ def swiss_spelling():
     base = ROOT / "crates" / "ui-egui"
     files = [p for p in sorted(base.rglob("*")) if p.is_file() and p.name in ESZETT_NAMES and "target" not in p.parts] if base.is_dir() else []
     files += [ROOT / f for f in ESZETT_EXTRA.get(APP, []) if (ROOT / f).is_file()]
+    de = ROOT / "craft-i18n" / "locales" / "de"
+    files += [de / f for f in ("common.tsv", f"{APP}.tsv") if (de / f).is_file()]
     n = 0
     for p in files:
         text = read(p)
