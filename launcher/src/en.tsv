@@ -251,3 +251,21 @@ Einen Kaffee spendieren	Buy me a coffee
 Nutzung zählen lassen	Allow usage counting
 Die Werkbank ist frei. Wer sie mag, kann mit einem Kaffee danke sagen.	Werkbank is free. If you like it, you can say thanks with a coffee.
 Die Werkbank meldet beim Start Computername, Benutzer, System und die installierten Programme mit Version, solange sie offen ist alle 5 Minuten ein kurzes Lebenszeichen. So ist sichtbar, wie viele sie nutzen.	At startup Werkbank reports computer name, user, system and the installed programs with their versions, and while open a short sign of life every 5 minutes. This shows how many people use it.
+# Fremdprogramme
+Internet	Internet
+Lade herunter …	Downloading …
+Installationsprogramm läuft …	Installer is running …
+{name} deinstallierst du in den Windows-Einstellungen unter «Apps».	Uninstall {name} in Windows Settings under “Apps”.
+{name} deinstallierst du, indem du es im Finder in den Papierkorb ziehst.	To uninstall {name}, drag it to the Trash in Finder.
+{name} deinstallierst du über die Paketverwaltung deines Systems.	Uninstall {name} with your system’s package manager.
+Installiert · aktualisiert sich selbst	Installed · updates itself
+Nicht installiert · aktualisiert sich selbst	Not installed · updates itself
+Installation über die Paketverwaltung der Distribution	Installed with your distribution’s package manager
+Anleitung öffnen	Open instructions
+Webseite	Website
+Deinstallieren …	Uninstall …
+Fremdprogramm	Third-party
+Fremdprogramm · aktualisiert sich selbst	Third-party program · updates itself
+Programm eines anderen Herstellers: die Werkbank installiert und startet es, es aktualisiert sich selbst.	Program from another vendor: Werkbank installs and starts it, it updates itself.
+Neue Version verfügbar: {neu} · installiert {alt}	New version available: {neu} · installed {alt}
+{name} ist entfernt.	{name} has been removed.

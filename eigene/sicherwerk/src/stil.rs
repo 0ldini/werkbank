@@ -636,13 +636,17 @@ pub fn fussleiste(ctx: &egui::Context, add: impl FnOnce(&mut Ui)) {
 
 /// Seitenleiste rechts für die Einstellungs-Karten (mit Rollbalken).
 pub fn seitenleiste(ctx: &egui::Context, breite: f32, add: impl FnOnce(&mut Ui)) {
+    // Höchstens 45 % des Fensters: der Hauptbereich links bleibt immer sichtbar.
+    let max = (ctx.screen_rect().width() * 0.45).max(breite);
     egui::SidePanel::right("werk-einstellungen")
         .resizable(true)
         .default_width(breite)
         .min_width(breite * 0.8)
+        .max_width(max)
         .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(10.0)).stroke(Stroke::new(1.0, thema::border())))
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                ui.set_max_width(ui.available_width());
                 ui.spacing_mut().item_spacing.y = 8.0;
                 add(ui);
             });
@@ -771,7 +775,10 @@ pub fn wahl<T: PartialEq + Copy>(ui: &mut Ui, wert: &mut T, optionen: &[(T, &str
 pub fn liste<T: PartialEq + Copy>(ui: &mut Ui, id: &str, wert: &mut T, optionen: &[(T, &str)]) -> bool {
     let mut changed = false;
     let text = optionen.iter().find(|(v, _)| v == wert).map(|(_, l)| *l).unwrap_or("–");
-    egui::ComboBox::from_id_salt(id).width(ui.available_width() - 4.0).selected_text(text).show_ui(ui, |ui| {
+    // Die Breite gilt ohne den Innenrand des Knopfs; ohne Abzug wäre die Liste breiter als der
+    // Platz und die Seitenleiste wüchse bei jedem Bild ein Stück.
+    let w = (ui.available_width() - 2.0 * ui.spacing().button_padding.x - 6.0).max(40.0);
+    egui::ComboBox::from_id_salt(id).width(w).selected_text(text).truncate().show_ui(ui, |ui| {
         for (v, l) in optionen {
             if ui.selectable_value(wert, *v, *l).changed() {
                 changed = true;

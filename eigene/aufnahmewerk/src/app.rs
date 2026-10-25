@@ -56,6 +56,10 @@ pub struct App {
     shot_mode: ShotMode,
     shot_delay: u32,
     shot_jpg: bool,
+    /// Zielordner für Bildschirmfotos (eigener Ordner, getrennt von Videos).
+    shot_dir: String,
+    /// Gleich nach dem Foto in die Zwischenablage kopieren.
+    shot_autocopy: bool,
     shot_job: Option<shot::Slot>,
     shot_hotkey_prev: bool,
     overlay: Option<Overlay>,
@@ -92,6 +96,8 @@ impl App {
             shot_mode: ShotMode::Screen,
             shot_delay: 0,
             shot_jpg: false,
+            shot_dir: default_shot_dir(),
+            shot_autocopy: false,
             shot_job: None,
             shot_hotkey_prev: false,
             overlay: None,
@@ -113,6 +119,11 @@ impl App {
             return;
         }
         self.last_err = None;
+        if self.shot_mode == ShotMode::Window && self.cfg.window_title.trim().is_empty() {
+            self.last_err = Some(t("Bitte zuerst ein Fenster wählen.").to_string());
+            self.tab = Tab::Foto;
+            return;
+        }
         self.status = if self.shot_delay > 0 {
             tf("Bildschirmfoto in {n} s …", &[("n", &self.shot_delay)])
         } else {
@@ -121,6 +132,7 @@ impl App {
         self.shot_job = Some(shot::spawn(
             self.shot_mode,
             self.cfg.monitor_index,
+            self.cfg.window_title.clone(),
             self.shot_delay,
             ctx.clone(),
         ));
@@ -179,7 +191,11 @@ impl App {
         self.status = tf("Bildschirmfoto {w} × {h} im Editor", &[("w", &img.w), ("h", &img.h)]);
         let id = self.next_editor;
         self.next_editor += 1;
-        self.editors.push(Editor::new(id, img, self.cfg.out_dir.clone(), self.shot_jpg));
+        let mut ed = Editor::new(id, img, self.shot_dir.clone(), self.shot_jpg);
+        if self.shot_autocopy {
+            ed.copy();
+        }
+        self.editors.push(ed);
     }
 
     /// Randloses Vollbild-Fenster mit eingefrorenem Bild; Rahmen aufziehen,
@@ -483,12 +499,23 @@ impl App {
                 stil::wahl(ui, &mut self.tab, &[(Tab::Video, t("Video")), (Tab::Foto, t("Bildschirmfoto"))]);
             });
             stil::rechts(ui, |ui| {
-                if stil::leise(ui, true, Sym::Ordner, t("Ordner …"), t("Zielordner wählen")).clicked() {
-                    if let Some(d) = rfd::FileDialog::new().set_title(t("Zielordner wählen")).pick_folder() {
-                        self.cfg.out_dir = d.display().to_string();
+                let foto = self.tab == Tab::Foto;
+                let (titel, tip) = if foto {
+                    (t("Ordner für Bildschirmfotos wählen"), t("Ordner für Bildschirmfotos wählen"))
+                } else {
+                    (t("Zielordner wählen"), t("Zielordner wählen"))
+                };
+                if stil::leise(ui, true, Sym::Ordner, t("Ordner …"), tip).clicked() {
+                    if let Some(d) = rfd::FileDialog::new().set_title(titel).pick_folder() {
+                        if foto {
+                            self.shot_dir = d.display().to_string();
+                        } else {
+                            self.cfg.out_dir = d.display().to_string();
+                        }
                     }
                 }
-                stil::grau(ui, &short_dir(&self.cfg.out_dir));
+                let dir = if foto { &self.shot_dir } else { &self.cfg.out_dir };
+                stil::grau(ui, &short_dir(dir)).on_hover_text(dir.as_str());
             });
         });
     }
@@ -589,29 +616,7 @@ impl App {
                 ui.add_space(10.0);
                 match self.cfg.mode {
                     Mode::Fullscreen => self.monitor_combo(ui, "mon"),
-                    Mode::Window => {
-                        ui.horizontal(|ui| {
-                            egui::ComboBox::from_id_salt("win")
-                                .width(ui.available_width() - 140.0)
-                                .selected_text(if self.cfg.window_title.is_empty() {
-                                    t("Fenster wählen …").to_string()
-                                } else {
-                                    self.cfg.window_title.clone()
-                                })
-                                .show_ui(ui, |ui| {
-                                    for w in &self.windows {
-                                        ui.selectable_value(
-                                            &mut self.cfg.window_title,
-                                            w.clone(),
-                                            w.as_str(),
-                                        );
-                                    }
-                                });
-                            if stil::knopf(ui, Sym::Aktualisieren, t("Aktualisieren")).clicked() {
-                                self.windows = record::list_windows();
-                            }
-                        });
-                    }
+                    Mode::Window => self.window_combo(ui, "win"),
                     Mode::Region => {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(t("Bereich:")).color(thema::muted()));
@@ -631,7 +636,7 @@ impl App {
 
     fn monitor_combo(&mut self, ui: &mut egui::Ui, salt: &str) {
         egui::ComboBox::from_id_salt(salt)
-            .width(ui.available_width() - 4.0)
+            .width((ui.available_width() - 2.0 * ui.spacing().button_padding.x - 6.0).max(40.0))
             .selected_text(
                 self.monitors
                     .get(self.cfg.monitor_index)
@@ -645,18 +650,52 @@ impl App {
             });
     }
 
+    /// Fensterliste (geteilt zwischen Video und Bildschirmfoto) mit Aktualisieren.
+    fn window_combo(&mut self, ui: &mut egui::Ui, salt: &str) {
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt(salt)
+                .width((ui.available_width() - 140.0).max(60.0))
+                .selected_text(if self.cfg.window_title.is_empty() {
+                    t("Fenster wählen …").to_string()
+                } else {
+                    self.cfg.window_title.clone()
+                })
+                .show_ui(ui, |ui| {
+                    if self.windows.is_empty() {
+                        stil::grau(ui, t("Keine Fenster gefunden – «Aktualisieren» drücken."));
+                    }
+                    for w in &self.windows {
+                        ui.selectable_value(&mut self.cfg.window_title, w.clone(), w.as_str());
+                    }
+                });
+            if stil::knopf(ui, Sym::Aktualisieren, t("Aktualisieren")).clicked() {
+                self.windows = record::list_windows();
+            }
+        });
+    }
+
     fn card_foto(&mut self, ui: &mut egui::Ui) {
         let busy = self.shot_busy();
         stil::karte(ui, "foto", Sym::Kamera, t("BILDSCHIRMFOTO"), true, |ui| {
             ui.add_enabled_ui(!busy, |ui| {
-                ui.columns(3, |c| {
-                    mode_tile(&mut c[0], &mut self.shot_mode, ShotMode::Screen, t("Ganzer Bildschirm"), t("Monitor wählen"));
-                    mode_tile(&mut c[1], &mut self.shot_mode, ShotMode::Region, t("Bereich"), t("Mit der Maus aufziehen"));
-                    mode_tile(&mut c[2], &mut self.shot_mode, ShotMode::ActiveWindow, t("Aktives Fenster"), t("Fenster im Vordergrund"));
+                let before = self.shot_mode;
+                ui.columns(4, |c| {
+                    mode_tile(&mut c[0], &mut self.shot_mode, ShotMode::Screen, t("Vollbild"), t("Monitor wählen"));
+                    mode_tile(&mut c[1], &mut self.shot_mode, ShotMode::Window, t("Fenster"), t("Programm wählen"));
+                    mode_tile(&mut c[2], &mut self.shot_mode, ShotMode::Region, t("Bereich"), t("Mit der Maus aufziehen"));
+                    mode_tile(&mut c[3], &mut self.shot_mode, ShotMode::ActiveWindow, t("Aktives Fenster"), t("Fenster im Vordergrund"));
                 });
+                // Beim Wechsel auf «Fenster» die Liste gleich füllen.
+                if self.shot_mode == ShotMode::Window && before != ShotMode::Window && self.windows.is_empty() {
+                    self.windows = record::list_windows();
+                }
                 ui.add_space(10.0);
                 match self.shot_mode {
                     ShotMode::Screen | ShotMode::Region => self.monitor_combo(ui, "foto-mon"),
+                    ShotMode::Window => {
+                        self.window_combo(ui, "foto-win");
+                        stil::hinweis(ui, t("Fotografiert genau dieses Fenster, auch wenn es verdeckt ist."));
+                    }
                     ShotMode::ActiveWindow => {
                         stil::hinweis(ui, t("Fotografiert das Fenster, das vorne ist, sobald Aufnahmewerk ausgeblendet ist. Mit Verzögerung bleibt Zeit, ein anderes Fenster anzuklicken."));
                     }
@@ -678,7 +717,24 @@ impl App {
             stil::hinweis(ui, t("Strg + S im Editor"));
             ui.add_space(8.0);
             stil::feld(ui, t("Nach dem Foto"), |ui| {
-                stil::hinweis(ui, t("Der Editor öffnet sich: Pfeile, Text, Schwärzen, Zuschneiden"));
+                stil::schalter(ui, &mut self.shot_autocopy, t("Gleich in die Zwischenablage kopieren"));
+            });
+            stil::hinweis(ui, t("Der Editor öffnet sich: Pfeile, Text, Schwärzen, Zuschneiden"));
+            ui.add_space(8.0);
+            stil::feld(ui, t("Tastenkürzel"), |ui| {
+                ui.label(egui::RichText::new(t("Strg + Umschalt + F")).strong().color(thema::text()));
+            });
+            stil::hinweis(ui, t("Funktioniert auch, wenn Aufnahmewerk im Hintergrund ist (Video: Strg + Umschalt + R)"));
+            ui.add_space(8.0);
+            stil::feld(ui, t("Ordner"), |ui| {
+                ui.horizontal(|ui| {
+                    stil::grau(ui, &short_dir(&self.shot_dir)).on_hover_text(self.shot_dir.as_str());
+                    if stil::leise(ui, true, Sym::Ordner, t("Ändern …"), t("Ordner für Bildschirmfotos wählen")).clicked() {
+                        if let Some(d) = rfd::FileDialog::new().set_title(t("Ordner für Bildschirmfotos wählen")).pick_folder() {
+                            self.shot_dir = d.display().to_string();
+                        }
+                    }
+                });
             });
         });
     }
@@ -820,8 +876,12 @@ impl App {
         stil::karte(ui, "fotos", Sym::Bild, t("LETZTE BILDSCHIRMFOTOS"), true, |ui| {
             ui.horizontal(|ui| {
                 if stil::knopf(ui, Sym::OrdnerAuf, t("Ordner öffnen")).clicked() {
-                    let _ = std::fs::create_dir_all(&self.cfg.out_dir);
-                    shot::open_folder(&self.cfg.out_dir);
+                    match std::fs::create_dir_all(&self.shot_dir) {
+                        Ok(()) => shot::open_folder(&self.shot_dir),
+                        Err(e) => {
+                            self.last_err = Some(tf("Ordner nicht verfügbar: {e}", &[("e", &e)]));
+                        }
+                    }
                 }
             });
             ui.add_space(6.0);
@@ -987,6 +1047,26 @@ pub(crate) fn default_out_dir() -> String {
     } else {
         "Aufnahmen".into()
     }
+}
+
+/// Standardordner für Bildschirmfotos: «Bilder\Bildschirmfotos» im
+/// Benutzerordner (bei OneDrive-Bildern dort, falls nur dieser existiert).
+pub(crate) fn default_shot_dir() -> String {
+    let Ok(up) = std::env::var("USERPROFILE") else {
+        return "Bildschirmfotos".into();
+    };
+    let local = std::path::Path::new(&up).join("Pictures");
+    let pictures = if local.is_dir() {
+        Some(local.clone())
+    } else {
+        std::env::var("OneDrive").ok().and_then(|od| {
+            ["Pictures", "Bilder"]
+                .iter()
+                .map(|n| std::path::Path::new(&od).join(n))
+                .find(|p| p.is_dir())
+        })
+    };
+    pictures.unwrap_or(local).join("Bildschirmfotos").display().to_string()
 }
 
 fn join_path(dir: &str, name: &str) -> String {

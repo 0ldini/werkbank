@@ -1,6 +1,7 @@
 //! Eingebaute Programm-Icons (128 px, aus werk/apps/*/icons). Neu erzeugen: werk/tools/make_icons.py.
 
 pub const ICONS: &[(&str, &[u8])] = &[
+    ("abspielwerk", include_bytes!("../icons/abspielwerk.png")),
     ("aufnahmewerk", include_bytes!("../icons/aufnahmewerk.png")),
     ("cadcraft", include_bytes!("../icons/cadcraft.png")),
     ("codewerk", include_bytes!("../icons/codewerk.png")),
@@ -9,6 +10,9 @@ pub const ICONS: &[(&str, &[u8])] = &[
     ("diawerk", include_bytes!("../icons/diawerk.png")),
     ("effectcraft", include_bytes!("../icons/effectcraft.png")),
     ("filmcraft", include_bytes!("../icons/filmcraft.png")),
+    // Neutrales Symbol für Fremdprogramme (kein Logo des Herstellers).
+    ("fremd-browser", include_bytes!("../icons/fremd-browser.png")),
+    ("fremd-tresor", include_bytes!("../icons/fremd-tresor.png")),
     ("gridcraft", include_bytes!("../icons/gridcraft.png")),
     ("ladewerk", include_bytes!("../icons/ladewerk.png")),
     ("lightcraft", include_bytes!("../icons/lightcraft.png")),

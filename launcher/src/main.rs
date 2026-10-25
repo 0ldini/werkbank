@@ -29,7 +29,7 @@ fn main() {
     // Von Windows aufgerufen («Öffnen mit»): Datei im zugeordneten Programm öffnen.
     if args.first().map(String::as_str) == Some("--open") {
         let (Some(id), Some(file)) = (args.get(1), args.get(2)) else { std::process::exit(2) };
-        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None });
+        let manifest = core::load_manifest().unwrap_or_else(|_| Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None, fremd: Vec::new() });
         if let Some(app) = manifest.app.iter().find(|a| &a.id == id) {
             if core::run_with(app, Some(std::path::Path::new(file))).is_ok() {
                 return;
@@ -100,6 +100,19 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
         "list" => {
             println!("{:<13} {:<11} {:<11} {}", "Programm", "Desktop", "Browser", "Neueste");
             for app in &manifest.app {
+                if let Some(f) = &app.fremd {
+                    let state = match (core::fremd_find(f).is_some(), core::fremd_version(f)) {
+                        (true, Some(v)) => fmt_version(v),
+                        (true, None) => "installiert".into(),
+                        _ => "–".into(),
+                    };
+                    let latest = match &f.github {
+                        Some(_) => core::fremd_latest(f).map(fmt_version).unwrap_or_else(|e| format!("? ({e:#})")),
+                        None => "Fremdprogramm, aktualisiert sich selbst".into(),
+                    };
+                    println!("{:<13} {:<11} {:<11} {}", app.id, state, "–", latest);
+                    continue;
+                }
                 let latest = core::latest_version(app).map(fmt_version).unwrap_or_else(|e| format!("? ({e:#})"));
                 println!(
                     "{:<13} {:<11} {:<11} {}",
@@ -114,6 +127,14 @@ fn cli(manifest: &Manifest, args: &[String]) -> anyhow::Result<()> {
             let kind = if args.iter().any(|a| a == "--web") { Kind::Web } else { Kind::Native };
             let id = args.iter().skip(1).find(|a| !a.starts_with("--"));
             for app in targets(id)? {
+                // Fremdprogramme: nur auf ausdrücklichen Wunsch («install brave»), nie aktualisieren.
+                if let Some(f) = &app.fremd {
+                    if args[0] == "install" && id.is_some_and(|i| i != "all" && i != "alle") {
+                        core::fremd_install(f, &quiet)?;
+                        println!("{}: installiert (aktualisiert sich selbst)", app.id);
+                    }
+                    continue;
+                }
                 // "update" ohne Namen fasst nur an, was schon installiert ist.
                 if args[0] == "update" && id.is_none() && core::installed_version(app, kind).is_none() {
                     continue;

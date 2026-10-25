@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Packt eine fertige Programmdatei als macOS-Programm (Name.app), ad hoc signiert.
-# Aufruf: mac_bundle.sh <Anzeigename> <programmdatei> <icon.icns> <bundle-id> <version> <zielordner>
+# Aufruf: mac_bundle.sh <Anzeigename> <programmdatei> <icon.icns> <bundle-id> <version> <zielordner> [zusatzordner]
 # Ergebnis: <zielordner>/<Anzeigename>.app (Contents/MacOS/<Name der Programmdatei>).
+# Optional: der Inhalt von [zusatzordner] (z. B. Bibliotheken und Plugins) kommt nach
+# Contents/MacOS/; jede .dylib/.so darin wird vor dem Programm ad hoc signiert.
 set -euo pipefail
-NAME="$1"; EXE="$2"; ICNS="$3"; ID="$4"; VERSION="$5"; OUT="$6"
+NAME="$1"; EXE="$2"; ICNS="$3"; ID="$4"; VERSION="$5"; OUT="$6"; EXTRA="${7:-}"
 BIN=$(basename "$EXE")
 APP="$OUT/$NAME.app"
 SHORT="${VERSION%%-*}"
@@ -35,6 +37,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 plutil -lint "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+if [ -n "$EXTRA" ]; then
+  [ -d "$EXTRA" ] || { echo "Zusatzordner fehlt: $EXTRA"; exit 1; }
+  ditto "$EXTRA" "$APP/Contents/MacOS"
+  # Eingebettete Bibliotheken zuerst signieren, dann das Programm.
+  find "$APP/Contents/MacOS" -type f \( -name '*.dylib' -o -name '*.so' \) -print0 |
+    xargs -0 -n 50 codesign --force --sign - --timestamp=none
+fi
 # Ohne Apple-Entwicklerkonto: ad hoc signieren (Apple Silicon verlangt eine Signatur).
 codesign --force --deep --sign - --timestamp=none "$APP"
 codesign --verify --strict --deep --verbose=2 "$APP"

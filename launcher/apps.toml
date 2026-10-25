@@ -12,6 +12,22 @@
 #   category  (optional) Rubrik: buero, foto, video oder system
 #   web_only  (optional) true für eigene HTML5-Apps: nur Browser-Version,
 #             Release-Datei <id>-web-<version>.zip
+#
+# Fremdprogramme ([[fremd]] ganz unten): bekannte Programme anderer Hersteller. Der Launcher
+# lädt ihr offizielles Installationsprogramm, führt es aus und startet das Programm; er baut
+# und aktualisiert sie nicht (sie aktualisieren sich selbst) und löscht sie nie.
+#   windows        Adresse des Installationsprogramms (.exe)
+#   macos          Adresse des Disk-Images (.dmg), das .app wird nach /Applications kopiert
+#   linux_hilfe    Anleitung des Herstellers (Linux: Installation über die Paketverwaltung)
+#   pfade_windows  mögliche Orte der .exe (%LOCALAPPDATA% usw. erlaubt) → «installiert»
+#   pfade_macos    mögliche Orte des .app-Bündels (~ erlaubt)
+#   befehle_linux  Befehle im PATH
+#   homepage, category ("internet" usw.), color, icon, systeme wie oben
+#   github         (optional) «besitzer/repo»: die Datei kommt aus dem neuesten Release,
+#                  Name nach windows_datei / macos_datei / linux_datei ({v} = Version,
+#                  {tag} = Tag). Linux: ein .AppImage, das die Werkbank im Datenordner ablegt
+#                  und auch aktualisiert. Windows: .exe oder .msi, macOS: .dmg.
+#   digest         (optional) Endung der Prüfsummen-Datei neben dem Download, z. B. ".DIGEST"
 
 title = "Werkbank"
 # Spenden-Knopf im Launcher (Kaffeetasse oben rechts und in den Einstellungen), z. B.
@@ -239,6 +255,18 @@ tag = "diawerk-v"
 no_web = true
 
 [[app]]
+id = "abspielwerk"
+name = "Abspielwerk"
+about = "Videos, Musik und Bilder ansehen"
+about_en = "Watch videos, play music, view pictures"
+category = "video"
+color = "#B5179E"
+repo = "https://github.com/0ldini/werkbank"
+tag = "abspielwerk-v"
+no_web = true
+types = [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"]
+
+[[app]]
 id = "mailwerk"
 name = "Mailwerk"
 about = "E-Mail-Programm (IMAP/SMTP, JMAP)"
@@ -291,3 +319,41 @@ repo = "https://github.com/0ldini/werkbank"
 tag = "packwerk-v"
 types = [".zip", ".7z", ".tar", ".gz", ".tgz"]
 no_web = true
+
+# ---------------------------------------------------------------------------------------------
+# Fremdprogramme
+
+[[fremd]]
+id = "brave"
+name = "Brave"
+about = "Webbrowser mit eingebautem Werbeblocker"
+about_en = "Web browser with built-in ad blocker"
+category = "internet"
+color = "#FB542B"
+icon = "fremd-browser"
+homepage = "https://brave.com"
+windows = "https://github.com/brave/brave-browser/releases/latest/download/BraveBrowserStandaloneSetup.exe"
+macos = "https://github.com/brave/brave-browser/releases/latest/download/Brave-Browser-arm64.dmg"
+linux_hilfe = "https://brave.com/linux/"
+pfade_windows = ['%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe', '%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe']
+pfade_macos = ["/Applications/Brave Browser.app", "~/Applications/Brave Browser.app"]
+befehle_linux = ["brave-browser", "brave-browser-stable", "brave"]
+
+[[fremd]]
+id = "keepassxc"
+name = "KeePassXC"
+about = "Passwort-Tresor, verschlüsselt auf deinem Rechner"
+about_en = "Password vault, encrypted on your computer"
+category = "system"
+color = "#6CAC4D"
+icon = "fremd-tresor"
+homepage = "https://keepassxc.org"
+github = "keepassxreboot/keepassxc"
+windows_datei = "KeePassXC-{v}-x64.msi"
+macos_datei = "KeePassXC-{v}-arm64.dmg"
+linux_datei = "KeePassXC-{v}-x86_64.AppImage"
+digest = ".DIGEST"
+linux_hilfe = "https://keepassxc.org/download/#linux"
+pfade_windows = ['%ProgramFiles%\KeePassXC\KeePassXC.exe', '%LOCALAPPDATA%\Programs\KeePassXC\KeePassXC.exe']
+pfade_macos = ["/Applications/KeePassXC.app", "~/Applications/KeePassXC.app"]
+befehle_linux = ["keepassxc"]

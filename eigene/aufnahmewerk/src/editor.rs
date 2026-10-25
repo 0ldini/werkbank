@@ -200,7 +200,7 @@ impl Editor {
         let (y, mo, d, h, mi, s) = crate::app::local_now();
         let stem = schnapp::shot_stem(y, mo, d, h, mi, s);
         let dir = if self.out_dir.trim().is_empty() {
-            PathBuf::from(crate::app::default_out_dir())
+            PathBuf::from(crate::app::default_shot_dir())
         } else {
             PathBuf::from(&self.out_dir)
         };
@@ -225,7 +225,8 @@ impl Editor {
         }
     }
 
-    fn copy(&mut self) {
+    /// In die Zwischenablage (auch gleich nach dem Foto, falls eingestellt).
+    pub fn copy(&mut self) {
         match shot::copy_to_clipboard(&self.shown) {
             Ok(()) => {
                 self.kept = true;
@@ -238,7 +239,7 @@ impl Editor {
     }
 
     fn open_dir(&self) {
-        let dir = if self.out_dir.trim().is_empty() { crate::app::default_out_dir() } else { self.out_dir.clone() };
+        let dir = if self.out_dir.trim().is_empty() { crate::app::default_shot_dir() } else { self.out_dir.clone() };
         let _ = std::fs::create_dir_all(&dir);
         shot::open_folder(&dir);
     }

@@ -22,15 +22,19 @@ struct Status {
     latest: Option<Version>,
     busy: Option<(String, f32)>,
     error: Option<String>,
+    /// Fremdprogramm: auf dem System gefunden.
+    fremd: bool,
+    /// Fremdprogramm: installierte Version, wo sie sich lesen lässt.
+    fremd_version: Option<Version>,
 }
 
 impl Status {
     fn installed(&self) -> bool {
-        self.native.is_some() || self.web.is_some()
+        self.native.is_some() || self.web.is_some() || self.fremd
     }
     /// Installierte Version, nach der sich ein Update richtet.
     fn current(&self) -> Option<Version> {
-        self.native.or(self.web)
+        self.native.or(self.web).or(self.fremd_version)
     }
     fn update(&self) -> bool {
         self.busy.is_none() && self.current().is_some() && self.latest.is_some() && self.current() < self.latest
@@ -78,6 +82,7 @@ enum Chip {
     Photo,
     Video,
     System,
+    Internet,
     Installed,
     Updates,
 }
@@ -90,6 +95,7 @@ impl Chip {
             Chip::Photo => "Foto und Grafik",
             Chip::Video => "Video und Ton",
             Chip::System => "System und Werkzeuge",
+            Chip::Internet => "Internet",
             Chip::Installed => "Installiert",
             Chip::Updates => "Updates",
         })
@@ -97,13 +103,15 @@ impl Chip {
 }
 
 /// Rubriken in der Reihenfolge der Anzeige.
-const CATEGORIES: [Chip; 4] = [Chip::Office, Chip::Photo, Chip::Video, Chip::System];
+/// Die ersten vier färben die Kachel «Alle Programme».
+const CATEGORIES: [Chip; 5] = [Chip::Office, Chip::Photo, Chip::Video, Chip::System, Chip::Internet];
 
 fn cat_color(c: Chip) -> Color32 {
     match c {
         Chip::Office => rgb(0x2F6FDE),
         Chip::Photo => rgb(0xD9622B),
         Chip::Video => rgb(0x7B4FD6),
+        Chip::Internet => rgb(0x2E9E5B),
         _ => rgb(0x0F8B8D),
     }
 }
@@ -121,6 +129,7 @@ fn category(app: &App) -> Chip {
         Some("foto") => return Chip::Photo,
         Some("video") => return Chip::Video,
         Some("system") => return Chip::System,
+        Some("internet") => return Chip::Internet,
         _ => {}
     }
     match app.id.as_str() {
@@ -201,6 +210,10 @@ pub struct Gui {
     token_input: String,
     cal_input: String,
     news_input: String,
+    /// Fremdprogramme: letzte Suche und ob das Fenster den Fokus hatte (neu suchen, sobald
+    /// es ihn wieder bekommt, z. B. nach einer Installation von Hand).
+    fremd_at: Instant,
+    focused: bool,
 }
 
 pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::PathBuf>, online: bool, notice: Option<String>) {
@@ -222,7 +235,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
             let mut app = Gui {
                 setup: None,
                 types: None,
-                manifest: Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None },
+                manifest: Manifest { title: "Werkbank".into(), app: Vec::new(), spenden: None, fremd: Vec::new() },
                 textures: HashMap::new(),
                 state: Shared::default(),
                 web_addr: None,
@@ -257,6 +270,8 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
                 token_input: String::new(),
                 cal_input: String::new(),
                 news_input: String::new(),
+                fremd_at: Instant::now(),
+                focused: true,
             };
             // Nur für Bildschirmfotos der Dokumentation: Ansicht direkt öffnen.
             match std::env::var("WERKBANK_ANSICHT").as_deref() {
@@ -1128,21 +1143,54 @@ impl Gui {
             self.cfg_at = Instant::now();
             self.cfg.recent = core::load_config().recent;
         }
+        let focused = ctx.input(|i| i.focused);
+        if (focused && !self.focused) || self.fremd_at.elapsed() > Duration::from_secs(10) {
+            self.fremd_at = Instant::now();
+            self.detect_fremd();
+        }
+        self.focused = focused;
         self.tick_widgets(ctx);
         ctx.request_repaint_after(Duration::from_secs(1));
     }
 
     fn local(&self, app: &App) {
-        let mut s = self.state.lock().unwrap();
+        let found = app.fremd.as_deref().is_some_and(|f| core::fremd_find(f).is_some());
+        let version = app.fremd.as_deref().and_then(core::fremd_version);
+        let Ok(mut s) = self.state.lock() else { return };
         let st = s.entry(app.id.clone()).or_default();
         st.native = core::installed_version(app, Kind::Native);
         st.web = core::installed_version(app, Kind::Web);
+        st.fremd = found;
+        st.fremd_version = version;
+    }
+
+    /// Fremdprogramme neu suchen (nur Dateiabfragen, darum direkt im Bild-Takt).
+    fn detect_fremd(&self) {
+        for app in self.manifest.app.iter().filter(|a| a.fremd.is_some()) {
+            self.local(app);
+        }
     }
 
     /// Liest installierte Versionen und fragt im Hintergrund nach neuen.
     fn refresh(&self, ctx: &egui::Context) {
         for app in &self.manifest.app {
             self.local(app);
+            // Fremdprogramme: neueste Version nur mit GitHub-Quelle, sonst aktualisieren sie sich selbst.
+            if let Some(f) = app.fremd.as_deref() {
+                if f.github.is_some() {
+                    let (f, id, state, ctx) = (f.clone(), app.id.clone(), self.state.clone(), ctx.clone());
+                    std::thread::spawn(move || {
+                        // Ohne Netz bleibt die Karte einfach ohne Versionsangabe.
+                        if let Ok(v) = core::fremd_latest(&f) {
+                            if let Ok(mut s) = state.lock() {
+                                s.entry(id).or_default().latest = Some(v);
+                            }
+                            ctx.request_repaint();
+                        }
+                    });
+                }
+                continue;
+            }
             let (app, state, ctx) = (app.clone(), self.state.clone(), ctx.clone());
             std::thread::spawn(move || {
                 let latest = core::latest_version(&app);
@@ -1167,6 +1215,11 @@ impl Gui {
 
     /// Installiert/aktualisiert ein Programm im Hintergrund; `then_open` öffnet danach den Browser.
     fn install(&self, ctx: &egui::Context, app: &App, kind: Kind, then_open: Option<String>) {
+        // Fremdprogramme (auch «Aktualisieren» und «Alle aktualisieren»): neu installieren.
+        if app.fremd.is_some() {
+            self.install_fremd(ctx, app);
+            return;
+        }
         let (app, state, ctx) = (app.clone(), self.state.clone(), ctx.clone());
         {
             let mut s = state.lock().unwrap();
@@ -1204,7 +1257,44 @@ impl Gui {
         });
     }
 
+    /// Fremdprogramm im Hintergrund mit seinem offiziellen Installationsprogramm einrichten.
+    fn install_fremd(&self, ctx: &egui::Context, app: &App) {
+        let Some(f) = app.fremd.as_deref().cloned() else { return };
+        let (id, state, ctx) = (app.id.clone(), self.state.clone(), ctx.clone());
+        if let Ok(mut s) = state.lock() {
+            let st = s.entry(id.clone()).or_default();
+            if st.busy.is_some() {
+                return;
+            }
+            st.busy = Some((t("Starte …").into(), 0.0));
+            st.error = None;
+        }
+        std::thread::spawn(move || {
+            let progress = |msg: &str, frac: f32| {
+                if let Some(st) = state.lock().ok().as_mut().and_then(|s| s.get_mut(&id)) {
+                    st.busy = Some((msg.to_string(), frac));
+                }
+                ctx.request_repaint();
+            };
+            let result = core::fremd_install(&f, &progress);
+            let found = core::fremd_find(&f).is_some();
+            let version = core::fremd_version(&f);
+            if let Ok(mut s) = state.lock() {
+                let st = s.entry(id.clone()).or_default();
+                st.busy = None;
+                st.fremd = found;
+                st.fremd_version = version;
+                st.error = result.err().map(|e| format!("{e:#}"));
+            }
+            ctx.request_repaint();
+        });
+    }
+
     fn install_default(&self, ctx: &egui::Context, app: &App) {
+        if app.fremd.is_some() {
+            self.install_fremd(ctx, app);
+            return;
+        }
         let kind = if app.web_only { Kind::Web } else { Kind::Native };
         self.install(ctx, app, kind, None);
     }
@@ -1236,7 +1326,12 @@ impl Gui {
 
     /// Startet die Desktop-Version, sonst die Browser-Version.
     fn launch(&mut self, ctx: &egui::Context, app: &App, st: &Status) {
-        if st.native.is_some() && !app.web_only {
+        if app.fremd.is_some() {
+            if let Err(e) = core::run(app) {
+                self.notice = Some(format!("{e:#}"));
+            }
+            self.local(app);
+        } else if st.native.is_some() && !app.web_only {
             if let Err(e) = core::run(app) {
                 self.notice = Some(format!("{e:#}"));
             }
@@ -1246,6 +1341,18 @@ impl Gui {
     }
 
     fn remove(&mut self, app: &App) {
+        if let Some(f) = app.fremd.as_deref() {
+            // Fremdprogramme löscht die Werkbank nie selbst; sie zeigt, wo das System es tut.
+            self.notice = Some(match core::fremd_uninstall_help(f) {
+                Ok(true) => tf("{name} ist entfernt.", &[("name", &app.name)]),
+                Ok(_) if cfg!(windows) => tf("{name} deinstallierst du in den Windows-Einstellungen unter «Apps».", &[("name", &app.name)]),
+                Ok(_) if cfg!(target_os = "macos") => tf("{name} deinstallierst du, indem du es im Finder in den Papierkorb ziehst.", &[("name", &app.name)]),
+                Ok(_) => tf("{name} deinstallierst du über die Paketverwaltung deines Systems.", &[("name", &app.name)]),
+                Err(e) => format!("{e:#}"),
+            });
+            self.local(app);
+            return;
+        }
         if let Err(e) = core::uninstall(app) {
             self.notice = Some(format!("{e:#}"));
         }
@@ -1843,19 +1950,13 @@ impl Gui {
             p.rect_filled(Rect::from_min_size(bar.min, egui::vec2(bar.width() * frac.clamp(0.02, 1.0), 4.0)), 2.0, ACCENT);
             ctx.request_repaint_after(Duration::from_millis(200));
         }
-        let mut hint = format!("{}\n{}", app.name, app.about_text());
-        if let Some(v) = st.current() {
-            hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
-        }
-        if let (true, Some(l)) = (update, st.latest) {
-            hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
-        }
+        let hint = hover_hint(app, st, update);
         let resp = resp.on_hover_text(hint);
         if resp.clicked() && st.busy.is_none() {
             self.launch(ctx, app, st);
         }
         resp.context_menu(|ui| {
-            if st.native.is_some() && !app.web_only && ui.button(t("Starten")).clicked() {
+            if ((st.native.is_some() && !app.web_only) || st.fremd) && ui.button(t("Starten")).clicked() {
                 self.launch(ctx, app, st);
                 ui.close_menu();
             }
@@ -1872,7 +1973,7 @@ impl Gui {
                 self.toggle_quick(&app.id);
                 ui.close_menu();
             }
-            if ui.button(t("Entfernen")).clicked() {
+            if ui.button(if app.fremd.is_some() { t("Deinstallieren …") } else { t("Entfernen") }).clicked() {
                 self.remove(app);
                 ui.close_menu();
             }
@@ -1899,7 +2000,7 @@ impl Gui {
     fn catalog(&mut self, ctx: &egui::Context, snapshot: &HashMap<String, Status>) {
         let st = |a: &App| snapshot.get(&a.id).cloned().unwrap_or_default();
         let count = |chip: Chip| self.manifest.app.iter().filter(|a| matches(chip, a, &st(a))).count();
-        let chips: Vec<(Chip, usize)> = [Chip::All, Chip::Office, Chip::Photo, Chip::Video, Chip::System, Chip::Installed, Chip::Updates]
+        let chips: Vec<(Chip, usize)> = [Chip::All, Chip::Office, Chip::Photo, Chip::Video, Chip::System, Chip::Internet, Chip::Installed, Chip::Updates]
             .into_iter()
             .map(|c| (c, count(c)))
             .filter(|(c, n)| *n > 0 || *c == self.chip || *c == Chip::All)
@@ -1977,6 +2078,11 @@ impl Gui {
     }
 
     fn catalog_card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, st: &Status, w: f32) {
+        if let Some(f) = app.fremd.as_deref() {
+            let f = f.clone();
+            self.fremd_card(ui, ctx, app, &f, st, w);
+            return;
+        }
         let update = st.update();
         let border = if update || st.busy.is_some() { ACCENT } else { border() };
         card(ui, egui::vec2(w, 178.0), border, |ui| {
@@ -2024,6 +2130,80 @@ impl Gui {
                         if !app.no_web && !app.web_only && ready && button(ui, t("Im Browser testen"), Look::Outline).clicked() {
                             self.open_web(ctx, app);
                         }
+                    }
+                });
+            });
+        });
+    }
+
+    /// Karte eines Fremdprogramms: wie die anderen, aber als «Fremdprogramm» markiert, ohne
+    /// Version und Update (es aktualisiert sich selbst).
+    fn fremd_card(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, app: &App, f: &core::Fremd, st: &Status, w: f32) {
+        let update = st.update();
+        let border = if st.busy.is_some() || update { ACCENT } else { border() };
+        card(ui, egui::vec2(w, 178.0), border, |ui| {
+            ui.horizontal(|ui| {
+                icon(ui, &mut self.textures, app, 52.0);
+                ui.vertical(|ui| {
+                    ui.add_space(2.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(&app.name).size(17.0).strong());
+                        fremd_tag(ui);
+                    });
+                    // Mit GitHub-Quelle kennt die Werkbank die neueste Version und bietet Updates an.
+                    let line = match (f.github.is_some(), st.installed(), st.current(), st.latest) {
+                        (true, _, Some(n), Some(l)) if update => tf("Neue Version verfügbar: {neu} · installiert {alt}", &[("neu", &fmt_version(l)), ("alt", &fmt_version(n))]),
+                        (true, true, Some(n), _) => tf("Installiert · {v}", &[("v", &fmt_version(n))]),
+                        (true, true, None, _) => t("Installiert").to_string(),
+                        (true, false, _, Some(l)) if f.can_install() => tf("Version {v}", &[("v", &fmt_version(l))]),
+                        (_, true, _, _) => t("Installiert · aktualisiert sich selbst").to_string(),
+                        (_, false, _, _) if f.can_install() => t("Nicht installiert · aktualisiert sich selbst").to_string(),
+                        _ => t("Installation über die Paketverwaltung der Distribution").to_string(),
+                    };
+                    ui.label(egui::RichText::new(line).size(12.5).color(if update { accent_text() } else { muted() }));
+                });
+            });
+            ui.add_space(4.0);
+            let (about, color) = match &st.error {
+                Some(e) => (e.clone(), warn()),
+                None => (app.about_text().to_string(), soft()),
+            };
+            let mut job = egui::text::LayoutJob::simple(about, egui::FontId::proportional(13.0), color, ui.available_width());
+            job.wrap.max_rows = 2;
+            ui.label(job);
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                if let Some((msg, frac)) = &st.busy {
+                    ui.add(egui::ProgressBar::new(*frac).desired_height(6.0).fill(ACCENT));
+                    ui.label(egui::RichText::new(msg).size(12.5).color(muted()));
+                    ctx.request_repaint_after(Duration::from_millis(200));
+                    return;
+                }
+                ui.horizontal(|ui| {
+                    if update && button(ui, t("Aktualisieren"), Look::Accent).clicked() {
+                        self.install_fremd(ctx, app);
+                    }
+                    if st.installed() {
+                        if button(ui, t("Starten"), if update { Look::Outline } else { Look::Primary }).clicked() {
+                            self.launch(ctx, app, st);
+                        }
+                    } else if f.can_install() {
+                        if button(ui, t("Installieren"), Look::Primary).clicked() {
+                            self.install_fremd(ctx, app);
+                        }
+                    } else if let Some(url) = f.linux_hilfe.clone().or_else(|| f.homepage.clone()).filter(|u| u.starts_with("https://")) {
+                        if button(ui, t("Anleitung öffnen"), Look::Primary).clicked() {
+                            if let Err(e) = open::that(&url) {
+                                self.notice = Some(format!("{e:#}"));
+                            }
+                        }
+                    }
+                    if let Some(url) = f.homepage.clone().filter(|u| u.starts_with("https://")) {
+                        if link(ui, t("Webseite")).clicked() {
+                            let _ = open::that(url);
+                        }
+                    }
+                    if st.installed() && link(ui, t("Deinstallieren …")).clicked() {
+                        self.remove(app);
                     }
                 });
             });
@@ -2284,6 +2464,32 @@ impl Gui {
             self.fetch_weather(ctx);
         }
     }
+}
+
+/// Hinweis beim Darüberfahren: Name, Beschreibung, Version (Fremdprogramme: Herkunft).
+fn hover_hint(app: &App, st: &Status, update: bool) -> String {
+    let mut hint = format!("{}\n{}", app.name, app.about_text());
+    match app.fremd.as_deref() {
+        Some(f) if f.github.is_some() => hint += &format!("\n{}", t("Fremdprogramm")),
+        Some(_) => hint += &format!("\n{}", t("Fremdprogramm · aktualisiert sich selbst")),
+        None => {}
+    }
+    if let Some(v) = st.current() {
+        hint += &format!("\n{}", tf("Version {v}", &[("v", &fmt_version(v))]));
+    }
+    if let (true, Some(l)) = (update, st.latest) {
+        hint += &format!(" · {}", tf("neu: {v}", &[("v", &fmt_version(l))]));
+    }
+    hint
+}
+
+/// Kleines Abzeichen «Fremdprogramm» neben dem Namen.
+fn fremd_tag(ui: &mut egui::Ui) {
+    let _ = egui::Frame::new().fill(chip()).corner_radius(8u8).inner_margin(egui::Margin::symmetric(7, 2)).show(ui, |ui| {
+        ui.label(egui::RichText::new(t("Fremdprogramm")).size(11.0).color(soft()));
+    })
+    .response
+    .on_hover_text(t("Programm eines anderen Herstellers: die Werkbank installiert und startet es, es aktualisiert sich selbst."));
 }
 
 fn matches(chip: Chip, app: &App, st: &Status) -> bool {

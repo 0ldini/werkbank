@@ -394,9 +394,9 @@ pub fn fit_scale(w: u32, h: u32, aw: f32, ah: f32, max: f32) -> f32 {
 // ---------- Dateinamen ----------
 
 /// Dateiname ohne Endung, Windows-tauglich (keine Doppelpunkte).
-/// Beispiel: "Bildschirmfoto 2026-10-18 14-22-05".
+/// Beispiel: "Bildschirmfoto 2026-10-18 14.22.05".
 pub fn shot_stem(y: i32, mon: u32, d: u32, hh: u32, mm: u32, ss: u32) -> String {
-    format!("Bildschirmfoto {:04}-{:02}-{:02} {:02}-{:02}-{:02}", y, mon, d, hh, mm, ss)
+    format!("Bildschirmfoto {:04}-{:02}-{:02} {:02}.{:02}.{:02}", y, mon, d, hh, mm, ss)
 }
 
 /// Erster freier Name: "stem.ext", sonst "stem (2).ext", "stem (3).ext" …
@@ -504,6 +504,27 @@ pub fn window_crop(win: (i32, i32, i32, i32), mon: (i32, i32, u32, u32), img_w: 
     let r = (win.2 as i64 - mon.0 as i64) as f64 * sx;
     let b = (win.3 as i64 - mon.1 as i64) as f64 * sy;
     norm_rect(l as f32, t as f32, r as f32, b as f32, img_w, img_h)
+}
+
+/// Unsichtbaren Fensterrand abschneiden: Ist das Fensterbild (img_w × img_h)
+/// so gross wie das ganze Fensterrechteck `win` (links, oben, rechts, unten,
+/// mit dem unsichtbaren Rand für das Ziehen), bleibt nur der sichtbare Teil
+/// `vis` (DWM-Rahmen) übrig. Passt das Bild nicht dazu (z. B. hat Windows den
+/// Rand schon weggelassen), `None` – dann bleibt das Bild, wie es ist.
+pub fn border_trim(win: (i32, i32, i32, i32), vis: (i32, i32, i32, i32), img_w: u32, img_h: u32) -> Option<Rechteck> {
+    let ww = (win.2 as i64 - win.0 as i64).max(0);
+    let wh = (win.3 as i64 - win.1 as i64).max(0);
+    if ww != img_w as i64 || wh != img_h as i64 {
+        return None;
+    }
+    let l = (vis.0 as i64 - win.0 as i64).max(0);
+    let t = (vis.1 as i64 - win.1 as i64).max(0);
+    let r = (vis.2 as i64 - win.0 as i64).min(ww);
+    let b = (vis.3 as i64 - win.1 as i64).min(wh);
+    if r - l < 2 || b - t < 2 || (l == 0 && t == 0 && r == ww && b == wh) {
+        return None;
+    }
+    Some((l as u32, t as u32, (r - l) as u32, (b - t) as u32))
 }
 
 #[cfg(test)]
@@ -725,7 +746,7 @@ mod tests {
 
     #[test]
     fn dateinamen() {
-        assert_eq!(shot_stem(2026, 10, 8, 9, 5, 3), "Bildschirmfoto 2026-10-08 09-05-03");
+        assert_eq!(shot_stem(2026, 10, 8, 9, 5, 3), "Bildschirmfoto 2026-10-08 09.05.03");
         let taken = ["a.png", "a (2).png"];
         assert_eq!(unique_name("a", "png", |n| taken.contains(&n)), "a (3).png");
         assert_eq!(unique_name("a", "jpg", |n| taken.contains(&n)), "a.jpg");
@@ -777,5 +798,21 @@ mod tests {
         // ganz woanders
         assert_eq!(window_crop((5000, 0, 5100, 100), (0, 0, 1920, 1080), 1920, 1080), None);
         assert_eq!(window_crop((0, 0, 10, 10), (0, 0, 0, 0), 10, 10), None);
+    }
+
+    #[test]
+    fn rand_abschneiden() {
+        // Fenster 100..900 × 50..650 mit 7 px unsichtbarem Rand links/rechts/unten.
+        let win = (100, 50, 900, 650);
+        let vis = (107, 50, 893, 643);
+        assert_eq!(border_trim(win, vis, 800, 600), Some((7, 0, 786, 593)));
+        // Bild hat schon die sichtbare Grösse -> nichts tun.
+        assert_eq!(border_trim(win, vis, 786, 593), None);
+        // Kein Rand -> nichts tun.
+        assert_eq!(border_trim(win, win, 800, 600), None);
+        // Unsinnige Werte -> nichts tun, kein Absturz.
+        assert_eq!(border_trim((10, 10, 0, 0), vis, 0, 0), None);
+        assert_eq!(border_trim(win, (2000, 2000, 2001, 2001), 800, 600), None);
+        assert_eq!(border_trim((i32::MIN, i32::MIN, i32::MAX, i32::MAX), vis, 800, 600), None);
     }
 }

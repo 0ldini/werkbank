@@ -87,3 +87,279 @@ Fernzugriff – nur über VPN, nie offen.	Remote access – VPN only, never open
 Fernsteuerung – nur über VPN.	Remote control – VPN only.
 Geräte-Erkennung – im LAN unkritisch.	Device discovery – harmless on the LAN.
 Dateifreigabe – nur im LAN.	File sharing – LAN only.
+# Version 1.4: Virenscan, Ressourcen-Wächter, Autostart, Verbindungen, Kamera & Mikrofon, Fernzugriff
+wird gemessen …	measuring …
+Alles prüfen	Check everything
+Messen	Measure
+Virenscan	Virus scan
+Ressourcen-Wächter	Resource monitor
+Autostart	Autostart
+Verbindungen	Connections
+Kamera & Mikrofon	Camera & microphone
+Fernzugriff	Remote access
+Grobe Orientierung aus allen geprüften Bereichen. «Achtung» heisst: kurz ansehen – nicht gleich Alarm.	Rough guide based on all checked areas. «Warning» means: take a quick look – not a reason to panic.
+Noch keine Prüfung. Unten auf «Alles prüfen» klicken.	Not checked yet. Click «Check everything» below.
+SYSTEM-SCHUTZ	SYSTEM PROTECTION
+Ein Grundschutz von Windows ist aus oder eingeschränkt (Firewall, Virenschutz, Updates oder SmartScreen).	A basic Windows protection is off or limited (firewall, antivirus, updates or SmartScreen).
+Öffne die Windows-Sicherheit und schalte den Schutz wieder ein. Läuft ein anderes Virenschutzprogramm, ist ein ausgeschalteter Defender normal.	Open Windows Security and turn the protection back on. If another antivirus program is running, a disabled Defender is normal.
+Windows-Sicherheit öffnen	Open Windows Security
+Noch nichts geprüft	Nothing checked yet
+«Alles prüfen» liest den Zustand dieses Rechners – es wird nichts verändert.	«Check everything» reads the state of this computer – nothing is changed.
+Öffnen	Open
+Schutzwerk nutzt für die Virenerkennung Microsoft Defender bzw. ClamAV und ergänzt eigene Überwachung. Es ersetzt keine vollständige Sicherheits-Suite.	Schutzwerk uses Microsoft Defender or ClamAV for virus detection and adds its own monitoring. It does not replace a full security suite.
+Was heisst das?	What does this mean?
+Was kann ich tun?	What can I do?
+Einstellungsordner unbekannt.	Settings folder unknown.
+Unter diesem System nicht verfügbar.	Not available on this system.
+Geplante Aufgaben konnten nicht gelesen werden (PowerShell).	Scheduled tasks could not be read (PowerShell).
+Unbekannter Werttyp – wird nicht verändert.	Unknown value type – left unchanged.
+Für Einträge unter HKLM Schutzwerk als Administrator starten.	For entries under HKLM, start Schutzwerk as administrator.
+schtasks meldet einen Fehler (Adminrechte nötig?).	schtasks reported an error (administrator rights needed?).
+Für diesen Eintrag nicht möglich.	Not possible for this entry.
+TEMP-ORDNER	TEMP FOLDER
+APPDATA	APPDATA
+DOWNLOADS	DOWNLOADS
+ÖFFENTLICHER ORDNER	PUBLIC FOLDER
+PAPIERKORB	RECYCLE BIN
+DATEI GELÖSCHT	FILE DELETED
+SIGNIERT	SIGNED
+UNSIGNIERT	UNSIGNED
+SIGNATUR UNGÜLTIG	SIGNATURE INVALID
+SIGNATUR ?	SIGNATURE ?
+gerade eben	just now
+Schnellscan	Quick scan
+Ordner scannen	Scan folder
+Der Virenschutz hat Schadsoftware gefunden, die eventuell noch nicht vollständig entfernt ist.	The antivirus found malware that may not have been removed completely.
+Unter Windows: Windows-Sicherheit → Viren- & Bedrohungsschutz öffnen und den Empfehlungen folgen (meist «Entfernen» oder «Quarantäne»), danach einen vollständigen Scan starten. Unter macOS/Linux die gemeldeten Dateien löschen oder ersetzen.	On Windows: open Windows Security → Virus & threat protection and follow the recommendations (usually «Remove» or «Quarantine»), then start a full scan. On macOS/Linux, delete or replace the reported files.
+Der Virenschutz kennt die neuesten Schädlinge noch nicht.	The antivirus does not know the latest malware yet.
+Im Bereich Virenscan auf «Signaturen aktualisieren» klicken oder Windows Update laufen lassen.	In the Virus scan section, click «Update signatures» or let Windows Update run.
+Keine aktiven Bedrohungen gemeldet.	No active threats reported.
+Ein Programm trägt den Namen eines bekannten Krypto-Miners, ahmt einen Windows-Systemprozess nach oder hat eine ungültige Signatur.	A program has the name of a known crypto miner, imitates a Windows system process or has an invalid signature.
+Im Ressourcen-Wächter den Dateipfad ansehen und die Datei mit dem Virenscan prüfen. Im Zweifel den Rechner vom Netz trennen und Hilfe holen.	Look at the file path in the Resource monitor and check the file with the virus scan. If in doubt, disconnect the computer from the network and get help.
+dauerhaft hohe Last	sustained high load
+Ein Programm braucht im Leerlauf viel Rechenleistung oder läuft aus einem ungewöhnlichen Ordner (Temp, Downloads …). Das kann harmlos sein (Updates, Indexierung), aber auch ein versteckter Miner.	A program uses a lot of computing power while idle or runs from an unusual folder (Temp, Downloads …). This can be harmless (updates, indexing), but it can also be a hidden miner.
+Im Ressourcen-Wächter das Programm ansehen, die Signatur prüfen und den Ordner öffnen. Unbekanntes mit dem Virenscan prüfen.	Look at the program in the Resource monitor, check the signature and open the folder. Check anything unknown with the virus scan.
+Keine auffälligen Programme.	No suspicious programs.
+Seit der letzten Prüfung ist etwas dazugekommen, oder ein Eintrag startet ein Programm aus einem ungewöhnlichen Ordner ohne gültige Signatur.	Something was added since the last check, or an entry starts a program from an unusual folder without a valid signature.
+Im Bereich Autostart die markierten Einträge ansehen. Kennst du sie (z. B. ein neu installiertes Programm), «Alle als bekannt übernehmen». Sonst deaktivieren – das lässt sich rückgängig machen.	Look at the marked entries in the Autostart section. If you know them (e.g. a newly installed program), «Mark all as known». Otherwise disable them – this can be undone.
+Ein Programm mit auffälligen Merkmalen (ungewöhnlicher Ordner, ohne Signatur, typischer Mining-Port) ist mit dem Internet verbunden.	A program with suspicious traits (unusual folder, no signature, typical mining port) is connected to the internet.
+Im Bereich Verbindungen das Programm und die Gegenstelle ansehen. Unbekanntes mit dem Virenscan prüfen.	Look at the program and the remote address in the Connections section. Check anything unknown with the virus scan.
+Gerade greift kein Programm zu.	No program is accessing them right now.
+Ein Programm benutzt in diesem Moment Kamera oder Mikrofon.	A program is using the camera or microphone right now.
+Telefonierst, filmst oder sprichst du gerade? Dann ist alles in Ordnung. Sonst das Programm im Bereich Kamera & Mikrofon ansehen und beenden.	Are you on a call, filming or recording? Then everything is fine. Otherwise look at the program in the Camera & microphone section and close it.
+Remotedesktop an	Remote Desktop on
+Remoteunterstützung erlaubt	Remote Assistance allowed
+SSH-Server läuft	SSH server running
+Kein Fernzugriff aktiv.	No remote access active.
+Über Fernzugriff kann jemand diesen Rechner bedienen. Das ist in Ordnung, wenn du es selbst eingerichtet hast und brauchst.	Remote access lets someone control this computer. That is fine if you set it up yourself and need it.
+Nicht benötigten Fernzugriff ausschalten bzw. das Programm deinstallieren. Schutzwerk ändert dabei nichts von selbst.	Turn off remote access you don't need or uninstall the program. Schutzwerk does not change anything by itself.
+Ausblenden	Hide
+Ansehen	View
+Aufgabe deaktivieren?	Disable task?
+Deaktivieren	Disable
+Autostart-Eintrag entfernen?	Remove autostart entry?
+Wiederherstellen?	Restore?
+Abbrechen	Cancel
+Deaktiviert und gesichert.	Disabled and backed up.
+Prüft Dateien mit Microsoft Defender, dem Virenschutz von Windows. Schutzwerk hat keine eigenen Virensignaturen.	Checks files with Microsoft Defender, the antivirus built into Windows. Schutzwerk has no virus signatures of its own.
+Prüft Ordner mit ClamAV, einem freien Virenscanner. Schutzwerk hat keine eigenen Virensignaturen.	Checks folders with ClamAV, a free virus scanner. Schutzwerk has no virus signatures of its own.
+MICROSOFT DEFENDER	MICROSOFT DEFENDER
+Microsoft Defender antwortet nicht. Läuft ein anderes Virenschutzprogramm, ist das normal.	Microsoft Defender is not responding. If another antivirus program is running, this is normal.
+Ein	On
+Echtzeitschutz	Real-time protection
+Virensignaturen	Virus signatures
+heute	today
+noch nie	never
+Letzter Schnellscan	Last quick scan
+Letzter vollständiger Scan	Last full scan
+Betriebsart	Mode
+Normal (aktiver Virenschutz)	Normal (active antivirus)
+Manipulationsschutz	Tamper protection
+Status neu lesen	Read status again
+SCANNEN	SCAN
+MpCmdRun.exe wurde nicht gefunden – Microsoft Defender ist auf diesem Rechner nicht verfügbar.	MpCmdRun.exe was not found – Microsoft Defender is not available on this computer.
+Vollständiger Scan	Full scan
+Signaturen aktualisieren	Update signatures
+Ordner oder Datei scannen	Scan folder or file
+z. B. C:\Users\Name\Downloads	e.g. C:\Users\Name\Downloads
+Ein vollständiger Scan kann über eine Stunde dauern. Schutzwerk bleibt dabei bedienbar.	A full scan can take more than an hour. Schutzwerk stays usable meanwhile.
+Abgebrochen.	Cancelled.
+Signaturen sind aktuell.	Signatures are up to date.
+ClamAV meldet nur – es verändert nichts. Gemeldete Dateien löschen oder durch eine saubere Kopie ersetzen.	ClamAV only reports – it changes nothing. Delete the reported files or replace them with a clean copy.
+Defender behandelt Funde selbst (z. B. Quarantäne). Details in der Windows-Sicherheit unter «Schutzverlauf».	Defender handles detections itself (e.g. quarantine). Details in Windows Security under «Protection history».
+Keine Bedrohungen gefunden.	No threats found.
+Defender meldet Funde – Details in der Windows-Sicherheit unter «Schutzverlauf».	Defender reports detections – details in Windows Security under «Protection history».
+Ausgabe anzeigen	Show output
+ERKANNTE BEDROHUNGEN (VERLAUF)	DETECTED THREATS (HISTORY)
+Defender hat keine Bedrohungen gespeichert.	Defender has no threats stored.
+AKTIV	ACTIVE
+SCHWER	SEVERE
+Neu laden	Reload
+ClamAV wird gesucht …	Looking for ClamAV …
+CLAMAV IST NICHT INSTALLIERT	CLAMAV IS NOT INSTALLED
+Für den Virenscan nutzt Schutzwerk ClamAV, einen freien Virenscanner. So installierst du ihn:	For the virus scan, Schutzwerk uses ClamAV, a free virus scanner. This is how to install it:
+Mit Homebrew im Terminal:	With Homebrew in the Terminal:
+Debian, Ubuntu, Mint im Terminal:	Debian, Ubuntu, Mint in the terminal:
+Fedora:	Fedora:
+Danach einmal «freshclam» ausführen, damit die Virensignaturen geladen werden.	Then run «freshclam» once so that the virus signatures are downloaded.
+ClamAV-Downloads öffnen	Open ClamAV downloads
+Erneut suchen	Search again
+CLAMAV	CLAMAV
+z. B. /home/name/Downloads	e.g. /home/name/Downloads
+Der ganze Benutzerordner kann je nach Grösse lange dauern. Schutzwerk bleibt dabei bedienbar.	Scanning the whole home folder can take a long time, depending on its size. Schutzwerk stays usable meanwhile.
+Signaturen aktualisieren (freshclam)	Update signatures (freshclam)
+Findet Programme, die heimlich Rechenleistung nutzen (z. B. versteckte Krypto-Miner) oder aus ungewöhnlichen Ordnern laufen.	Finds programs that secretly use computing power (e.g. hidden crypto miners) or run from unusual folders.
+HINTERGRUND-WACHE	BACKGROUND WATCH
+Dauerlast melden, solange Schutzwerk offen ist	Report sustained load while Schutzwerk is open
+Schwelle (Anteil der gesamten Rechenleistung)	Threshold (share of total computing power)
+Dauer	Duration
+Min.	min
+Prüft alle 10 Sekunden. Liegt ein Programm länger darüber, erscheint oben eine Warnung.	Checks every 10 seconds. If a program stays above it for longer, a warning appears at the top.
+Noch nicht gemessen – auf «Messen» klicken.	Not measured yet – click «Measure».
+· Leerlauf nicht ermittelbar	· idle time not available
+GPU-Last ist auf diesem Rechner nicht verfügbar.	GPU load is not available on this computer.
+Nur auffällige	Suspicious only
+Alle	All
+Auffällige auf Signatur prüfen	Check signatures of suspicious ones
+Keine auffälligen Programme. Kein Programm braucht dauerhaft viel Leistung oder läuft aus einem ungewöhnlichen Ordner.	No suspicious programs. No program uses a lot of power for long or runs from an unusual folder.
+MINER	MINER
+NACHAHMUNG	IMITATION
+LAST IM LEERLAUF	LOAD WHILE IDLE
+HOHE LAST	HIGH LOAD
+FERNZUGRIFF	REMOTE ACCESS
+Pfad nicht lesbar (Systemprozess oder fehlende Rechte)	Path not readable (system process or missing rights)
+Im Ordner zeigen	Show in folder
+Signatur prüfen	Check signature
+Markiert werden: bekannte Miner-Namen, Programme aus Temp/Downloads/öffentlichen Ordnern, nachgeahmte Windows-Namen (z. B. svchost.exe ausserhalb von System32), hohe Last während du nichts tust, und – nach der Prüfung – fehlende oder ungültige Signaturen. AppData allein ist häufig harmlos (Teams, Discord, Spotify …).	Marked are: known miner names, programs from Temp/Downloads/public folders, imitated Windows names (e.g. svchost.exe outside System32), high load while you are not doing anything and – after the check – missing or invalid signatures. AppData alone is often harmless (Teams, Discord, Spotify …).
+Unbekanntes Programm? Signatur prüfen, Ordner ansehen und die Datei im Virenscan prüfen. Beenden kannst du ein Programm im Task-Manager (Windows) bzw. in der Aktivitätsanzeige (macOS).	Unknown program? Check the signature, look at the folder and check the file with the virus scan. You can end a program in Task Manager (Windows) or Activity Monitor (macOS).
+Was beim Start von selbst mitläuft – hier verstecken sich Spionage- und Schadprogramme gern.	What starts automatically – spyware and malware like to hide here.
+Noch nicht geprüft – auf «Prüfen» klicken.	Not checked yet – click «Check».
+Erste Prüfung: Der jetzige Stand wurde als bekannt gespeichert. Ab jetzt werden neue Einträge markiert.	First check: the current state was saved as known. From now on, new entries are marked.
+«Neu» heisst: seit dem letzten bekannten Stand dazugekommen oder geändert.	«New» means: added or changed since the last known state.
+Alle als bekannt übernehmen	Mark all as known
+Einträge des Betriebssystems zeigen	Show operating system entries
+RUN-SCHLÜSSEL (REGISTRY)	RUN KEYS (REGISTRY)
+RUNONCE-SCHLÜSSEL (EINMALIG)	RUNONCE KEYS (ONE-TIME)
+AUTOSTART-ORDNER	STARTUP FOLDERS
+GEPLANTE AUFGABEN	SCHEDULED TASKS
+DIENSTE AUSSERHALB VON C:\WINDOWS	SERVICES OUTSIDE C:\WINDOWS
+LAUNCHAGENTS	LAUNCHAGENTS
+LAUNCHDAEMONS	LAUNCHDAEMONS
+AUTOSTART (.DESKTOP)	AUTOSTART (.DESKTOP)
+SYSTEMD-BENUTZERDIENSTE	SYSTEMD USER SERVICES
+CRONTAB	CRONTAB
+NEU	NEW
+AUSGESCHALTET	DISABLED
+SYSTEM	SYSTEM
+GESICHERTE EINTRÄGE	BACKED-UP ENTRIES
+Deaktivieren ist nur unter Windows eingebaut. Unter macOS/Linux die Datei im Ordner ansehen und selbst entscheiden.	Disabling is only built in on Windows. On macOS/Linux, look at the file in its folder and decide yourself.
+Als bekannt gespeichert.	Saved as known.
+Verbindungen nach aussen	Outgoing connections
+Welche Programme gerade mit dem Internet oder dem Heimnetz verbunden sind – nur Lesen.	Which programs are currently connected to the internet or the home network – read-only.
+Ungewöhnliche auf Signatur prüfen	Check signatures of unusual ones
+Namen der Gegenstellen (DNS) werden absichtlich nicht nachgeschlagen: das wäre langsam und würde selbst Anfragen ins Netz schicken.	Names of remote hosts (DNS) are deliberately not looked up: it would be slow and would itself send requests to the network.
+Gerade keine Verbindungen nach aussen.	No outgoing connections right now.
+MINING-PORT	MINING PORT
+Heimnetz	home network
+Welche Programme Kamera und Mikrofon benutzt haben – und ob gerade eines zugreift.	Which programs have used the camera and microphone – and whether one is accessing them right now.
+Unter diesem System nicht verfügbar	Not available on this system
+macOS führt dieses Protokoll geschützt. Die erlaubten Apps stehen unter Systemeinstellungen → Datenschutz & Sicherheit → Kamera bzw. Mikrofon.	macOS keeps this log protected. The allowed apps are listed under System Settings → Privacy & Security → Camera or Microphone.
+Datenschutz-Einstellungen öffnen	Open privacy settings
+Gerade greift kein Programm auf Kamera oder Mikrofon zu.	No program is accessing the camera or microphone right now.
+GERADE AKTIV	ACTIVE NOW
+Kamera	Camera
+Mikrofon	Microphone
+Telefonierst, filmst oder sprichst du gerade? Dann ist das normal. Sonst das Programm prüfen und beenden.	Are you on a call, filming or recording? Then this is normal. Otherwise check the program and close it.
+ZUGRIFF GRUNDSÄTZLICH	ACCESS IN GENERAL
+Apps dürfen zugreifen	Apps may access
+Für alle Apps gesperrt	Blocked for all apps
+Einstellungen	Settings
+KAMERA – VERLAUF	CAMERA – HISTORY
+MIKROFON – VERLAUF	MICROPHONE – HISTORY
+Keine Einträge.	No entries.
+gerade aktiv	active now
+Unter Linux zeigt Schutzwerk nur, welche eigenen Programme Kamera oder Mikrofon gerade offen haben; einen Verlauf führt Linux nicht.	On Linux, Schutzwerk only shows which of your own programs currently have the camera or microphone open; Linux keeps no history.
+Programme und Einstellungen, über die jemand diesen Rechner aus der Ferne bedienen könnte.	Programs and settings through which someone could control this computer remotely.
+Remotedesktop	Remote Desktop
+Eingeschaltet	Turned on
+Ausgeschaltet	Turned off
+Andere Rechner können sich mit Benutzername und Passwort anmelden und den Bildschirm übernehmen. Für Angreifer ein beliebtes Ziel, besonders wenn der Rechner aus dem Internet erreichbar ist.	Other computers can sign in with user name and password and take over the screen. A popular target for attackers, especially if the computer can be reached from the internet.
+Brauchst du es nicht, schalte es in den Einstellungen aus. Schutzwerk ändert das nicht selbst.	If you don't need it, turn it off in Settings. Schutzwerk does not change this itself.
+Einstellungen öffnen	Open settings
+Remoteunterstützung	Remote Assistance
+Erlaubt	Allowed
+Nicht erlaubt	Not allowed
+Über eine Einladung kann jemand deinen Bildschirm sehen und bedienen. Ohne Einladung geht es nicht – aber Betrüger am Telefon bitten gern darum.	With an invitation, someone can see and control your screen. It does not work without an invitation – but scammers on the phone like to ask for one.
+Brauchst du es nicht: Systemeigenschaften → Remote → Häkchen bei «Remoteunterstützungsverbindungen … zulassen» entfernen.	If you don't need it: System Properties → Remote → untick «Allow Remote Assistance connections …».
+Systemeigenschaften öffnen	Open System Properties
+SSH-Server	SSH server
+Läuft	Running
+Läuft nicht	Not running
+Über SSH kann sich jemand mit Passwort oder Schlüssel an diesem Rechner anmelden und Befehle ausführen.	Via SSH, someone can sign in to this computer with a password or key and run commands.
+Brauchst du es nicht: Systemeinstellungen → Allgemein → Teilen → «Entfernte Anmeldung» ausschalten.	If you don't need it: System Settings → General → Sharing → turn off «Remote Login».
+Brauchst du es nicht: im Terminal «sudo systemctl disable --now ssh» (bzw. sshd) ausführen.	If you don't need it: run «sudo systemctl disable --now ssh» (or sshd) in the terminal.
+FERNWARTUNGS-PROGRAMME	REMOTE SUPPORT PROGRAMS
+Keine bekannten Fernwartungs-Programme gefunden.	No known remote support programs found.
+LÄUFT	RUNNING
+STARTET AUTOMATISCH	STARTS AUTOMATICALLY
+INSTALLIERT	INSTALLED
+Fernwartungs-Programme sind nützlich, etwa für Hilfe aus der Familie oder vom Support. Betrüger am Telefon («Microsoft-Support», «Ihre Bank») lassen sie aber gern installieren.	Remote support programs are useful, e.g. for help from family or support. But phone scammers («Microsoft support», «your bank») like to have them installed.
+Kennst du ein Programm nicht oder hast es nicht selbst installiert: deinstallieren (Einstellungen → Apps) und danach wichtige Passwörter ändern.	If you don't know a program or did not install it yourself: uninstall it (Settings → Apps) and then change important passwords.
+Herausgeber: {von}	Publisher: {von}
+vor {n} Min.	{n} min ago
+vor {n} Std.	{n} h ago
+vor {n} Tagen	{n} days ago
+{n} s	{n} s
+{n} Min.	{n} min
+{n} Std.	{n} h
+{titel} läuft seit {zeit} …	{titel} running for {zeit} …
+{n} Bedrohung(en) gemeldet	{n} threat(s) reported
+Virensignaturen sind {n} Tage alt	Virus signatures are {n} days old
+Sehr auffällig: {liste}	Very suspicious: {liste}
+Ansehen: {liste}	Take a look: {liste}
+{n} Einträge, nichts Auffälliges	{n} entries, nothing suspicious
+{neu} neu, {auff} auffällig	{neu} new, {auff} suspicious
+{n} Programme verbunden, nichts Auffälliges	{n} programs connected, nothing suspicious
+Gerade aktiv: {liste}	Active now: {liste}
+{p} aktiv	{p} active
+(+{n} weitere)	(+{n} more)
+Die geplante Aufgabe «{name}» wird deaktiviert (nicht gelöscht). Du kannst sie unter «Gesicherte Einträge» wieder einschalten.	The scheduled task «{name}» will be disabled (not deleted). You can turn it back on under «Backed-up entries».
+«{name}» wird beim Start nicht mehr ausgeführt. Der Eintrag wird vorher gesichert und lässt sich unter «Gesicherte Einträge» wiederherstellen. Die Programmdatei bleibt unverändert.	«{name}» will no longer run at startup. The entry is backed up first and can be restored under «Backed-up entries». The program file stays unchanged.
+«{name}» wird wieder beim Start ausgeführt.	«{name}» will run at startup again.
+Gemeldeter Virenschutz: {p}	Reported antivirus: {p}
+{n} Tage alt	{n} days old
+{alter} (Stand {stand})	{alter} (as of {stand})
+{m} – ein anderes Virenschutzprogramm ist zuständig	{m} – another antivirus program is in charge
+Im Sicherheitscenter gemeldet: {p}	Reported in Security Center: {p}
+läuft seit {zeit}	running for {zeit}
+Dauer {zeit}	Duration {zeit}
+Konnte nicht gestartet werden: {e}	Could not be started: {e}
+Aktualisierung fehlgeschlagen (Code {c}). Eventuell sind Administratorrechte oder eine Internetverbindung nötig.	Update failed (code {c}). Administrator rights or an internet connection may be needed.
+{n} Bedrohung(en) gefunden	{n} threat(s) found
+{n} Dateien geprüft.	{n} files checked.
+Scan beendet mit Code {c}. Siehe Ausgabe.	Scan finished with code {c}. See output.
+{n} Prozesse	{n} processes
+gemessen über {s} s · {k} Kerne	measured over {s} s · {k} cores
+· keine Eingabe seit {d}	· no input for {d}
+Gibt sich als «{s}» aus, liegt aber nicht im Windows-Systemordner.	Pretends to be «{s}» but is not in the Windows system folder.
+… und {n} weitere mit wenig Last	… and {n} more with little load
+{n} Einträge	{n} entries
+{n} NEU	{n} NEW
+· {n} ausgeschaltet	· {n} disabled
+Geplante Aufgabe {n}	Scheduled task {n}
+deaktiviert {wann}	disabled {wann}
+{p} Programme mit {c} Verbindungen	{p} programs with {c} connections
+… und {n} weitere	… and {n} more
+{wann} · {dauer} lang	{wann} · for {dauer}
+Ordner/Datei scannen	Scan folder/file
+Erkannt	Detected
+Bereinigt	Cleaned
+In Quarantäne	Quarantined
+Entfernt	Removed
+Zugelassen	Allowed
+Bereinigung fehlgeschlagen	Cleaning failed
+Quarantäne fehlgeschlagen	Quarantine failed
+Entfernen fehlgeschlagen	Removal failed
+Zulassen fehlgeschlagen	Allowing failed
+Verlassen	Abandoned
+Blockiert	Blocked

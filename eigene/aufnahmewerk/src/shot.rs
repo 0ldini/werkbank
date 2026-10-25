@@ -32,6 +32,8 @@ pub enum ShotMode {
     Screen,
     /// Bereich mit der Maus aufziehen (auf eingefrorenem Bild).
     Region,
+    /// Ein gewähltes Fenster (aus der Fensterliste), auch wenn es verdeckt ist.
+    Window,
     /// Das Fenster, das beim Auslösen vorne ist.
     ActiveWindow,
 }
@@ -87,45 +89,83 @@ impl GraphicsCaptureApiHandler for OneFrame {
     }
 }
 
+/// Ein Einzelbild von einer Aufnahmequelle (Monitor oder Fenster) holen.
+/// Als Makro, damit beide Quelltypen denselben Ablauf nutzen, ohne dass hier
+/// die genauen Typgrenzen von `Settings::new` nachgebaut werden müssen.
+macro_rules! grab_one {
+    ($item:expr) => {{
+        let slot: Arc<Mutex<Option<Img>>> = Arc::new(Mutex::new(None));
+        let settings = Settings::new(
+            $item,
+            CursorCaptureSettings::WithoutCursor,
+            DrawBorderSettings::WithoutBorder,
+            SecondaryWindowSettings::Default,
+            MinimumUpdateIntervalSettings::Default,
+            DirtyRegionSettings::Default,
+            ColorFormat::Bgra8,
+            slot.clone(),
+        );
+        let control = OneFrame::start_free_threaded(settings)?;
+        let t0 = Instant::now();
+        loop {
+            let have = slot.lock().map(|g| g.is_some()).unwrap_or(false);
+            if have || control.is_finished() || t0.elapsed() > Duration::from_secs(4) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(15));
+        }
+        let _ = control.stop();
+        let img = slot.lock().ok().and_then(|mut g| g.take());
+        img
+    }};
+}
+
 /// Fotografiert den Monitor am Index (Reihenfolge wie im Dropdown).
 pub fn grab_monitor(index: usize) -> Result<Img, BoxErr> {
     let mon = crate::record::monitor_at(index)?;
-    let slot: Arc<Mutex<Option<Img>>> = Arc::new(Mutex::new(None));
-    let settings = Settings::new(
-        mon,
-        CursorCaptureSettings::WithoutCursor,
-        DrawBorderSettings::WithoutBorder,
-        SecondaryWindowSettings::Default,
-        MinimumUpdateIntervalSettings::Default,
-        DirtyRegionSettings::Default,
-        ColorFormat::Bgra8,
-        slot.clone(),
-    );
-    let control = OneFrame::start_free_threaded(settings)?;
-    let t0 = Instant::now();
-    loop {
-        let have = slot.lock().map(|g| g.is_some()).unwrap_or(false);
-        if have || control.is_finished() || t0.elapsed() > Duration::from_secs(4) {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(15));
-    }
-    let _ = control.stop();
-    let img = slot.lock().ok().and_then(|mut g| g.take());
+    let img: Option<Img> = grab_one!(mon);
     img.ok_or_else(|| t("Kein Bild vom Bildschirm erhalten.").into())
+}
+
+/// Fotografiert das Fenster, dessen Titel `title` enthält – direkt über
+/// Windows.Graphics.Capture, also auch, wenn es von anderen Fenstern verdeckt
+/// ist. Ein minimiertes Fenster wird vorher wiederhergestellt (minimiert
+/// liefert Windows kein Bild). Der unsichtbare Rand wird abgeschnitten.
+pub fn grab_window(title: &str) -> Result<Img, BoxErr> {
+    if title.trim().is_empty() {
+        return Err(t("Bitte zuerst ein Fenster wählen.").into());
+    }
+    let hwnd = find_window(title);
+    if let Some(h) = hwnd {
+        if restore_if_minimized(h) {
+            std::thread::sleep(Duration::from_millis(450));
+        }
+    }
+    let win = windows_capture::window::Window::from_contains_name(title)
+        .map_err(|_| BoxErr::from(t("Das Fenster ist nicht mehr offen.")))?;
+    let img: Option<Img> = grab_one!(win);
+    let img = img.ok_or_else(|| BoxErr::from(t("Kein Bild vom Fenster erhalten.")))?;
+    if let Some((outer, vis)) = hwnd.and_then(window_rects) {
+        if let Some(r) = schnapp::border_trim(outer, vis, img.w, img.h) {
+            if let Some(c) = schnapp::crop(&img, r) {
+                return Ok(c);
+            }
+        }
+    }
+    Ok(img)
 }
 
 /// Startet ein Bildschirmfoto im Hintergrund: eigene Fenster ausblenden,
 /// Verzögerung abwarten, aufnehmen, Fenster wieder zeigen. Das Ergebnis
 /// landet in der zurückgegebenen Ablage; danach wird neu gezeichnet.
-pub fn spawn(mode: ShotMode, monitor: usize, delay_s: u32, ctx: egui::Context) -> Slot {
+pub fn spawn(mode: ShotMode, monitor: usize, window_title: String, delay_s: u32, ctx: egui::Context) -> Slot {
     let slot: Slot = Arc::new(Mutex::new(None));
     let out = slot.clone();
     std::thread::spawn(move || {
         let hidden = hide_own_windows();
         // Kurz warten, bis das Ausblenden auf dem Bildschirm sichtbar ist.
         std::thread::sleep(Duration::from_millis(350 + delay_s as u64 * 1000));
-        let res = take(mode, monitor).map_err(|e| e.to_string());
+        let res = take(mode, monitor, &window_title).map_err(|e| e.to_string());
         show_windows(&hidden);
         if let Ok(mut g) = out.lock() {
             *g = Some(res);
@@ -135,12 +175,16 @@ pub fn spawn(mode: ShotMode, monitor: usize, delay_s: u32, ctx: egui::Context) -
     slot
 }
 
-fn take(mode: ShotMode, monitor: usize) -> Result<Captured, BoxErr> {
+fn take(mode: ShotMode, monitor: usize, window_title: &str) -> Result<Captured, BoxErr> {
     let rects = monitor_rects();
     match mode {
         ShotMode::Screen | ShotMode::Region => {
             let img = grab_monitor(monitor)?;
             Ok(Captured { img, mode, mon_rect: rects.get(monitor).copied() })
+        }
+        ShotMode::Window => {
+            let img = grab_window(window_title)?;
+            Ok(Captured { img, mode, mon_rect: None })
         }
         ShotMode::ActiveWindow => {
             let win = foreground_rect().ok_or_else(|| BoxErr::from(t("Kein aktives Fenster gefunden.")))?;
@@ -187,12 +231,10 @@ pub fn monitor_rects() -> Vec<(i32, i32, u32, u32)> {
 /// unsichtbaren Rand (DWM). `None`, wenn es keines gibt, es zu diesem Programm
 /// gehört oder minimiert ist.
 fn foreground_rect() -> Option<(i32, i32, i32, i32)> {
-    use windows::Win32::Foundation::RECT;
-    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId, IsIconic,
+        GetForegroundWindow, GetWindowThreadProcessId, IsIconic,
     };
-    unsafe {
+    let h = unsafe {
         let h = GetForegroundWindow();
         if h == HWND::default() {
             return None;
@@ -205,21 +247,96 @@ fn foreground_rect() -> Option<(i32, i32, i32, i32)> {
         if IsIconic(h).as_bool() {
             return None;
         }
-        let mut r = RECT::default();
-        let dwm_ok = DwmGetWindowAttribute(
+        h
+    };
+    window_rects(h).map(|(_, vis)| vis)
+}
+
+/// Ganzes Fensterrechteck (mit unsichtbarem Rand) und sichtbarer Teil (DWM),
+/// beide als (links, oben, rechts, unten). Fehlt der DWM-Wert, gilt das ganze
+/// Rechteck als sichtbar.
+fn window_rects(h: HWND) -> Option<((i32, i32, i32, i32), (i32, i32, i32, i32))> {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+    let ok = |r: &RECT| r.right > r.left && r.bottom > r.top;
+    unsafe {
+        let mut outer = RECT::default();
+        let have_outer = GetWindowRect(h, &mut outer).is_ok() && ok(&outer);
+        let mut vis = RECT::default();
+        let have_vis = DwmGetWindowAttribute(
             h,
             DWMWA_EXTENDED_FRAME_BOUNDS,
-            &mut r as *mut RECT as *mut std::ffi::c_void,
+            &mut vis as *mut RECT as *mut std::ffi::c_void,
             std::mem::size_of::<RECT>() as u32,
         )
-        .is_ok();
-        if !dwm_ok && GetWindowRect(h, &mut r).is_err() {
-            return None;
+        .is_ok()
+            && ok(&vis);
+        let o = (outer.left, outer.top, outer.right, outer.bottom);
+        let v = (vis.left, vis.top, vis.right, vis.bottom);
+        match (have_outer, have_vis) {
+            (true, true) => Some((o, v)),
+            (true, false) => Some((o, o)),
+            (false, true) => Some((v, v)),
+            (false, false) => None,
         }
-        if r.right <= r.left || r.bottom <= r.top {
-            return None;
+    }
+}
+
+/// Erstes sichtbares Fenster eines anderen Programms, dessen Titel `needle`
+/// enthält (ohne Gross-/Kleinschreibung).
+fn find_window(needle: &str) -> Option<HWND> {
+    use windows::Win32::Foundation::{BOOL, LPARAM, TRUE};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
+    };
+
+    struct Ctx {
+        needle: String,
+        found: Option<HWND>,
+    }
+
+    unsafe extern "system" fn cb(hwnd: HWND, lp: LPARAM) -> BOOL {
+        let ctx = &mut *(lp.0 as *mut Ctx);
+        if !IsWindowVisible(hwnd).as_bool() {
+            return TRUE;
         }
-        Some((r.left, r.top, r.right, r.bottom))
+        let mut pid: u32 = 0;
+        let _ = GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32));
+        if pid == std::process::id() {
+            return TRUE;
+        }
+        let len = GetWindowTextLengthW(hwnd);
+        if len <= 0 || len > 4096 {
+            return TRUE;
+        }
+        let mut buf = vec![0u16; len as usize + 1];
+        let n = GetWindowTextW(hwnd, &mut buf).max(0) as usize;
+        let title = String::from_utf16_lossy(buf.get(..n).unwrap_or(&[]));
+        if title.to_lowercase().contains(&ctx.needle) {
+            ctx.found = Some(hwnd);
+            return BOOL(0); // gefunden -> stoppen
+        }
+        TRUE
+    }
+
+    let mut ctx = Ctx { needle: needle.to_lowercase(), found: None };
+    unsafe {
+        let _ = EnumWindows(Some(cb), LPARAM(&mut ctx as *mut _ as isize));
+    }
+    ctx.found
+}
+
+/// Stellt ein minimiertes Fenster wieder her; `true`, wenn es minimiert war.
+fn restore_if_minimized(h: HWND) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{IsIconic, ShowWindow, SW_RESTORE};
+    unsafe {
+        if IsIconic(h).as_bool() {
+            let _ = ShowWindow(h, SW_RESTORE);
+            true
+        } else {
+            false
+        }
     }
 }
 
