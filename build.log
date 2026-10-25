@@ -1,0 +1,376 @@
+    Updating crates.io index
+     Locking 344 packages to highest compatible versions
+      Adding eframe v0.29.1 (available: v0.37.0)
+      Adding egui v0.29.1 (available: v0.37.0)
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding rfd v0.14.1 (available: v0.17.2)
+      Adding windows-sys v0.59.0 (available: v0.61.2)
+ Downloading crates ...
+  Downloaded dpi v0.1.2
+  Downloaded arboard v3.7.0
+  Downloaded adler2 v2.0.1
+  Downloaded cursor-icon v1.2.0
+  Downloaded ab_glyph_rasterizer v0.1.10
+  Downloaded cfg_aliases v0.2.2
+  Downloaded document-features v0.2.12
+  Downloaded glutin_egl_sys v0.7.1
+  Downloaded memoffset v0.9.1
+  Downloaded equivalent v1.0.3
+  Downloaded error-code v3.4.0
+  Downloaded idna_adapter v1.2.2
+  Downloaded nohash-hasher v0.2.0
+  Downloaded potential_utf v0.1.6
+  Downloaded ecolor v0.29.1
+  Downloaded owned_ttf_parser v0.25.1
+  Downloaded scopeguard v1.2.0
+  Downloaded glutin-winit v0.5.0
+  Downloaded windows-targets v0.48.5
+  Downloaded stable_deref_trait v1.2.1
+  Downloaded windows-targets v0.52.6
+  Downloaded form_urlencoded v1.2.2
+  Downloaded serde_spanned v1.1.2
+  Downloaded version_check v0.9.5
+  Downloaded windows-link v0.2.1
+  Downloaded percent-encoding v2.3.2
+  Downloaded glutin_wgl_sys v0.6.1
+  Downloaded ab_glyph v0.2.32
+  Downloaded byteorder-lite v0.1.0
+  Downloaded zerofrom v0.1.8
+  Downloaded smol_str v0.2.2
+  Downloaded utf8_iter v1.0.4
+  Downloaded yoke-derive v0.8.4
+  Downloaded cfg-if v1.0.5
+  Downloaded lock_api v0.4.14
+  Downloaded toml_datetime v1.1.2+spec-1.1.0
+  Downloaded bytemuck_derive v1.12.1
+  Downloaded egui-winit v0.29.1
+  Downloaded raw-window-handle v0.6.2
+  Downloaded url v2.5.8
+  Downloaded zerofrom-derive v0.1.8
+  Downloaded emath v0.29.1
+  Downloaded pin-project-lite v0.2.17
+  Downloaded simd-adler32 v0.3.10
+  Downloaded static_assertions v1.1.0
+  Downloaded synstructure v0.14.0
+  Downloaded zerovec-derive v0.11.7
+  Downloaded clipboard-win v5.4.3
+  Downloaded displaydoc v0.2.7
+  Downloaded fdeflate v0.3.7
+  Downloaded toml_writer v1.1.3+spec-1.1.0
+  Downloaded autocfg v1.5.1
+  Downloaded gl_generator v0.14.0
+  Downloaded ahash v0.8.12
+  Downloaded libloading v0.8.9
+  Downloaded litemap v0.8.3
+  Downloaded litrs v1.0.1
+  Downloaded once_cell v1.21.4
+  Downloaded parking_lot v0.12.5
+  Downloaded parking_lot_core v0.9.12
+  Downloaded quote v1.0.47
+  Downloaded smallvec v1.16.4
+  Downloaded tinystr v0.8.5
+  Downloaded toml_parser v1.1.5+spec-1.1.0
+  Downloaded tracing-attributes v0.1.31
+  Downloaded web-time v1.1.0
+  Downloaded egui_glow v0.29.1
+  Downloaded getrandom v0.3.4
+  Downloaded log v0.4.34
+  Downloaded proc-macro2 v1.0.107
+  Downloaded rfd v0.14.1
+  Downloaded serde_core v1.0.229
+  Downloaded serde_derive v1.0.229
+  Downloaded toml v1.1.8+spec-1.1.0
+  Downloaded tracing-core v0.1.36
+  Downloaded unicode-ident v1.0.27
+  Downloaded yoke v0.8.4
+  Downloaded bitflags v2.13.2
+  Downloaded bytemuck v1.25.2
+  Downloaded crc32fast v1.5.3
+  Downloaded flate2 v1.1.10
+  Downloaded icu_locale_core v2.4.0
+  Downloaded icu_normalizer_data v2.4.0
+  Downloaded icu_provider v2.4.0
+  Downloaded miniz_oxide v0.9.1
+  Downloaded glutin v0.32.3
+  Downloaded miniz_oxide v0.8.9
+  Downloaded epaint v0.29.1
+  Downloaded num-traits v0.2.19
+  Downloaded serde v1.0.229
+  Downloaded eframe v0.29.1
+  Downloaded icu_collections v2.4.0
+  Downloaded indexmap v2.14.2
+  Downloaded memchr v2.8.3
+  Downloaded unicode-segmentation v1.13.3
+  Downloaded writeable v0.6.4
+  Downloaded xml-rs v0.8.29
+  Downloaded icu_properties v2.4.0
+  Downloaded idna v1.1.0
+  Downloaded png v0.18.1
+  Downloaded webbrowser v1.2.5
+  Downloaded winresource v0.1.34
+  Downloaded glow v0.14.2
+  Downloaded zerotrie v0.2.5
+  Downloaded hashbrown v0.17.1
+  Downloaded moxcms v0.8.1
+  Downloaded ttf-parser v0.25.1
+  Downloaded icu_properties_data v2.4.0
+  Downloaded image v0.25.10
+  Downloaded syn v2.0.119
+  Downloaded syn v3.0.9
+  Downloaded egui v0.29.1
+  Downloaded tracing v0.1.44
+  Downloaded icu_normalizer v2.4.0
+  Downloaded khronos_api v3.1.0
+  Downloaded zerovec v0.11.9
+  Downloaded epaint_default_fonts v0.29.1
+  Downloaded pxfm v0.1.30
+  Downloaded winnow v1.0.4
+  Downloaded zlib-rs v0.6.8
+  Downloaded zerocopy v0.8.63
+  Downloaded winit v0.30.13
+  Downloaded windows_x86_64_msvc v0.48.5
+  Downloaded windows_x86_64_msvc v0.52.6
+  Downloaded winapi v0.3.9
+  Downloaded windows-sys v0.59.0
+  Downloaded windows-sys v0.61.2
+  Downloaded windows-sys v0.48.0
+  Downloaded windows-sys v0.52.0
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling stable_deref_trait v1.2.1
+   Compiling khronos_api v3.1.0
+   Compiling smallvec v1.16.4
+   Compiling cfg-if v1.0.5
+   Compiling windows-link v0.2.1
+   Compiling cfg_aliases v0.2.2
+   Compiling windows_x86_64_msvc v0.52.6
+   Compiling version_check v0.9.5
+   Compiling log v0.4.34
+   Compiling autocfg v1.5.1
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling xml-rs v0.8.29
+   Compiling utf8_iter v1.0.4
+   Compiling icu_normalizer_data v2.4.0
+   Compiling icu_properties_data v2.4.0
+   Compiling syn v3.0.9
+   Compiling gl_generator v0.14.0
+   Compiling windows-targets v0.52.6
+   Compiling serde_core v1.0.229
+   Compiling parking_lot_core v0.9.12
+   Compiling once_cell v1.21.4
+   Compiling zerocopy v0.8.63
+   Compiling ahash v0.8.12
+   Compiling scopeguard v1.2.0
+   Compiling simd-adler32 v0.3.10
+   Compiling bitflags v2.13.2
+   Compiling ttf-parser v0.25.1
+   Compiling lock_api v0.4.14
+   Compiling synstructure v0.14.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerofrom v0.1.8
+   Compiling zerovec-derive v0.11.7
+   Compiling yoke v0.8.4
+   Compiling displaydoc v0.2.7
+   Compiling bytemuck_derive v1.12.1
+   Compiling owned_ttf_parser v0.25.1
+   Compiling zerotrie v0.2.5
+   Compiling zerovec v0.11.9
+   Compiling windows-sys v0.52.0
+   Compiling raw-window-handle v0.6.2
+   Compiling ab_glyph_rasterizer v0.1.10
+   Compiling tinystr v0.8.5
+   Compiling potential_utf v0.1.6
+   Compiling icu_locale_core v2.4.0
+   Compiling bytemuck v1.25.2
+   Compiling icu_collections v2.4.0
+   Compiling emath v0.29.1
+   Compiling adler2 v2.0.1
+   Compiling crc32fast v1.5.3
+   Compiling ecolor v0.29.1
+   Compiling icu_provider v2.4.0
+   Compiling ab_glyph v0.2.32
+   Compiling icu_properties v2.4.0
+   Compiling icu_normalizer v2.4.0
+   Compiling parking_lot v0.12.5
+   Compiling idna_adapter v1.2.2
+   Compiling glutin_egl_sys v0.7.1
+   Compiling glutin_wgl_sys v0.6.1
+   Compiling num-traits v0.2.19
+   Compiling winit v0.30.13
+   Compiling pin-project-lite v0.2.17
+   Compiling winnow v1.0.4
+   Compiling windows_x86_64_msvc v0.48.5
+   Compiling tracing-core v0.1.36
+   Compiling percent-encoding v2.3.2
+   Compiling epaint_default_fonts v0.29.1
+   Compiling nohash-hasher v0.2.0
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling epaint v0.29.1
+   Compiling form_urlencoded v1.2.2
+   Compiling tracing v0.1.44
+   Compiling idna v1.1.0
+   Compiling miniz_oxide v0.9.1
+   Compiling toml_datetime v1.1.2+spec-1.1.0
+   Compiling serde_spanned v1.1.2
+   Compiling memoffset v0.9.1
+   Compiling glutin v0.32.3
+   Compiling unicode-segmentation v1.13.3
+   Compiling cursor-icon v1.2.0
+   Compiling dpi v0.1.2
+   Compiling error-code v3.4.0
+   Compiling smol_str v0.2.2
+   Compiling clipboard-win v5.4.3
+   Compiling toml v1.1.8+spec-1.1.0
+   Compiling egui v0.29.1
+   Compiling flate2 v1.1.10
+   Compiling url v2.5.8
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling glutin-winit v0.5.0
+   Compiling windows-sys v0.61.2
+   Compiling libloading v0.8.9
+   Compiling pxfm v0.1.30
+   Compiling winapi v0.3.9
+   Compiling arboard v3.7.0
+   Compiling png v0.18.1
+   Compiling windows-targets v0.48.5
+   Compiling webbrowser v1.2.5
+   Compiling moxcms v0.8.1
+   Compiling winresource v0.1.34
+   Compiling web-time v1.1.0
+   Compiling litrs v1.0.1
+   Compiling byteorder-lite v0.1.0
+   Compiling rfd v0.14.1
+   Compiling glow v0.14.2
+   Compiling egui_glow v0.29.1
+   Compiling image v0.25.10
+   Compiling document-features v0.2.12
+   Compiling egui-winit v0.29.1
+   Compiling ladewerk v1.1.2 (D:\a\werkbank\werkbank\eigene\ladewerk)
+   Compiling windows-sys v0.48.0
+   Compiling static_assertions v1.1.0
+   Compiling eframe v0.29.1
+   Compiling windows-sys v0.59.0
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+  --> src\app.rs:32:68
+   |
+32 |     egui::Frame::none().fill(thema::bg()).stroke(egui::Stroke::new(1.0, thema::border())).rounding(12.0).inner_margin(egui::Margin::...
+   |                                                                    ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+   = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+  --> src\stil.rs:84:52
+   |
+84 |         v.widgets.inactive.bg_stroke = Stroke::new(1.0, thema::border());
+   |                                                    ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+  --> src\stil.rs:86:51
+   |
+86 |         v.widgets.hovered.bg_stroke = Stroke::new(1.0, mix(f, thema::border(), 0.45));
+   |                                                   ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+  --> src\stil.rs:89:42
+   |
+89 |         v.selection.stroke = Stroke::new(1.0, Color32::WHITE);
+   |                                          ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:479:94
+    |
+479 | ...se { thema::panel() }, Stroke::new(1.0, if hov { mix(f, thema::border(), 0.45) } else { thema::border() }));
+    |                                       ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:568:63
+    |
+568 |     ui.painter().vline(r.center().x, r.y_range(), Stroke::new(1.0, thema::border()));
+    |                                                               ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:596:125
+    |
+596 | ...ric(12.0, 8.0)).stroke(Stroke::new(1.0, thema::border())))
+    |                                       ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:616:120
+    |
+616 | ...ric(12.0, 5.0)).stroke(Stroke::new(1.0, mix(farbe(), thema::border(), 0.3))))
+    |                                       ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:630:125
+    |
+630 | ...ric(14.0, 9.0)).stroke(Stroke::new(1.0, thema::border())))
+    |                                       ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:646:112
+    |
+646 |         .frame(egui::Frame::none().fill(thema::bg()).inner_margin(egui::Margin::same(10.0)).stroke(Stroke::new(1.0, thema::border())))
+    |                                                                                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:672:65
+    |
+672 |     egui::Frame::none().fill(thema::panel()).stroke(Stroke::new(1.0, thema::border())).rounding(12.0).inner_margin(egui::Margin::sy...
+    |                                                                 ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:750:62
+    |
+750 |     ui.painter().rect(rect, 8.0, thema::panel(), Stroke::new(1.0, thema::border()));
+    |                                                              ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\stil.rs:762:79
+    |
+762 |             ui.painter().vline(r.left(), r.shrink(6.0).y_range(), Stroke::new(1.0, thema::border()));
+    |                                                                               ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: `ladewerk` (bin "ladewerk") generated 13 warnings (run `cargo fix --bin "ladewerk" -p ladewerk` to apply 13 suggestions)
+    Finished `release` profile [optimized] target(s) in 1m 39s
