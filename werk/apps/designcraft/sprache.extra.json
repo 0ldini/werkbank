@@ -16,10 +16,10 @@
     },
     {
       "file": "crates/ui-egui/src/i18n.rs",
-      "anchor": "&& let Some(text) = GERMAN.get_or_init(|| de::TABLE.iter().copied().collect()).get(s).copied()",
+      "anchor": "&& let Some(text) = GERMAN.get_or_init(|| de::TABLE.iter().copied().collect()).get(s).copied().filter(|text| !text.trim().is_empty())",
       "kind": "replace",
       "lines": [
-        "&& let Some(text) = GERMAN.get_or_init(|| de_werk::TABLE.iter().chain(de::TABLE).copied().collect()).get(s).copied()"
+        "&& let Some(text) = GERMAN.get_or_init(|| de_werk::TABLE.iter().chain(de::TABLE).copied().filter(|(_, text)| !text.trim().is_empty()).collect()).get(s).copied().filter(|text| !text.trim().is_empty())"
       ]
     }
   ]

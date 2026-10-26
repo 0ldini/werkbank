@@ -308,12 +308,18 @@ def patch_language():
 #   "add_files":  [{"src": "werk_de.rs", "dst": "crates/ui-egui/src/werk_de.rs"}]   kopieren
 #   "patches":    [{"file": …, "anchor": "eine ganze Zeile", "kind": "after|before|replace",
 #                   "skip": 0, "lines": ["…"]}]   wie die Sprach-Einschübe oben
+#                 "to": "] {" statt «skip»: nach der ersten folgenden Zeile mit genau diesem
+#                 Inhalt einfügen (robuster als eine Zeilenzahl); "optional": true lässt
+#                 einen Einschub ohne Ankerzeile still entfallen.
 #   "wrap":       [{"globs": ["crates/ui-egui/src/**/*.rs"], "calls": ["ui.button(", …],
 #                   "func": "crate::werk_de::t", "exclude": ["tests.rs"]}]
 #                 Ein Zeichenketten-Literal direkt nach einem der Aufrufe wird zu func("…").
 #                 Zeilen mit «const », «static », «#[» oder Kommentaren bleiben unberührt.
 
-def _patch_lines(rel, kind, anchor, skip, lines, optional=False):
+TO_RANGE = 60  # so weit sucht «to» nach der Ankerzeile
+
+
+def _patch_lines(rel, kind, anchor, skip, lines, optional=False, to=None):
     path = ROOT / rel
     if not path.is_file():
         if optional:
@@ -332,6 +338,17 @@ def _patch_lines(rel, kind, anchor, skip, lines, optional=False):
         problems.append(f"Einschub: Ankerzeile {len(hits)}× statt 1× in {rel}: {anchor}")
         return False
     i = hits[0]
+    if to is not None:
+        # «to»: statt fester Zeilenzahl bis zur nächsten Zeile nach dem Anker mit diesem Inhalt
+        # (übersteht neue Zeilen dazwischen im Original).
+        ahead = [j for j in range(i + 1, min(len(rows), i + 1 + TO_RANGE)) if rows[j].strip() == to.strip()]
+        if not ahead:
+            if optional:
+                print(f"  (Einschub entfällt, «{to}» fehlt nach der Ankerzeile in {rel})")
+                return False
+            problems.append(f"Einschub: «{to}» fehlt in den {TO_RANGE} Zeilen nach der Ankerzeile in {rel}: {anchor}")
+            return False
+        skip = ahead[0] - i
     indent = rows[i][: len(rows[i]) - len(rows[i].lstrip())]
     if kind == "after":
         inner = indent + ("    " if anchor.rstrip().endswith("{") else "")
@@ -413,7 +430,7 @@ def extras():
             shutil.copyfile(src, ROOT / m["dst"])
         print(f"  Datei {m['dst']}")
     for m in cfg.get("patches", []):
-        if _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"], m.get("optional", False)):
+        if _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"], m.get("optional", False), m.get("to")):
             print(f"  Einschub in {m['file']}")
     for m in cfg.get("wrap", []):
         calls = sorted(m["calls"], key=len, reverse=True)

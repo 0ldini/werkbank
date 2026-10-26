@@ -1117,11 +1117,11 @@
   {
    "file": "crates/ui-egui/src/panes.rs",
    "kind": "after",
-   "skip": 11,
    "lines": [
     "    let label = crate::werk_de::t(label);"
    ],
-   "anchor": "fn fx_slider("
+   "anchor": "fn fx_slider(",
+   "to": ") {"
   },
   {
    "file": "crates/ui-egui/src/panes.rs",
@@ -2163,10 +2163,10 @@
    "file": "crates/ui-egui/src/panes.rs",
    "anchor": "Some(Fill::None) => \"none\",",
    "kind": "after",
-   "skip": 14,
    "lines": [
     "let l = crate::werk_de::t(l);"
-   ]
+   ],
+   "to": "] {"
   },
   {
    "file": "crates/ui-egui/src/panes.rs",
@@ -2208,10 +2208,10 @@
    "file": "crates/ui-egui/src/panes.rs",
    "anchor": "let mut current: Option<Value> = None;",
    "kind": "after",
-   "skip": 8,
    "lines": [
     "let l = crate::werk_de::t(l);"
-   ]
+   ],
+   "to": "] {"
   },
   {
    "file": "crates/ui-egui/src/panes.rs",
@@ -2361,10 +2361,10 @@
    "file": "crates/ui-egui/src/ribbon.rs",
    "anchor": "if let Some(c) = widgets::color_grid(ui, sc, Some(\"No Outline\")) {",
    "kind": "after",
-   "skip": 23,
    "lines": [
     "let l = crate::werk_de::t(l);"
-   ]
+   ],
+   "to": "] {"
   },
   {
    "file": "crates/ui-egui/src/ribbon.rs",
@@ -2586,10 +2586,10 @@
    "file": "crates/ui-egui/src/ribbon.rs",
    "anchor": "run(app, \"shape.line\", json!({\"color\": \"#000000\", \"width\": 1.0}));",
    "kind": "after",
-   "skip": 25,
    "lines": [
     "let l = crate::werk_de::t(l);"
-   ]
+   ],
+   "to": "] {"
   },
   {
    "file": "crates/ui-egui/src/ribbon.rs",

@@ -25,39 +25,31 @@
       "kind": "after",
       "skip": 0,
       "lines": [
-        "\"de\" => (&DE, GERMAN),"
+        "// Werkbank: German also reads its rows for text only the Georgian panel table has so far.",
+        "\"de\" => return Some(DE.get_or_init(|| GERMAN.iter().chain(GERMAN_PANELS).copied().collect())),"
       ]
     },
     {
       "file": "crates/ui-egui/src/i18n/ui.rs",
-      "anchor": "/// Japanese: the same rows, in the same order, as the Chinese catalogs below (the tests keep the two in step).",
-      "kind": "before",
-      "skip": 0,
-      "lines": [
-        "// Werkbank: GERMAN, the German rows (i18n/ui_de.rs).",
-        "include!(\"ui_de.rs\");",
-        ""
-      ]
-    },
-    {
-      "file": "crates/ui-egui/src/i18n/ui.rs",
-      "anchor": ".chain(SPANISH.iter().copied())",
+      "anchor": "type Index = HashMap<&'static str, &'static str>;",
       "kind": "after",
       "skip": 0,
       "lines": [
-        ".chain(GERMAN.iter().copied())"
+        "",
+        "// Werkbank: GERMAN and GERMAN_PANELS, the German rows (i18n/ui_de.rs).",
+        "include!(\"ui_de.rs\");"
       ]
     },
     {
       "file": "crates/ui-egui/src/i18n/ui.rs",
-      "anchor": "for (name, cat) in [(\"Japanese\", JAPANESE), (\"Ukrainian\", UKRAINIAN), (\"Brazilian Portuguese\", PORTUGUESE), (\"Czech\", CZECH), (\"Spanish\", SPANISH)] {",
-      "kind": "replace",
+      "anchor": "(\"es\", SPANISH),",
+      "kind": "after",
       "skip": 0,
       "lines": [
-        "for (name, cat) in",
-        "    [(\"Japanese\", JAPANESE), (\"Ukrainian\", UKRAINIAN), (\"Brazilian Portuguese\", PORTUGUESE), (\"Czech\", CZECH), (\"Spanish\", SPANISH), (\"German\", GERMAN)]",
-        "{"
-      ]
+        "(\"de\", GERMAN),",
+        "(\"de\", GERMAN_PANELS),"
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/ui.rs",
@@ -69,6 +61,7 @@
         "#[test]",
         "fn german_panels_translate_and_keep_project_content() {",
         "    set_current(\"de\");",
+        "    assert_eq!(tr(\"Search project\"), \"Projekt durchsuchen\");",
         "    assert_eq!(tr(\"Composition Name:\"), \"Kompositionsname:\");",
         "    assert_eq!(tr(\"Cancel\"), \"Abbrechen\");",
         "    assert_eq!(tr(\"my layer.mp4\"), \"my layer.mp4\");",
@@ -76,7 +69,8 @@
         "    set_current(\"en\");",
         "    assert_eq!(tr(\"Cancel\"), \"Cancel\");",
         "}"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n.rs",
@@ -95,7 +89,8 @@
       "lines": [
         "(Some(\"de-DE\"), \"de\"),",
         "(Some(\"de_CH.UTF-8\"), \"de\"),"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n.rs",
@@ -166,23 +161,23 @@
     },
     {
       "file": "crates/ui-egui/src/i18n/effects.rs",
-      "anchor": "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS)];",
+      "anchor": "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN)];",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"de\", GERMAN_EFFECTS)];"
-      ]
+        "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN), (\"de\", GERMAN_EFFECTS)];"
+      ],
+      "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/effects.rs",
-      "anchor": "for (language, rows) in [(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES)] {",
+      "anchor": "[(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"ka\", GEORGIAN_CATEGORIES)]",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "for (language, rows) in",
-        "    [(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"de\", GERMAN_CATEGORIES)]",
-        "{"
-      ]
+        "[(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"ka\", GEORGIAN_CATEGORIES), (\"de\", GERMAN_CATEGORIES)]"
+      ],
+      "optional": true
     }
   ]
 }
