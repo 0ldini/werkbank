@@ -1,0 +1,61 @@
+name: Hall-Test
+
+# Einmaliger Versuch: Wie gut entfernen DeepFilterNet, RNNoise und ein Gate Hall und Rauschen
+# aus gesprochener Sprache? Ergebnisse als Anmerkungen am Lauf. Veröffentlicht nichts.
+on:
+  push:
+    branches: [hall-test]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Werkzeuge
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng >/dev/null
+          curl -fsSL --retry 5 -o df https://github.com/Rikorose/DeepFilterNet/releases/download/v0.5.6/deep-filter-0.5.6-x86_64-unknown-linux-musl
+          chmod +x df
+      - name: Testaufnahme
+        run: |
+          set -e
+          espeak-ng -v de -s 150 -w a.wav "Guten Tag. Heute sprechen wir über die neue Werkbank und wie man Aufnahmen verbessert. Das ist ein Test mit zwei Stimmen."
+          espeak-ng -v de+f3 -s 160 -w b.wav "Ja genau, ich spreche etwas leiser und weiter weg vom Mikrofon. Hört man mich trotzdem gut?"
+          # Raum-Impulsantwort: abklingendes Rauschen (Nachhall ca. 0.6 s)
+          ffmpeg -loglevel error -y -f lavfi -i "anoisesrc=d=0.8:c=white:a=0.5:r=48000" -af "volume='exp(-t*9)':eval=frame,afade=t=in:d=0.002" rir.wav
+          ffmpeg -loglevel error -y -i a.wav -i b.wav -filter_complex "[0]aresample=48000,volume=1.0[a];[1]aresample=48000,volume=0.25[b];[a][b]concat=n=2:v=0:a=1[s]" -map "[s]" -ac 1 trocken.wav
+          ffmpeg -loglevel error -y -i trocken.wav -i rir.wav -filter_complex "[0][1]afir=dry=6:wet=4[r];anoisesrc=c=pink:a=0.01:r=48000[n];[r][n]amix=inputs=2:normalize=0:duration=first" -ac 1 -ar 48000 roh.wav
+      - name: Varianten
+        run: |
+          set -e
+          ./df --help | head -40 || true
+          ./df -o df_out roh.wav && mv df_out/*.wav df.wav
+          ./df --atten-lim 100 -o df_out2 roh.wav && mv df_out2/*.wav df_max.wav || cp df.wav df_max.wav
+          ffmpeg -loglevel error -y -i roh.wav -af "highpass=f=80,highpass=f=80,highpass=f=80,speechnorm=e=12.5:r=0.0001:l=1,agate=threshold=0.15:ratio=4:attack=2:release=50:range=0.2:knee=3,alimiter=limit=0.97:level=0" gate.wav
+          ffmpeg -loglevel error -y -i df.wav -af "speechnorm=e=12.5:r=0.0001:l=1,alimiter=limit=0.97:level=0" df_norm.wav
+      - name: Messen
+        run: |
+          # Nachhall-Energie: Pegel 0..300 ms nach Wortende relativ zum Wortpegel (aus der trockenen Aufnahme bestimmt)
+          python3 - <<'PY'
+          import subprocess, struct, wave, math
+          def load(p):
+              subprocess.run(["ffmpeg","-loglevel","error","-y","-i",p,"-ac","1","-ar","16000","-f","s16le","x.raw"],check=True)
+              d=open("x.raw","rb").read(); return [s/32768 for s in struct.unpack("<%dh"%(len(d)//2),d)]
+          dry=load("trocken.wav"); w=320  # 20 ms
+          def rms(x): return math.sqrt(sum(v*v for v in x)/max(1,len(x)))+1e-9
+          env=[rms(dry[i:i+w]) for i in range(0,len(dry)-w,w)]
+          thr=max(env)*0.05
+          speech=[i for i,e in enumerate(env) if e>thr]
+          tail=[i for i,e in enumerate(env) if e<=thr*0.2 and any(env[j]>thr for j in range(max(0,i-15),i))]
+          for name in ["roh.wav","gate.wav","df.wav","df_max.wav","df_norm.wav"]:
+              x=load(name); n=min(len(x),len(dry))
+              fr=[rms(x[i*w:i*w+w]) for i in range(n//w)]
+              sp=20*math.log10(rms([fr[i] for i in speech if i<len(fr)]))
+              tl=20*math.log10(rms([fr[i] for i in tail if i<len(fr)]))
+              print(f"::notice title={name}::Sprache {sp:.1f} dB, Nachhall/Pausen {tl:.1f} dB, Abstand {sp-tl:.1f} dB")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hall-proben
+          path: "*.wav"
