@@ -362,7 +362,20 @@ impl App {
                 ui.add_space(12.0);
                 sub(ui, t("Sprache verbessern"));
                 let e = &mut self.entries[self.sel];
-                stil::schalter(ui, &mut e.sprache.angleichen, t("Stimmen gleich laut machen"));
+                if e.sprache.sprecher && tgt.kind() == MediaKind::Audio {
+                    // «Zwei Sprecher angleichen» gleicht die Lautstärke immer mit an.
+                    ui.add_enabled_ui(false, |ui| {
+                        let mut an = true;
+                        stil::schalter(ui, &mut an, t("Stimmen gleich laut machen"));
+                    });
+                } else {
+                    stil::schalter(ui, &mut e.sprache.angleichen, t("Stimmen gleich laut machen"));
+                }
+                if tgt.kind() == MediaKind::Audio {
+                    stil::schalter(ui, &mut e.sprache.sprecher, t("Zwei Sprecher angleichen (Klang)"));
+                    stil::hinweis(ui, t("Erkennt zwei Stimmen und gleicht die dumpfere im Klang an. Ausgabe in Mono."));
+                    ui.add_space(4.0);
+                }
                 stil::schalter(ui, &mut e.sprache.brummen, t("Brummen und Rumpeln entfernen"));
                 ui.add_space(4.0);
                 ui.label(egui::RichText::new(t("Hintergrundgeräusche entfernen")).size(13.5));
@@ -554,14 +567,24 @@ fn status_badge(ui: &mut egui::Ui, e: &Entry) {
     match &e.job {
         Some(j) if j.done.load(std::sync::atomic::Ordering::SeqCst) => {
             if j.ok.load(std::sync::atomic::Ordering::SeqCst) {
-                ui.colored_label(green(), t("fertig"));
+                let m = j.msg.lock().map(|g| g.clone()).unwrap_or_default();
+                let r = ui.colored_label(green(), t("fertig"));
+                if !m.is_empty() {
+                    r.on_hover_text(m);
+                }
             } else {
                 let m = j.msg.lock().unwrap().clone();
                 ui.colored_label(red(), t("Fehler")).on_hover_text(m);
             }
         }
         Some(j) if j.running.load(std::sync::atomic::Ordering::SeqCst) => {
-            ui.weak(format!("{} %", (j.percent() * 100.0) as u32));
+            let m = j.msg.lock().map(|g| g.clone()).unwrap_or_default();
+            let pct = (j.percent() * 100.0) as u32;
+            if m.is_empty() {
+                ui.weak(format!("{pct} %"));
+            } else {
+                ui.weak(format!("{m} {pct} %"));
+            }
         }
         _ => {
             ui.label(egui::RichText::new(badge).color(vio()).strong().size(12.0));

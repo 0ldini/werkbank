@@ -48,6 +48,8 @@ Fertige Datei danach unter `target/release/wandelwerk` (bzw.
 - `src/model.rs` – reine Logik: Typ-Erkennung, Zielformate,
   Seitenverhältnis-Geometrie, Qualität, Dateiname, **ffmpeg-Argumentbau**.
   **Eigenständig getestet.**
+- `src/sprecher.rs` – Stimmen-Erkennung für «Zwei Sprecher angleichen» (FFT, k-means, Maske),
+  nur Standardbibliothek, **eigenständig getestet**.
 - `src/convert.rs` – Motor: Bilder (image-Crate), Ton/Video (ffmpeg) mit
   Fortschritt; die Fortschritts-Parser sind **eigenständig getestet**.
 - `src/app.rs` – die egui-Oberfläche (Liste, Ausgabe, Vorschau, Fortschritt).
@@ -85,3 +87,29 @@ Für Aufnahmen mit Stimmen (Gespräche, Interviews, Sprachnachrichten), bei Ton 
   aus https://github.com/GregorR/rnnoise-models (laut Autor nicht urheberrechtlich geschützt).
 
 Ein Begrenzer am Ende verhindert Übersteuern.
+
+### Zwei Sprecher angleichen (Klang)
+
+Für Gespräche mit zwei Stimmen, von denen eine leiser und dumpfer klingt (z. B. Podcast mit
+einem schlechteren Mikrofon). Nur bei Ton als Ziel; die Ausgabe ist Mono (48 kHz).
+«Stimmen gleich laut machen» ist dabei immer mit an.
+
+1. **Stimmen erkennen** (`src/sprecher.rs`): ffmpeg liefert die Aufnahme als 16 kHz Mono.
+   Je Sekunde werden Pegel und der Anteil von Tiefen (80–300 Hz), Mitten (300–1000 Hz),
+   Präsenz (1–3 kHz) und Höhen (3–8 kHz) gemessen. Sekunden über −40 dB zählen als Sprache
+   und werden mit k-means in zwei Gruppen geteilt; die mit weniger Präsenz + Höhen ist Stimme B.
+2. **Ausgleich** für Stimme B: Präsenz +0.9 × Unterschied (höchstens 8 dB, `equalizer` 2.5 kHz),
+   Höhen + Unterschied (höchstens 9 dB, `highshelf` 4.5 kHz), bei mehr Tiefen etwas weniger
+   um 220 Hz (höchstens −4 dB).
+3. **Zwei Fassungen** (ohne und mit Ausgleich, sonst mit denselben Sprach-Filtern) werden
+   gleichzeitig dekodiert und sekundenweise gemischt: Pausen gehören zur Stimme davor, ein
+   Median über 3 s glättet Ausreisser, Übergänge sind 0.4 s weich. Danach Begrenzer und
+   Kodieren ins Zielformat.
+
+Sind die beiden Gruppen kaum verschieden (Präsenz + Höhen unter 3 dB) oder spricht eine Stimme
+weniger als 10 % der Zeit, meldet Wandelwerk «Keine zweite, dumpfere Stimme erkannt» und wandelt
+normal um. Was gemacht wurde, steht im Hinweis über «fertig» (z. B. «Stimme B: 22 Min., +6 dB
+Präsenz, +7 dB Höhen»).
+
+Test an einem 50-Minuten-Podcast: Präsenz-Unterschied von 5.4 auf 0.6 dB, Höhen von 4.9 auf
+−1.2 dB, Lautstärke von 4.3 auf 0.3 dB.

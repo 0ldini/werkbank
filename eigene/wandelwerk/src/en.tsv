@@ -76,3 +76,12 @@ Brummen und Rumpeln entfernen	Remove hum and rumble
 Hintergrundgeräusche entfernen	Remove background noise
 Stark kann Stimmen etwas blechern klingen lassen.	Strong can make voices sound a little tinny.
 Stimm-Modell konnte nicht abgelegt werden: {e}	Could not store the voice model: {e}
+Zwei Sprecher angleichen (Klang)	Match two speakers (tone)
+Erkennt zwei Stimmen und gleicht die dumpfere im Klang an. Ausgabe in Mono.	Detects two voices and brightens the duller one to match. Output in mono.
+Keine zweite, dumpfere Stimme erkannt	No second, duller voice detected
+Stimmen erkennen …	Detecting voices …
+Stimmen angleichen …	Matching voices …
+Stimme B: {min} Min.	Voice B: {min} min
+, +{db} dB Präsenz	, +{db} dB presence
+, +{db} dB Höhen	, +{db} dB treble
+, −{db} dB Tiefen	, −{db} dB bass

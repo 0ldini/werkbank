@@ -38,7 +38,7 @@ case "$KIND" in
 esac
 "$BIN" -hide_banner -encoders | grep -E 'libx264|libvpx-vp9|libmp3lame|libopus|libvorbis' || { echo "ffmpeg ohne nötige Encoder"; exit 1; }
 # «Sprache verbessern» braucht diese Filter.
-for flt in arnndn speechnorm alimiter highpass; do
+for flt in arnndn speechnorm alimiter highpass equalizer highshelf; do
   "$BIN" -hide_banner -filters | grep -q " $flt " || { echo "ffmpeg ohne Filter $flt"; exit 1; }
 done
 cp vendor/LICENSE.txt LICENSE-ffmpeg.txt
