@@ -34,8 +34,8 @@ jobs:
           ./df --atten-lim 100 -o df_out2 roh.wav && mv df_out2/*.wav df_max.wav || cp df.wav df_max.wav
           ffmpeg -loglevel error -y -i roh.wav -af "highpass=f=80,highpass=f=80,highpass=f=80,speechnorm=e=12.5:r=0.0001:l=1,agate=threshold=0.15:ratio=4:attack=2:release=50:range=0.2:knee=3,alimiter=limit=0.97:level=0" gate.wav
           ffmpeg -loglevel error -y -i df.wav -af "speechnorm=e=12.5:r=0.0001:l=1,alimiter=limit=0.97:level=0" df_norm.wav
-          python3 -m venv v && v/bin/pip install -q nara_wpe soundfile numpy
-          v/bin/python - <<'PY'
+          python3 -m venv v && v/bin/pip install -q nara_wpe soundfile numpy > pip.log 2>&1 || { echo "::error title=pip::$(tail -5 pip.log | tr '\n' ' ')"; exit 1; }
+          v/bin/python - > wpe.log 2>&1 <<'PY' || { echo "::error title=wpe::$(tail -8 wpe.log | tr '\n' ' ')"; exit 1; }
           import numpy as np, soundfile as sf
           from nara_wpe.wpe import wpe
           from nara_wpe.utils import stft, istft
