@@ -34,6 +34,18 @@ jobs:
           ./df --atten-lim 100 -o df_out2 roh.wav && mv df_out2/*.wav df_max.wav || cp df.wav df_max.wav
           ffmpeg -loglevel error -y -i roh.wav -af "highpass=f=80,highpass=f=80,highpass=f=80,speechnorm=e=12.5:r=0.0001:l=1,agate=threshold=0.15:ratio=4:attack=2:release=50:range=0.2:knee=3,alimiter=limit=0.97:level=0" gate.wav
           ffmpeg -loglevel error -y -i df.wav -af "speechnorm=e=12.5:r=0.0001:l=1,alimiter=limit=0.97:level=0" df_norm.wav
+          pip install -q nara_wpe soundfile numpy
+          python3 - <<'PY'
+          import numpy as np, soundfile as sf
+          from nara_wpe.wpe import wpe
+          from nara_wpe.utils import stft, istft
+          y, sr = sf.read("roh.wav")
+          for taps, delay, name in [(10, 3, "wpe10"), (20, 3, "wpe20"), (30, 2, "wpe30")]:
+              Y = stft(y[None, :], size=512, shift=128).transpose(2, 0, 1)
+              Z = wpe(Y, taps=taps, delay=delay, iterations=5, statistics_mode="full").transpose(1, 2, 0)
+              z = istft(Z, size=512, shift=128)[0][: len(y)]
+              sf.write(name + ".wav", z, sr)
+          PY
       - name: Messen
         run: |
           # Nachhall-Energie: Pegel 0..300 ms nach Wortende relativ zum Wortpegel (aus der trockenen Aufnahme bestimmt)
@@ -48,7 +60,7 @@ jobs:
           thr=max(env)*0.05
           speech=[i for i,e in enumerate(env) if e>thr]
           tail=[i for i,e in enumerate(env) if e<=thr*0.2 and any(env[j]>thr for j in range(max(0,i-15),i))]
-          for name in ["roh.wav","gate.wav","df.wav","df_max.wav","df_norm.wav"]:
+          for name in ["roh.wav","gate.wav","df.wav","df_norm.wav","wpe10.wav","wpe20.wav","wpe30.wav"]:
               x=load(name); n=min(len(x),len(dry))
               fr=[rms(x[i*w:i*w+w]) for i in range(n//w)]
               sp=20*math.log10(rms([fr[i] for i in speech if i<len(fr)]))
