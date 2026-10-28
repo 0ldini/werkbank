@@ -60,7 +60,7 @@ jobs:
           thr=max(env)*0.05
           speech=[i for i,e in enumerate(env) if e>thr]
           tail=[i for i,e in enumerate(env) if e<=thr*0.2 and any(env[j]>thr for j in range(max(0,i-15),i))]
-          for name in ["roh.wav","gate.wav","df.wav","df_norm.wav","wpe10.wav","wpe20.wav","wpe30.wav"]:
+          for name in ["trocken.wav","roh.wav","gate.wav","df.wav","df_norm.wav","wpe10.wav","wpe20.wav","wpe30.wav"]:
               x=load(name); n=min(len(x),len(dry))
               fr=[rms(x[i*w:i*w+w]) for i in range(n//w)]
               sp=20*math.log10(rms([fr[i] for i in speech if i<len(fr)]))
