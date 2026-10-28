@@ -23,9 +23,9 @@ jobs:
           espeak-ng -v de -s 150 -w a.wav "Guten Tag. Heute sprechen wir über die neue Werkbank und wie man Aufnahmen verbessert. Das ist ein Test mit zwei Stimmen."
           espeak-ng -v de+f3 -s 160 -w b.wav "Ja genau, ich spreche etwas leiser und weiter weg vom Mikrofon. Hört man mich trotzdem gut?"
           # Raum-Impulsantwort: abklingendes Rauschen (Nachhall ca. 0.6 s)
-          ffmpeg -loglevel error -y -f lavfi -i "anoisesrc=d=0.8:c=white:a=0.5:r=48000" -af "volume='exp(-t*9)':eval=frame,afade=t=in:d=0.002" rir.wav
+          ffmpeg -loglevel error -y -f lavfi -i "anoisesrc=d=0.8:c=white:a=0.5:r=48000" -af "volume='exp(-t*22)':eval=frame,afade=t=in:d=0.002" rir.wav
           ffmpeg -loglevel error -y -i a.wav -i b.wav -filter_complex "[0]aresample=48000,volume=1.0[a];[1]aresample=48000,volume=0.25[b];[a][b]concat=n=2:v=0:a=1[s]" -map "[s]" -ac 1 trocken.wav
-          ffmpeg -loglevel error -y -i trocken.wav -i rir.wav -filter_complex "[0][1]afir=dry=6:wet=4[r];anoisesrc=c=pink:a=0.01:r=48000[n];[r][n]amix=inputs=2:normalize=0:duration=first" -ac 1 -ar 48000 roh.wav
+          ffmpeg -loglevel error -y -i trocken.wav -i rir.wav -filter_complex "[0][1]afir=dry=8:wet=2[r];anoisesrc=c=pink:a=0.01:r=48000[n];[r][n]amix=inputs=2:normalize=0:duration=first" -ac 1 -ar 48000 roh.wav
       - name: Varianten
         run: |
           set -e
