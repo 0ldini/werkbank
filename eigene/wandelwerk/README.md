@@ -73,3 +73,15 @@ ffmpeg ist ein eigenständiges Programm des FFmpeg-Projekts (https://ffmpeg.org)
 GPL-Build von https://github.com/BtbN/FFmpeg-Builds. Es steht unter der GNU GPL Version 3
 (siehe `LICENSE-ffmpeg.txt`); den Quellcode gibt es unter https://ffmpeg.org/download.html und
 https://github.com/BtbN/FFmpeg-Builds.
+
+## Sprache verbessern
+
+Für Aufnahmen mit Stimmen (Gespräche, Interviews, Sprachnachrichten), bei Ton und bei Videos:
+
+- **Stimmen gleich laut machen**: hebt leise Stimmen an und dämpft laute (ffmpeg `speechnorm`).
+- **Brummen und Rumpeln entfernen**: schneidet alles unter 80 Hz weg (Netzbrummen, Lüftung).
+- **Hintergrundgeräusche entfernen** (Leicht / Mittel / Stark): Rauschunterdrückung mit
+  RNNoise (ffmpeg `arnndn`). Das Stimm-Modell `assets/werk-stimme.rnnn` ist «beguiling-drafter»
+  aus https://github.com/GregorR/rnnoise-models (laut Autor nicht urheberrechtlich geschützt).
+
+Ein Begrenzer am Ende verhindert Übersteuern.

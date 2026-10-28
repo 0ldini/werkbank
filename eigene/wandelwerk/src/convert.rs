@@ -22,6 +22,8 @@ pub struct Job {
     pub out_dir: PathBuf,
     /// Tonspur bei «Nur Ton» aus einem Video (None = ffmpeg wählt).
     pub audio_track: Option<u32>,
+    /// «Sprache verbessern»: Stimmen angleichen, Brummen und Rauschen entfernen.
+    pub sprache: model::Sprache,
 }
 
 /// Geteilter Fortschritt/Status eines Auftrags.
@@ -100,6 +102,28 @@ fn embedded_ffmpeg() -> Option<String> {
         std::fs::rename(&tmp, &path).ok()?;
     }
     Some(path.display().to_string())
+}
+
+/// Stimm-Modell für die Rauschunterdrückung (RNNoise), siehe model::STIMM_MODELL.
+const STIMM_MODELL: &[u8] = include_bytes!("../assets/werk-stimme.rnnn");
+
+/// Legt das Stimm-Modell einmalig im Benutzerordner ab und gibt den Ordner zurück.
+fn stimm_modell_ordner() -> Result<PathBuf, String> {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from))
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
+        .unwrap_or_else(std::env::temp_dir)
+        .join("Wandelwerk");
+    let path = base.join(model::STIMM_MODELL);
+    let ready = std::fs::metadata(&path).map(|m| m.len() == STIMM_MODELL.len() as u64).unwrap_or(false);
+    if !ready {
+        std::fs::create_dir_all(&base).map_err(|e| e.to_string())?;
+        let tmp = path.with_extension("teil");
+        std::fs::write(&tmp, STIMM_MODELL).map_err(|e| e.to_string())?;
+        std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+    }
+    Ok(base)
 }
 
 /// Findet ffmpeg: neben der eigenen .exe, eingebaut oder auf dem PATH.
@@ -266,11 +290,17 @@ fn save_image(
 fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), String> {
     let ffmpeg = ffmpeg.ok_or(t("ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren."))?;
     let out = out_target(job);
-    let input = job.input.display().to_string();
-    let output = out.display().to_string();
-    let args = model::ffmpeg_args(&input, &output, job.target, job.aspect, job.fit, job.quality, job.audio_track);
+    // Vollständige Pfade: bei der Rauschunterdrückung läuft ffmpeg im Ordner des Stimm-Modells.
+    let input = std::path::absolute(&job.input).unwrap_or_else(|_| job.input.clone()).display().to_string();
+    let output = std::path::absolute(&out).unwrap_or_else(|_| out.clone()).display().to_string();
+    let args = model::ffmpeg_args(&input, &output, job.target, job.aspect, job.fit, job.quality, job.audio_track, job.sprache);
 
-    let mut child = cmd(ffmpeg)
+    let mut command = cmd(ffmpeg);
+    if job.sprache.rauschen != model::Rauschen::Aus {
+        let dir = stimm_modell_ordner().map_err(|e| tf("Stimm-Modell konnte nicht abgelegt werden: {e}", &[("e", &e)]))?;
+        command.current_dir(dir);
+    }
+    let mut child = command
         .args(&args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

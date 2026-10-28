@@ -54,6 +54,8 @@ struct Entry {
     tracks: Arc<Mutex<Option<Vec<AudioTrack>>>>,
     /// Gewählte Tonspur für «Nur Ton»; None = Standardspur der Datei.
     audio_track: Option<u32>,
+    /// «Sprache verbessern» für Ton und Video.
+    sprache: model::Sprache,
 }
 
 impl Entry {
@@ -137,6 +139,7 @@ impl App {
             job: None,
             tracks,
             audio_track: None,
+            sprache: model::Sprache::default(),
         });
     }
 
@@ -145,13 +148,16 @@ impl App {
             return;
         }
         let s = &self.entries[self.sel];
-        let (aspect, fit, quality) = (s.aspect, s.fit, s.quality);
+        let (aspect, fit, quality, sprache) = (s.aspect, s.fit, s.quality, s.sprache);
         // Zielformat nur auf gleichartige Dateien übertragen.
         let tgt = s.target;
         for e in self.entries.iter_mut() {
             e.aspect = aspect;
             e.fit = fit;
             e.quality = quality;
+            if e.kind != MediaKind::Image {
+                e.sprache = sprache;
+            }
             // «Nur Ton» gilt auch für Videos in der Liste.
             let fits = e.kind == tgt.kind() || (tgt.kind() == MediaKind::Audio && e.kind == MediaKind::Video);
             if fits {
@@ -185,6 +191,7 @@ impl App {
                 quality: e.quality,
                 out_dir: out_dir.clone(),
                 audio_track: if e.target.kind() == MediaKind::Audio { e.chosen_track() } else { None },
+                sprache: e.sprache,
             };
             e.job = Some(convert::start_job(job, ffmpeg.clone()));
         }
@@ -346,6 +353,26 @@ impl App {
                         }
                         None => {}
                     }
+                }
+            }
+
+            // Sprache verbessern: für Ton und Videos mit Ton (nicht GIF, nicht Bilder)
+            let tgt = self.entries[self.sel].target;
+            if tgt.kind() == MediaKind::Audio || (tgt.kind() == MediaKind::Video && tgt != Target::Video(VideoFmt::Gif)) {
+                ui.add_space(12.0);
+                sub(ui, t("Sprache verbessern"));
+                let e = &mut self.entries[self.sel];
+                stil::schalter(ui, &mut e.sprache.angleichen, t("Stimmen gleich laut machen"));
+                stil::schalter(ui, &mut e.sprache.brummen, t("Brummen und Rumpeln entfernen"));
+                ui.add_space(4.0);
+                ui.label(egui::RichText::new(t("Hintergrundgeräusche entfernen")).size(13.5));
+                ui.horizontal_wrapped(|ui| {
+                    for r in model::Rauschen::all() {
+                        if chip(ui, e.sprache.rauschen == r, t(r.label())).clicked() { e.sprache.rauschen = r; }
+                    }
+                });
+                if e.sprache.rauschen == model::Rauschen::Stark {
+                    ui.weak(t("Stark kann Stimmen etwas blechern klingen lassen."));
                 }
             }
 

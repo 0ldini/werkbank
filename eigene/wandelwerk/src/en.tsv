@@ -67,3 +67,12 @@ Ausgabe	Output
 Entfernen	Remove
 Noch keine Dateien	No files yet
 {n} Dateien	{n} files
+Aus	Off
+Leicht	Light
+Stark	Strong
+Sprache verbessern	Improve speech
+Stimmen gleich laut machen	Make voices equally loud
+Brummen und Rumpeln entfernen	Remove hum and rumble
+Hintergrundgeräusche entfernen	Remove background noise
+Stark kann Stimmen etwas blechern klingen lassen.	Strong can make voices sound a little tinny.
+Stimm-Modell konnte nicht abgelegt werden: {e}	Could not store the voice model: {e}

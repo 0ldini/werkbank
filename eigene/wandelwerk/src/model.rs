@@ -274,10 +274,79 @@ fn is_video_path(path: &str) -> bool {
         == Some(MediaKind::Video)
 }
 
+// ---------------- Sprache verbessern ----------------
+
+/// Stufe der Rauschunterdrückung (RNNoise über ffmpeg «arnndn»).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Rauschen {
+    #[default]
+    Aus,
+    Leicht,
+    Mittel,
+    Stark,
+}
+
+impl Rauschen {
+    pub fn all() -> [Rauschen; 4] {
+        [Rauschen::Aus, Rauschen::Leicht, Rauschen::Mittel, Rauschen::Stark]
+    }
+    pub fn label(self) -> &'static str {
+        match self { Rauschen::Aus=>"Aus", Rauschen::Leicht=>"Leicht", Rauschen::Mittel=>"Mittel", Rauschen::Stark=>"Stark" }
+    }
+    /// Anteil des entrauschten Signals (1 = ganz). Im Test: Rauschen −6 / −13 / −34 dB.
+    fn mix(self) -> Option<&'static str> {
+        match self { Rauschen::Aus=>None, Rauschen::Leicht=>Some("0.5"), Rauschen::Mittel=>Some("0.8"), Rauschen::Stark=>Some("1") }
+    }
+}
+
+/// «Sprache verbessern» für Aufnahmen mit Stimmen (Gespräche, Interviews, Sprachnachrichten).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Sprache {
+    /// Leise und laute Stimmen auf dieselbe Lautstärke bringen (ffmpeg «speechnorm»).
+    pub angleichen: bool,
+    /// Brummen und Rumpeln unter 80 Hz entfernen (Netzbrummen, Lüftung, Trittschall).
+    pub brummen: bool,
+    pub rauschen: Rauschen,
+}
+
+impl Sprache {
+    pub fn aktiv(&self) -> bool {
+        self.angleichen || self.brummen || self.rauschen != Rauschen::Aus
+    }
+}
+
+/// Dateiname des Stimm-Modells (RNNoise «beguiling-drafter», frei von Urheberrecht laut
+/// github.com/GregorR/rnnoise-models). ffmpeg läuft dafür im Ordner des Modells, so braucht der
+/// Filter keinen Pfad mit Laufwerksbuchstaben (Doppelpunkte müssten sonst maskiert werden).
+pub const STIMM_MODELL: &str = "werk-stimme.rnnn";
+
+/// Tonfilter für ffmpeg «-af»: Sprache verbessern, sonst bei Ton aus Filmen +6 dB.
+pub fn ton_filter(input: &str, s: Sprache) -> Option<String> {
+    if !s.aktiv() {
+        return is_video_path(input).then(|| FILM_LAUTER.to_string());
+    }
+    let mut f: Vec<String> = Vec::new();
+    if s.brummen {
+        // Dreimal 12 dB/Oktave: 50-Hz-Brummen fällt deutlich, tiefe Stimmen bleiben.
+        f.push("highpass=f=80,highpass=f=80,highpass=f=80".into());
+    }
+    if let Some(mix) = s.rauschen.mix() {
+        f.push(format!("arnndn=m={STIMM_MODELL}:mix={mix}"));
+    }
+    if s.angleichen {
+        // Hebt leise Passagen an, dämpft laute; im Test von 12 dB auf 2 dB Unterschied.
+        f.push("speechnorm=e=12.5:r=0.0001:l=1".into());
+    } else if is_video_path(input) {
+        f.push("volume=6dB".into());
+    }
+    f.push("alimiter=limit=0.97:level=0".into());
+    Some(f.join(","))
+}
+
 /// Baut die vollständige ffmpeg-Argumentliste für Ton oder Video.
 /// (Bilder laufen über die image-Crate, nicht über ffmpeg.)
 /// `audio_track`: bei Ton als Ziel die gewünschte Tonspur (0 = erste Tonspur der Datei).
-pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fit: Fit, q: Quality, audio_track: Option<u32>) -> Vec<String> {
+pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fit: Fit, q: Quality, audio_track: Option<u32>, sprache: Sprache) -> Vec<String> {
     let mut a: Vec<String> = vec!["-hide_banner".into(), "-y".into(), "-i".into(), input.into()];
     match target {
         Target::Audio(f) => {
@@ -288,8 +357,9 @@ pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fi
             push(&mut a, &["-vn", "-sn", "-dn"]);
             // Ton aus Filmen ist leise (Kinomischung, 5.1 auf Stereo heruntergemischt): doppelt so
             // laut (+6 dB); der Begrenzer fängt Spitzen ab, damit nichts verzerrt.
-            if is_video_path(input) {
-                push(&mut a, &["-af", FILM_LAUTER]);
+            // Mit «Sprache verbessern» übernimmt dessen Filterkette.
+            if let Some(af) = ton_filter(input, sprache) {
+                push(&mut a, &["-af", &af]);
             }
             match f {
                 AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
@@ -310,11 +380,21 @@ pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fi
                     push(&mut a, &["-vf", &vf]);
                     push(&mut a, &["-c:v", "libx264", "-preset", "medium", "-crf", &crf, "-pix_fmt", "yuv420p"]);
                     push(&mut a, &["-c:a", "aac", "-b:a", "160k"]);
+                    if sprache.aktiv() {
+                        if let Some(af) = ton_filter(input, sprache) {
+                            push(&mut a, &["-af", &af]);
+                        }
+                    }
                 }
                 VideoFmt::Webm => {
                     push(&mut a, &["-vf", &vf]);
                     push(&mut a, &["-c:v", "libvpx-vp9", "-crf", &crf, "-b:v", "0"]);
                     push(&mut a, &["-c:a", "libopus", "-b:a", "128k"]);
+                    if sprache.aktiv() {
+                        if let Some(af) = ton_filter(input, sprache) {
+                            push(&mut a, &["-af", &af]);
+                        }
+                    }
                 }
                 VideoFmt::Gif => {
                     let gvf = format!("{vf},fps=15,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse");
@@ -482,15 +562,31 @@ At least one output file must be specified";
 
     #[test]
     fn ton_aus_video() {
-        let a = ffmpeg_args("film.mkv", "film.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Hoch, Some(1));
+        let a = ffmpeg_args("film.mkv", "film.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Hoch, Some(1), Sprache::default());
         let s = a.join(" ");
         assert!(s.contains("-map 0:a:1 -vn -sn -dn -af volume=6dB,alimiter=limit=0.97:level=0 -c:a libmp3lame -b:a 256k"), "{s}");
         assert!(s.ends_with("film.mp3"));
-        let b = ffmpeg_args("lied.wav", "lied.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Mittel, None).join(" ");
+        let b = ffmpeg_args("lied.wav", "lied.mp3", Target::Audio(AudioFmt::Mp3), Aspect::Original, Fit::Crop, Quality::Mittel, None, Sprache::default()).join(" ");
         assert!(!b.contains("-map"));
         // Reine Tondateien bleiben so laut, wie sie sind.
         assert!(!b.contains("volume="), "{b}");
-        let c = ffmpeg_args("Ferien.MP4", "Ferien.m4a", Target::Audio(AudioFmt::M4a), Aspect::Original, Fit::Crop, Quality::Mittel, None).join(" ");
+        let c = ffmpeg_args("Ferien.MP4", "Ferien.m4a", Target::Audio(AudioFmt::M4a), Aspect::Original, Fit::Crop, Quality::Mittel, None, Sprache::default()).join(" ");
         assert!(c.contains("-af volume=6dB"), "{c}");
+    }
+
+    #[test]
+    fn sprache_verbessern() {
+        let alles = Sprache { angleichen: true, brummen: true, rauschen: Rauschen::Mittel };
+        let f = ton_filter("gespraech.m4a", alles).unwrap_or_default();
+        assert_eq!(f, "highpass=f=80,highpass=f=80,highpass=f=80,arnndn=m=werk-stimme.rnnn:mix=0.8,speechnorm=e=12.5:r=0.0001:l=1,alimiter=limit=0.97:level=0");
+        // Aus: Tondatei unverändert, Film +6 dB wie bisher.
+        assert_eq!(ton_filter("lied.mp3", Sprache::default()), None);
+        assert_eq!(ton_filter("film.mkv", Sprache::default()).as_deref(), Some(FILM_LAUTER));
+        // Nur entrauschen aus einem Film: Film bleibt lauter.
+        let r = ton_filter("film.mp4", Sprache { rauschen: Rauschen::Stark, ..Sprache::default() }).unwrap_or_default();
+        assert!(r.contains("mix=1") && r.contains("volume=6dB"), "{r}");
+        // Auch beim Video-Ziel wird der Ton bearbeitet.
+        let v = ffmpeg_args("a.mov", "a.mp4", Target::Video(VideoFmt::Mp4), Aspect::Original, Fit::Crop, Quality::Hoch, None, alles).join(" ");
+        assert!(v.contains("-af highpass"), "{v}");
     }
 }
