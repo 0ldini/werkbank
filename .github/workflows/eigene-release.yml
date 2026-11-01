@@ -59,8 +59,7 @@ jobs:
             # Nur Windows: in der Cargo.toml «[package.metadata.werkbank]» mit «linux = false».
             kinds="windows"
             grep -Eq '^linux *= *false' "eigene/$a/Cargo.toml" || kinds="$kinds linux"
-            # macOS (Apple Silicon); abschalten mit «macos = false».
-            grep -Eq '^macos *= *false' "eigene/$a/Cargo.toml" || kinds="$kinds macos"
+            # macOS: keine eigenen Builds mehr; der Launcher bietet dort die Browser-Versionen an.
             [ -f "eigene/$a/index.html" ] && kinds="$kinds web"
             for k in $kinds; do jobs=$(jq -c --arg a "$a" --arg k "$k" '. + [{app: $a, kind: $k}]' <<<"$jobs"); done
           done
