@@ -1,7 +1,10 @@
 {
   "patches": [
     {
-      "file": "crates/ui-egui/src/prefs_ui.rs",
+      "file": [
+        "crates/ui-egui/src/prefs/prefs_ui/startup.rs",
+        "crates/ui-egui/src/prefs_ui.rs"
+      ],
       "anchor": "crate::dock::restore(app);",
       "kind": "before",
       "skip": 0,

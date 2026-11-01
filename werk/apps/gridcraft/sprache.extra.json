@@ -33,7 +33,10 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/dialogs.rs",
+      "file": [
+        "crates/ui-egui/src/dialogs/show.rs",
+        "crates/ui-egui/src/dialogs.rs"
+      ],
       "anchor": "for f in d.fields.clone() {",
       "kind": "replace",
       "lines": [
@@ -162,7 +165,10 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/grid.rs",
+      "file": [
+        "crates/ui-egui/src/grid/menus.rs",
+        "crates/ui-egui/src/grid.rs"
+      ],
       "anchor": "let label = if needle.is_empty() { \"(Select All)\" } else { \"(Select All Search Results)\" };",
       "kind": "after",
       "lines": [
@@ -178,25 +184,34 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/title_bar.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"Calculate Now\", \"formulas.calculateNow\"),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/title_bar.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "[(\"Save a Copy as Excel Workbook (.xlsx)…\", \"xlsx\"), (\"Export as CSV…\", \"csv\"), (\"Export as Web Page (.html)…\", \"html\")]",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "{"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/home.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "for (label, op) in [(\"Greater Than…\", \"greater\"), (\"Less Than…\", \"less\"), (\"Between…\", \"between\"), (\"Equal To…\", \"equal\")] {",
       "kind": "after",
       "lines": [
@@ -204,34 +219,46 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/home.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "[(\"Blue\", \"#638EC6\"), (\"Green\", \"#63BE7B\"), (\"Red\", \"#F8696B\"), (\"Orange\", \"#FFB628\"), (\"Light Blue\", \"#008AEF\"), (\"Purple\", \"#D6007B\")]",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "{"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/home.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"White - Red\", vec![\"#FCFCFF\", \"#F8696B\"]),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/home.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"5 Quarters\", \"5Quarters\"),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/galleries.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "ui.label(egui::RichText::new(fam).strong());",
       "kind": "replace",
       "lines": [
@@ -239,7 +266,10 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/galleries.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "ui.label(egui::RichText::new(*g).strong());",
       "kind": "replace",
       "lines": [
@@ -247,7 +277,10 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/galleries.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "*n,",
       "kind": "replace",
       "lines": [
@@ -255,7 +288,10 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/insert.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "for (label, placement) in [(\"Place in Cell\", \"cell\"), (\"Place over Cells\", \"overCells\")] {",
       "kind": "after",
       "lines": [
@@ -263,34 +299,46 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/insert.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"Text Box\", \"textBox\"),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/insert.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(Icon::ChartPie, \"Pie or Doughnut\", \"insert.chart.pie\", vec![(\"Pie\", \"pie\", \"\"), (\"Doughnut\", \"doughnut\", \"\")]),",
       "kind": "after",
-      "skip": 6,
       "lines": [
         "    let label = &crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "for (label, k, s) in &subs {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/insert.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"Combo\", \"combo\", \"\"),",
       "kind": "after",
-      "skip": 8,
       "lines": [
         "    let label = &crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "for (label, k, s) in &subs {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/insert.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "for (label, kind) in [(\"Line\", \"line\"), (\"Column\", \"column\"), (\"Win/Loss\", \"winLoss\")] {",
       "kind": "after",
       "lines": [
@@ -298,37 +346,53 @@
       ]
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/contextual.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"Banded Rows\", \"table.bandedRows\", banded),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/contextual.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "(\"Banded Columns\", \"table.bandedColumns\", banded_c),",
       "kind": "after",
-      "skip": 1,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     },
     {
-      "file": "crates/ui-egui/src/ribbon.rs",
+      "file": [
+        "crates/ui-egui/src/ribbon/contextual.rs",
+        "crates/ui-egui/src/ribbon.rs"
+      ],
       "anchor": "for (label, k, s) in [",
       "kind": "after",
-      "skip": 13,
       "lines": [
         "    let label = crate::werk_de::t(label);"
-      ]
+      ],
+      "to": "] {"
     }
   ],
   "wrap": [
     {
       "globs": [
-        "crates/ui-egui/src/*.rs"
+        "crates/ui-egui/src/*.rs",
+        "crates/ui-egui/src/app/*.rs",
+        "crates/ui-egui/src/backstage/*.rs",
+        "crates/ui-egui/src/control/*.rs",
+        "crates/ui-egui/src/dialogs/*.rs",
+        "crates/ui-egui/src/grid/*.rs",
+        "crates/ui-egui/src/ribbon/*.rs",
+        "crates/ui-egui/src/theme/*.rs"
       ],
       "calls": [
         "ui.label(",
@@ -367,7 +431,8 @@
       "func": "crate::werk_de::t",
       "exclude": [
         "i18n.rs",
-        "werk_de.rs"
+        "werk_de.rs",
+        "tests.rs"
       ]
     }
   ]

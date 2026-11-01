@@ -232,13 +232,17 @@ _FROM_PREF = (
     ],
 )
 
+# Das Sprachmodul liegt je nach Version in i18n.rs oder i18n/mod.rs.
+_I18N_RS = ["crates/ui-egui/src/i18n.rs", "crates/ui-egui/src/i18n/mod.rs"]
+
 # Programm → [(Datei, (Art, Ankerzeile, Zeilen danach überspringen, neue Zeilen))]
+#   Datei darf eine Liste sein: die erste, die es gibt (neue und alte Ablage des Originals).
 #   Art: «after» fügt nach der Ankerzeile (+ übersprungene Zeilen) ein, «before» davor,
 #        «replace» ersetzt die Ankerzeile.
 LANG_PATCHES = {
-    "photocraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
-    "vectorcraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
-    "pdfcraft": [("crates/ui-egui/src/i18n/mod.rs", _FROM_PREF)],
+    "photocraft": [(_I18N_RS, _FROM_PREF)],
+    "vectorcraft": [(_I18N_RS, _FROM_PREF)],
+    "pdfcraft": [(_I18N_RS, _FROM_PREF)],
     "wordcraft": [("apps/wordcraft/src/main.rs", ("after", "load_prefs(&mut app);", 0, [
         f"if let Some(code) = {WB}.and_then(|v| wordcraft_ui_egui::i18n::normalize_pref(&v)) {{ app.ui.language = code.to_string(); }}",
     ]))],
@@ -254,7 +258,7 @@ LANG_PATCHES = {
     "designcraft": [("apps/designcraft/src/main.rs", ("before", "// Engine preferences (Preferences dialog, favourites…) live beside the UI state.", 0, [
         f'match {WB}.as_deref() {{ Some("de") => app.ui.language = "de".into(), Some("en") => app.ui.language = String::new(), _ => {{}} }}',
     ]))],
-    "filmcraft": [("crates/ui-egui/src/lib.rs", ("replace", "let language = match i18n::Language::parse(&p.general.interface_language) {", 0, [
+    "filmcraft": [(["crates/ui-egui/src/app/prefs.rs", "crates/ui-egui/src/lib.rs"], ("replace", "let language = match i18n::Language::parse(&p.general.interface_language) {", 0, [
         f"let werkbank = {WB}.and_then(|v| i18n::Language::parse(&v));",
         "let language = match werkbank.or_else(|| i18n::Language::parse(&p.general.interface_language)) {",
     ]))],
@@ -265,14 +269,21 @@ LANG_PATCHES = {
 }
 
 
+def first_file(rel):
+    """«rel» oder die erste vorhandene Datei einer Liste (sonst die erste der Liste)."""
+    rels = rel if isinstance(rel, list) else [rel]
+    return next((r for r in rels if (ROOT / r).is_file()), rels[0])
+
+
 def patch_language():
     patches = LANG_PATCHES.get(APP, [])
     if not patches:
         print("  (keine Übersetzungen im Original)")
-    for rel, (kind, anchor, skip, lines) in patches:
+    for rels, (kind, anchor, skip, lines) in patches:
+        rel = first_file(rels)
         path = ROOT / rel
         if not path.is_file():
-            problems.append(f"Sprache: {rel} fehlt")
+            problems.append(f"Sprache: {' / '.join(rels) if isinstance(rels, list) else rel} fehlt")
             continue
         text = read(path)
         nl = "\r\n" if "\r\n" in text else "\n"
@@ -306,7 +317,7 @@ def patch_language():
 #   "merge_json": [{"src": "de.json", "dst": "crates/ui-egui/locales/de.json"}]
 #                 Schlüssel ergänzen, die im Ziel (flaches JSON-Objekt) fehlen.
 #   "add_files":  [{"src": "werk_de.rs", "dst": "crates/ui-egui/src/werk_de.rs"}]   kopieren
-#   "patches":    [{"file": …, "anchor": "eine ganze Zeile", "kind": "after|before|replace",
+#   "patches":    [{"file": … (oder Liste: die erste vorhandene Datei), "anchor": "eine ganze Zeile", "kind": "after|before|replace",
 #                   "skip": 0, "lines": ["…"]}]   wie die Sprach-Einschübe oben
 #                 "to": "] {" statt «skip»: nach der ersten folgenden Zeile mit genau diesem
 #                 Inhalt einfügen (robuster als eine Zeilenzahl); "optional": true lässt
@@ -320,6 +331,7 @@ TO_RANGE = 60  # so weit sucht «to» nach der Ankerzeile
 
 
 def _patch_lines(rel, kind, anchor, skip, lines, optional=False, to=None):
+    rel = first_file(rel)
     path = ROOT / rel
     if not path.is_file():
         if optional:
@@ -431,7 +443,7 @@ def extras():
         print(f"  Datei {m['dst']}")
     for m in cfg.get("patches", []):
         if _patch_lines(m["file"], m.get("kind", "after"), m["anchor"], m.get("skip", 0), m["lines"], m.get("optional", False), m.get("to")):
-            print(f"  Einschub in {m['file']}")
+            print(f"  Einschub in {first_file(m['file'])}")
     for m in cfg.get("wrap", []):
         calls = sorted(m["calls"], key=len, reverse=True)
         pat = re.compile("(" + "|".join(re.escape(c) for c in calls) + r')\s*("(?:[^"\\\n]|\\.)*")')
@@ -447,9 +459,32 @@ def extras():
                 out = []
                 changed = False
                 in_test = False
-                for line in text.split("\n"):
-                    if re.match(r"\s*#\[cfg\(test\)\]", line):
-                        in_test = True
+                block = None  # Tiefe der Klammern in einem eingerückten #[cfg(test)]-Block
+                rows = text.split("\n")
+                for n, line in enumerate(rows):
+                    if block is not None:
+                        # Klammern zählen, ohne Zeichenketten und Zeichen ('{').
+                        bare = re.sub(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)\'', "", line.split("//")[0])
+                        block[0] += bare.count("{") - bare.count("}")
+                        block[1] = block[1] or "{" in bare
+                        out.append(line)
+                        if (block[1] and block[0] <= 0) or (not block[1] and bare.rstrip().endswith(";")):
+                            block = None
+                        continue
+                    if not in_test and re.match(r"\s*#\[cfg\(test\)\]", line):
+                        # Ab hier ist Testcode, ausser das Attribut gilt nur für eine Zeile wie
+                        # «mod tests;» oder «use …;» (neuere Originale haben das weit oben).
+                        # Eingerückt (in einer Funktion) gilt es nur für den folgenden Block.
+                        rest = line.split("]", 1)[1].strip()
+                        nxt = rest or next((r.strip() for r in rows[n + 1 :] if r.strip()), "")
+                        if re.match(r"(pub(\([^)]*\))? )?(mod \w+|use [^;]*);$", nxt):
+                            pass
+                        elif line[:1].isspace() and not rest:
+                            block = [0, False]
+                            out.append(line)
+                            continue
+                        else:
+                            in_test = True
                     if in_test or skip.match(line):
                         out.append(line)
                         continue

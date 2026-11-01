@@ -2,7 +2,10 @@
   "merge_tsv": [
     {
       "src": "de-werk.tsv",
-      "dst": "crates/ui-egui/src/i18n/de.tsv"
+      "dst": [
+        "craft-i18n/locales/de/vectorcraft.tsv",
+        "crates/ui-egui/src/i18n/de.tsv"
+      ]
     }
   ]
 }
