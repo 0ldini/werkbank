@@ -465,7 +465,7 @@ def extras():
                     if block is not None:
                         # Klammern zählen, ohne Zeichenketten und Zeichen ('{').
                         bare = re.sub(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)\'', "", line.split("//")[0])
-                        block[0] += bare.count("{") - bare.count("}")
+                        block[0] += sum(bare.count(c) for c in "([{") - sum(bare.count(c) for c in ")]}")
                         block[1] = block[1] or "{" in bare
                         out.append(line)
                         if (block[1] and block[0] <= 0) or (not block[1] and bare.rstrip().endswith(";")):
@@ -487,6 +487,14 @@ def extras():
                             in_test = True
                     if in_test or skip.match(line):
                         out.append(line)
+                        # Mehrzeilige Konstante (z. B. «const LABELS: [..] = [»): bis zum «;» darf
+                        # kein Funktionsaufruf hinein.
+                        if re.match(r"^\s*(pub(\([^)]*\))? )?(const|static) ", line) and "Lazy" not in line and not line.rstrip().endswith(";"):
+                            block = [1, True]
+                            bare = re.sub(r'"(?:[^"\\]|\\.)*"', "", line)
+                            block[0] = sum(bare.count(c) for c in "([{") - sum(bare.count(c) for c in ")]}")
+                            if block[0] <= 0:
+                                block = None
                         continue
                     new, k = pat.subn(lambda mm: f'{mm.group(1)}{func}({mm.group(2)})', line)
                     if k:
