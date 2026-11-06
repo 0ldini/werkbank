@@ -1,0 +1,217 @@
+name: Starttest
+
+# Startet die veröffentlichten Programme (wie der Launcher, mit WERKBANK_LANG=de) auf Linux,
+# Windows und im Browser, prüft, ob sie nach dem Start noch laufen, und macht ein Bildschirmfoto.
+# Auf den Fotos wird nachgezählt, ob deutsche oder englische Menüwörter zu sehen sind.
+# Lädt nur herunter, veröffentlicht nichts.
+on:
+  push:
+    branches: [starttest]
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "Programme (leer: alle), z. B. «pdfcraft deckcraft»"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starttest
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Planen
+    runs-on: ubuntu-latest
+    outputs:
+      items: ${{ steps.p.outputs.items }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPS: ${{ inputs.apps }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" -q '.[] | select(.draft|not) | {tag: .tag_name, assets: [.assets[].name]}' > rel.jsonl
+          python3 - <<'EOF'
+          import json, os, re, tomllib
+          apps = tomllib.load(open("launcher/apps.toml", "rb")).get("app", [])
+          want = os.environ.get("APPS", "").split()
+          rels = [json.loads(l) for l in open("rel.jsonl")]
+          def ver(t):
+              return tuple(int(x) for x in re.findall(r"\d+", t.split("-v", 1)[1]))
+          items = []
+          for a in apps:
+              i = a["id"]
+              if want and i not in want:
+                  continue
+              mine = [r for r in rels if r["tag"].startswith(i + "-v")]
+              if not mine:
+                  continue
+              r = max(mine, key=lambda r: ver(r["tag"]))
+              for kind, pat in (("linux", r"-linux-x86_64\.tar\.gz$"), ("windows", r"-windows-x64-portable\.zip$"), ("web", r"-web-.*\.zip$")):
+                  hit = [n for n in r["assets"] if re.search(pat, n)]
+                  if hit:
+                      items.append({"app": i, "name": a.get("name", i), "tag": r["tag"], "kind": kind, "asset": hit[0]})
+          print(json.dumps(items, indent=1))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("items=" + json.dumps(items) + "\n")
+          EOF
+
+  linux:
+    name: ${{ matrix.item.app }} (${{ matrix.item.kind }})
+    needs: plan
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        item: ${{ fromJson(needs.plan.outputs.items) }}
+    runs-on: ${{ matrix.item.kind == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    env:
+      APP: ${{ matrix.item.app }}
+      KIND: ${{ matrix.item.kind }}
+      TAG: ${{ matrix.item.tag }}
+      ASSET: ${{ matrix.item.asset }}
+      WERKBANK_LANG: de
+      WERKBANK_THEME: light
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Herunterladen
+        run: |
+          set -euo pipefail
+          mkdir -p dl out app
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$ASSET" -D dl
+          case "$ASSET" in
+            *.tar.gz) tar xzf "dl/$ASSET" -C app ;;
+            *.zip) (cd app && unzip -q "../dl/$ASSET") ;;
+          esac
+          find app -maxdepth 3 | head -40
+
+      - name: Linux vorbereiten
+        if: matrix.item.kind == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb x11-utils imagemagick libgl1-mesa-dri libegl1 libgles2 mesa-vulkan-drivers libvulkan1 \
+            libgtk-3-0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libasound2t64 libvlc5 vlc-plugin-base ffmpeg >/dev/null
+
+      - name: Starten (Linux)
+        if: matrix.item.kind == 'linux'
+        run: |
+          set -uo pipefail
+          EXE=$(find app -type f -perm -u+x \( -name "$APP" -o -name "$APP-bin" \) | head -1)
+          [ -n "$EXE" ] || EXE=$(find app -type f -perm -u+x ! -name "*.so*" ! -name "*.sh" ! -name "*-cli" | head -1)
+          echo "Programm: $EXE"
+          Xvfb :99 -screen 0 1600x1000x24 >/dev/null 2>&1 &
+          export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1
+          sleep 2
+          (cd "$(dirname "$EXE")" && exec "./$(basename "$EXE")") > out/stdout.txt 2> out/stderr.txt &
+          PID=$!
+          sleep 25
+          if kill -0 $PID 2>/dev/null; then echo läuft > out/status.txt; else wait $PID; echo "beendet (Code $?)" > out/status.txt; fi
+          import -window root out/bild.png || true
+          kill $PID 2>/dev/null || true
+          cat out/status.txt; tail -20 out/stderr.txt
+
+      - name: Starten (Windows)
+        if: matrix.item.kind == 'windows'
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem app -Recurse -Filter "$env:APP.exe" | Select-Object -First 1
+          if (-not $exe) { $exe = Get-ChildItem app -Recurse -Filter *.exe | Where-Object { $_.Name -notmatch 'cli|unins|crash' } | Select-Object -First 1 }
+          "Programm: $($exe.FullName)"
+          $p = Start-Process -FilePath $exe.FullName -WorkingDirectory $exe.DirectoryName -PassThru -RedirectStandardError out/stderr.txt -RedirectStandardOutput out/stdout.txt
+          Start-Sleep 25
+          if ($p.HasExited) { "beendet (Code $($p.ExitCode))" | Out-File out/status.txt } else { "läuft" | Out-File out/status.txt }
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD/out/bild.png")
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Content out/status.txt
+
+      - name: Starten (Browser)
+        if: matrix.item.kind == 'web'
+        run: |
+          set -uo pipefail
+          IDX=$(find app -name index.html | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)
+          ROOT=$(dirname "$IDX")
+          echo "Seite: $IDX"
+          (cd "$ROOT" && python3 -m http.server 8765 >/dev/null 2>&1 &)
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null && npm i -s playwright@1.49.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          cat > t.js <<'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+            const p = await b.newPage({ locale: 'de-CH', viewport: { width: 1600, height: 1000 } });
+            const errs = [];
+            p.on('pageerror', e => errs.push('pageerror: ' + e.message));
+            p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
+            await p.goto('http://localhost:8765/', { waitUntil: 'load', timeout: 60000 });
+            await p.waitForTimeout(25000);
+            await p.screenshot({ path: process.argv[2] });
+            require('fs').writeFileSync(process.argv[3], errs.join('\n'));
+            require('fs').writeFileSync(process.argv[4], errs.some(e => e.startsWith('pageerror') && /panic|unreachable|RuntimeError/i.test(e)) ? 'abgestürzt' : 'läuft');
+            await b.close();
+          })().catch(e => { require('fs').writeFileSync(process.argv[4], 'Fehler: ' + e.message); process.exit(0); });
+          EOF
+          node t.js "$GITHUB_WORKSPACE/out/bild.png" "$GITHUB_WORKSPACE/out/stderr.txt" "$GITHUB_WORKSPACE/out/status.txt"
+          cat "$GITHUB_WORKSPACE/out/status.txt"; echo; head -c 2000 "$GITHUB_WORKSPACE/out/stderr.txt"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: start-${{ matrix.item.app }}-${{ matrix.item.kind }}
+          path: out/*
+          if-no-files-found: warn
+
+  auswertung:
+    name: Auswertung
+    needs: [plan, linux]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: start-*
+          path: res
+      - name: Zählen
+        run: |
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-deu >/dev/null
+          python3 - <<'EOF' > bericht.txt
+          import pathlib, re, subprocess
+          DE = {"Datei","Bearbeiten","Ansicht","Hilfe","Einfügen","Einstellungen","Öffnen","Speichern","Neu","Werkzeuge","Format","Fenster","Bild","Ebene","Rückgängig","Abbrechen","Start","Seite","Suchen","Schliessen","Folie","Tabelle","Ton","Spur","Wiedergabe","Export","Exportieren","Projekt","Auswahl","Effekte","Zoom","Farbe"}
+          EN = {"File","Edit","View","Help","Insert","Settings","Preferences","Open","Save","New","Tools","Window","Image","Layer","Undo","Cancel","Home","Page","Search","Find","Close","Slide","Table","Track","Playback","Project","Selection","Effects","Recent","Untitled","Welcome"}
+          rows = []
+          for d in sorted(pathlib.Path("res").iterdir()):
+              name = d.name[len("start-"):]
+              st = (d / "status.txt").read_text(errors="replace").strip() if (d / "status.txt").exists() else "kein Ergebnis"
+              de = en = "-"
+              if (d / "bild.png").exists():
+                  txt = subprocess.run(["tesseract", str(d / "bild.png"), "-", "-l", "deu+eng"], capture_output=True, text=True).stdout
+                  words = set(re.findall(r"[A-Za-zÄÖÜäöü]+", txt))
+                  de, en = len(words & DE), len(words & EN)
+                  (d / "text.txt").write_text(txt)
+              err = ""
+              if "läuft" not in st and (d / "stderr.txt").exists():
+                  err = " | " + " ".join((d / "stderr.txt").read_text(errors="replace").split()[-25:])[:300]
+              rows.append(f"{name}: {st}, deutsch {de} / englisch {en}{err}")
+          print("\n".join(rows))
+          EOF
+          cat bericht.txt
+          split -l 20 bericht.txt teil.
+          for f in teil.*; do t=$(cat "$f"); t="${t//'%'/'%25'}"; t="${t//$'\n'/'%0A'}"; echo "::notice title=Starttest ${f#teil.}::$t"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starttest-bericht
+          path: |
+            bericht.txt
+            res/**
