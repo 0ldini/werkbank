@@ -307,11 +307,18 @@ pub struct Sprache {
     /// Brummen und Rumpeln unter 80 Hz entfernen (Netzbrummen, Lüftung, Trittschall).
     pub brummen: bool,
     pub rauschen: Rauschen,
+    /// «Zwei Sprecher angleichen (Klang)»: die dumpfere von zwei Stimmen im Klang angleichen
+    /// (nur bei Ton als Ziel, siehe sprecher.rs). Schliesst «angleichen» mit ein.
+    pub sprecher: bool,
 }
 
 impl Sprache {
     pub fn aktiv(&self) -> bool {
-        self.angleichen || self.brummen || self.rauschen != Rauschen::Aus
+        self.angleichen || self.sprecher || self.brummen || self.rauschen != Rauschen::Aus
+    }
+    /// Lautstärke angleichen – auch, wenn «Zwei Sprecher angleichen» an ist.
+    pub fn angleichen_an(&self) -> bool {
+        self.angleichen || self.sprecher
     }
 }
 
@@ -333,7 +340,7 @@ pub fn ton_filter(input: &str, s: Sprache) -> Option<String> {
     if let Some(mix) = s.rauschen.mix() {
         f.push(format!("arnndn=m={STIMM_MODELL}:mix={mix}"));
     }
-    if s.angleichen {
+    if s.angleichen_an() {
         // Hebt leise Passagen an, dämpft laute; im Test von 12 dB auf 2 dB Unterschied.
         f.push("speechnorm=e=12.5:r=0.0001:l=1".into());
     } else if is_video_path(input) {
@@ -341,6 +348,47 @@ pub fn ton_filter(input: &str, s: Sprache) -> Option<String> {
     }
     f.push("alimiter=limit=0.97:level=0".into());
     Some(f.join(","))
+}
+
+/// Filterkette für «Zwei Sprecher angleichen»: die Kette von «Sprache verbessern» (mit
+/// speechnorm) ohne Begrenzer, dahinter der Klangausgleich für Stimme B (alle Werte 0 = Stimme A).
+/// Der Begrenzer folgt erst nach dem Mischen beider Fassungen.
+pub fn sprecher_filter(s: Sprache, tief_db: f32, praesenz_db: f32, hoehen_db: f32) -> String {
+    let mut f: Vec<String> = Vec::new();
+    if s.brummen {
+        f.push("highpass=f=80,highpass=f=80,highpass=f=80".into());
+    }
+    if let Some(mix) = s.rauschen.mix() {
+        f.push(format!("arnndn=m={STIMM_MODELL}:mix={mix}"));
+    }
+    f.push("speechnorm=e=12.5:r=0.0001:l=1".into());
+    if tief_db < -0.05 {
+        f.push(format!("equalizer=f=220:t=q:w=1:g={tief_db:.1}"));
+    }
+    if praesenz_db > 0.05 {
+        f.push(format!("equalizer=f=2500:t=q:w=1:g={praesenz_db:.1}"));
+    }
+    if hoehen_db > 0.05 {
+        f.push(format!("highshelf=f=4500:g={hoehen_db:.1}"));
+    }
+    f.join(",")
+}
+
+/// Begrenzer nach dem Mischen der beiden Fassungen (etwas Luft für den Klangausgleich).
+pub const SPRECHER_BEGRENZER: &str = "alimiter=limit=0.89:level=0";
+
+/// Encoder-Argumente für ein Ton-Zielformat.
+pub fn audio_codec_args(f: AudioFmt, q: Quality) -> Vec<String> {
+    let mut a = Vec::new();
+    match f {
+        AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
+        AudioFmt::M4a => push(&mut a, &["-c:a", "aac", "-b:a", &kbps(q)]),
+        AudioFmt::Ogg => push(&mut a, &["-c:a", "libvorbis", "-b:a", &kbps(q)]),
+        AudioFmt::Opus => push(&mut a, &["-c:a", "libopus", "-b:a", &kbps(q)]),
+        AudioFmt::Flac => push(&mut a, &["-c:a", "flac"]),
+        AudioFmt::Wav => push(&mut a, &["-c:a", "pcm_s16le"]),
+    }
+    a
 }
 
 /// Baut die vollständige ffmpeg-Argumentliste für Ton oder Video.
@@ -361,14 +409,7 @@ pub fn ffmpeg_args(input: &str, output: &str, target: Target, aspect: Aspect, fi
             if let Some(af) = ton_filter(input, sprache) {
                 push(&mut a, &["-af", &af]);
             }
-            match f {
-                AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
-                AudioFmt::M4a => push(&mut a, &["-c:a", "aac", "-b:a", &kbps(q)]),
-                AudioFmt::Ogg => push(&mut a, &["-c:a", "libvorbis", "-b:a", &kbps(q)]),
-                AudioFmt::Opus => push(&mut a, &["-c:a", "libopus", "-b:a", &kbps(q)]),
-                AudioFmt::Flac => push(&mut a, &["-c:a", "flac"]),
-                AudioFmt::Wav => push(&mut a, &["-c:a", "pcm_s16le"]),
-            }
+            a.extend(audio_codec_args(f, q));
         }
         Target::Video(f) => {
             // Für yuv420p/H.264 müssen die Kanten gerade sein – sonst absichern.
@@ -576,7 +617,7 @@ At least one output file must be specified";
 
     #[test]
     fn sprache_verbessern() {
-        let alles = Sprache { angleichen: true, brummen: true, rauschen: Rauschen::Mittel };
+        let alles = Sprache { angleichen: true, brummen: true, rauschen: Rauschen::Mittel, sprecher: false };
         let f = ton_filter("gespraech.m4a", alles).unwrap_or_default();
         assert_eq!(f, "highpass=f=80,highpass=f=80,highpass=f=80,arnndn=m=werk-stimme.rnnn:mix=0.8,speechnorm=e=12.5:r=0.0001:l=1,alimiter=limit=0.97:level=0");
         // Aus: Tondatei unverändert, Film +6 dB wie bisher.
@@ -588,5 +629,21 @@ At least one output file must be specified";
         // Auch beim Video-Ziel wird der Ton bearbeitet.
         let v = ffmpeg_args("a.mov", "a.mp4", Target::Video(VideoFmt::Mp4), Aspect::Original, Fit::Crop, Quality::Hoch, None, alles).join(" ");
         assert!(v.contains("-af highpass"), "{v}");
+    }
+
+    #[test]
+    fn zwei_sprecher() {
+        // «Zwei Sprecher» schliesst speechnorm ein, auch ohne «angleichen».
+        let s = Sprache { sprecher: true, ..Sprache::default() };
+        assert!(s.aktiv());
+        assert!(ton_filter("a.mp3", s).unwrap_or_default().contains("speechnorm"));
+        assert_eq!(sprecher_filter(s, 0.0, 0.0, 0.0), "speechnorm=e=12.5:r=0.0001:l=1");
+        let r = Sprache { sprecher: true, brummen: true, rauschen: Rauschen::Leicht, angleichen: false };
+        assert_eq!(
+            sprecher_filter(r, -2.9, 5.84, 7.2),
+            "highpass=f=80,highpass=f=80,highpass=f=80,arnndn=m=werk-stimme.rnnn:mix=0.5,speechnorm=e=12.5:r=0.0001:l=1,\
+equalizer=f=220:t=q:w=1:g=-2.9,equalizer=f=2500:t=q:w=1:g=5.8,highshelf=f=4500:g=7.2"
+        );
+        assert_eq!(audio_codec_args(AudioFmt::Opus, Quality::Klein).join(" "), "-c:a libopus -b:a 128k");
     }
 }

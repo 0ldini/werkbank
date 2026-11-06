@@ -4,6 +4,7 @@ mod app;
 mod convert;
 mod model;
 mod sprache;
+mod sprecher;
 mod stil;
 mod thema;
 
