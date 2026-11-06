@@ -12,6 +12,7 @@ const GERMAN_EFFECTS: &[Row] = &[
     ("ec.3d.fog3d", "Fog 3D", "Nebel 3D"),
     ("ec.3d.identifier", "IDentifier", "IDentifier"),
     ("ec.3d.idmatte", "ID Matte", "ID-Maske"),
+    ("ec.3d.instance3d", "3D Layer Instance", "3D-Ebeneninstanz"),
     ("ec.audio.backwards", "Backwards", "Rückwärts"),
     ("ec.audio.basstreble", "Bass & Treble", "Bass und Höhen"),
     ("ec.audio.compressor", "Compressor", "Kompressor"),
