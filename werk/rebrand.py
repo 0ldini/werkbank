@@ -10,8 +10,11 @@ werk/apps/<app>/werk.json. Findet das Skript den Programmnamen oder die Icons
 nicht mehr, bricht es ab und nennt die Stelle, statt still ein halb
 umbenanntes Programm zu bauen.
 
-Aufruf:  python3 werk/rebrand.py <app> <quellordner> [--check]
+Aufruf:  python3 werk/rebrand.py <app> <quellordner> [--check] [--englisch]
          <quellordner> ist der ausgecheckte Originalcode; --check prüft nur.
+         --englisch lässt die Werk-Übersetzungen und Einschübe weg (Rückfall, wenn sie
+         nicht mehr auf das Original passen): Name, Logos und Titelleiste bleiben, Texte,
+         die das Original selbst nicht auf Deutsch hat, erscheinen englisch.
 """
 import json
 import pathlib
@@ -28,6 +31,7 @@ ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 if len(ARGS) != 2:
     sys.exit(__doc__)
 CHECK = "--check" in sys.argv
+ENGLISCH = "--englisch" in sys.argv
 WERK = pathlib.Path(__file__).resolve().parent / "apps" / ARGS[0]
 ROOT = pathlib.Path(ARGS[1]).resolve()
 CFG = json.loads((WERK / "werk.json").read_bytes().decode("utf-8"))
@@ -572,12 +576,15 @@ def titlebar():
 
 
 def main():
-    print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}")
-    # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
-    print("Sprache:")
-    patch_language()
-    print("Ergänzungen:")
-    extras()
+    print(f"{ORIGINAL} → {NAME}{'  (nur Prüfung)' if CHECK else ''}{'  (ohne Werk-Übersetzungen)' if ENGLISCH else ''}")
+    if ENGLISCH:
+        print("Sprache und Ergänzungen: weggelassen (Rückfall)")
+    else:
+        # Vor dem Umbenennen: die Ankerzeilen stehen so im Original.
+        print("Sprache:")
+        patch_language()
+        print("Ergänzungen:")
+        extras()
     swiss_spelling()
     print("Texte:")
     rewrite_text()
