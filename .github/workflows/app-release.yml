@@ -136,7 +136,17 @@ jobs:
       - name: Werk-Ausgabe anwenden
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then PY=python; else PY=python3; fi
-          "$PY" werkbank/werk/rebrand.py "$APP" src
+          echo "PY=$PY" >> "$GITHUB_ENV"
+          # Unveränderte Kopie für den Rückfall ohne Werk-Übersetzungen (siehe «Bauen»).
+          cp -a src "$RUNNER_TEMP/src-orig"
+          if ! "$PY" werkbank/werk/rebrand.py "$APP" src; then
+            # Passen Übersetzungen oder Einschübe nicht mehr auf das Original, erscheint das
+            # Programm trotzdem: mit Werk-Name und Logos, fehlende deutsche Texte englisch.
+            echo "::warning title=$APP ${{ matrix.kind }}::Werk-Übersetzungen passen nicht mehr auf das Original, gebaut wird ohne sie (englisch)."
+            rm -rf src && cp -a "$RUNNER_TEMP/src-orig" src
+            "$PY" werkbank/werk/rebrand.py "$APP" src --englisch
+            echo "WERK_ENGLISCH=1" >> "$GITHUB_ENV"
+          fi
           if [ -d src/craft-i18n/locales ]; then
             { echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/src/craft-i18n"; echo "CRAFT_I18N_REQUIRED=1"; } >> "$GITHUB_ENV"
           fi
@@ -209,6 +219,7 @@ jobs:
         working-directory: src
         run: |
           set -o pipefail
+          bauen() {
           # Die Werk-Ausgabe bringt die Kiste werk-titel mit; das Original baut mit --locked,
           # darum die Sperrdatei vorher um sie ergänzen (alles andere bleibt, wie es ist).
           cargo update --workspace 2>&1 | tail -5
@@ -226,7 +237,23 @@ jobs:
               xattr -cr "$S"
               (cd "$RUNNER_TEMP/mac" && COPYFILE_DISABLE=1 tar czf "$GITHUB_WORKSPACE/src/dist/release/$D.tar.gz" "$D") ;;
             web)     packaging/web/package.sh ;;
-          esac 2>&1 | tee "$RUNNER_TEMP/build.log"
+          esac 2>&1 | tee -a "$RUNNER_TEMP/build.log"
+          }
+          if bauen; then exit 0; fi
+          [ "${WERK_ENGLISCH:-}" != 1 ] || exit 1
+          # Rückfall: mit den Werk-Übersetzungen kompiliert das neue Original nicht mehr. Noch
+          # einmal ohne sie bauen (Name, Logos und Titelleiste bleiben), fehlendes Deutsch englisch.
+          echo "::warning title=$APP ${{ matrix.kind }}::Mit den Werk-Übersetzungen klappt der Bau nicht, gebaut wird ohne sie (englisch)."
+          cd "$GITHUB_WORKSPACE"
+          [ -d src/target ] && mv src/target "$RUNNER_TEMP/target-alt"
+          rm -rf src && cp -a "$RUNNER_TEMP/src-orig" src
+          [ -d "$RUNNER_TEMP/target-alt" ] && mv "$RUNNER_TEMP/target-alt" src/target
+          "$PY" werkbank/werk/rebrand.py "$APP" src --englisch
+          echo "WERK_ENGLISCH=1" >> "$GITHUB_ENV"
+          export WERK_ENGLISCH=1
+          cd src
+          echo "===== Rückfall ohne Werk-Übersetzungen =====" >> "$RUNNER_TEMP/build.log"
+          bauen
 
       # Die Protokolle selbst sind von aussen schwer zu lesen; das Ende des Fehlers kommt
       # deshalb als Anmerkung direkt an den Lauf.
@@ -249,6 +276,7 @@ jobs:
             cp "$f" out/
           done
           ls -l out
+          [ -z "$(ls -A out)" ] || [ "${WERK_ENGLISCH:-}" != 1 ] || echo "${{ matrix.kind }}" > "out/werk-englisch-${{ matrix.kind }}.txt"
           [ -n "$(ls -A out)" ] || { echo "::error::$APP: keine Release-Datei entstanden: $(ls src/dist/release 2>/dev/null | tr '\n' ' ')"; exit 1; }
 
       - uses: actions/upload-artifact@v4
@@ -287,6 +315,14 @@ jobs:
           NAME=$(jq -r .name "werk/apps/$APP/werk.json")
           TAG="$APP-v$VERSION"
           cd out
+          # Merker aus dem Rückfall ohne Werk-Übersetzungen: kommen nicht ins Release, nur in die Notiz.
+          EN=$(cat werk-englisch-*.txt 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')
+          rm -f werk-englisch-*.txt
+          HINWEIS=""
+          if [ -n "$EN" ]; then
+            HINWEIS=" Hinweis ($EN): Die Werk-Übersetzungen passten nicht auf diese Version, Texte ohne deutsche Fassung im Original erscheinen englisch."
+            echo "::warning title=$APP $VERSION::ohne Werk-Übersetzungen gebaut ($EN)"
+          fi
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -294,7 +330,7 @@ jobs:
           else
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
               --title "$NAME $VERSION" \
-              --notes "$NAME $VERSION, gebaut aus https://github.com/$UPSTREAM (Version $VERSION). Installation und Updates über den Werkbank-Launcher."
+              --notes "$NAME $VERSION, gebaut aus https://github.com/$UPSTREAM (Version $VERSION). Installation und Updates über den Werkbank-Launcher.$HINWEIS"
           fi
 
   setup:
