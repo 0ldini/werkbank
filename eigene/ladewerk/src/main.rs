@@ -3308,7 +3308,7 @@ fn main() {
             .with_title("Ladewerk"),
         ..Default::default()
     };
-    let res = eframe::run_native("Ladewerk", options, Box::new(|cc| Ok(Box::new(app::Gui::new(cc)))));
+    let res = stil::starten("Ladewerk", options, Box::new(|cc| Ok(Box::new(app::Gui::new(cc)))));
     if let Err(e) = res {
         eprintln!("Fenster-Fehler: {}", e);
         rfd::MessageDialog::new()

@@ -16,7 +16,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Wandelwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Wandelwerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

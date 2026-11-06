@@ -20,7 +20,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Packwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Packwerk",
         options,
         Box::new(move |cc| Ok(Box::new(app::App::new(cc, start)))),

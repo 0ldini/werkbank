@@ -814,3 +814,28 @@ pub fn leer(ui: &mut Ui, s: Sym, titel: &str, text: &str) {
         ui.label(egui::RichText::new(text).color(thema::muted()));
     });
 }
+
+/// Fenster öffnen wie `eframe::run_native`, aber mit Ausweichweg: zuerst OpenGL (glow); fehlt
+/// OpenGL 2.0 (Rechner ohne Grafiktreiber, virtuelle Maschinen, Fernzugriff), noch einmal mit
+/// wgpu (DirectX 12, Vulkan oder Metal, notfalls in Software). Das Programm selbst wird erst
+/// erzeugt, wenn die Grafik steht; darum lässt es sich für den zweiten Versuch aufbewahren.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn starten(name: &str, options: eframe::NativeOptions, app: eframe::AppCreator<'static>) -> eframe::Result {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    let slot = Rc::new(RefCell::new(Some(app)));
+    let fach = slot.clone();
+    let erster = eframe::NativeOptions { renderer: eframe::Renderer::Glow, ..options.clone() };
+    let res = eframe::run_native(
+        name,
+        erster,
+        Box::new(move |cc| match fach.borrow_mut().take() {
+            Some(make) => make(cc),
+            None => Err("Programm schon erzeugt".into()),
+        }),
+    );
+    let Err(fehler) = res else { return Ok(()) };
+    let Some(app) = slot.borrow_mut().take() else { return Err(fehler) };
+    eprintln!("OpenGL geht nicht ({fehler}), versuche wgpu");
+    eframe::run_native(name, eframe::NativeOptions { renderer: eframe::Renderer::Wgpu, ..options }, app)
+}

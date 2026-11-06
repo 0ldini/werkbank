@@ -27,7 +27,7 @@ fn main() -> eframe::Result<()> {
             .with_title(t("Codewerk – QR-Codes")),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Codewerk",
         options,
         Box::new(|cc| Ok(Box::new(App::new(cc)))),

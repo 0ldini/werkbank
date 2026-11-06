@@ -19,7 +19,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Aufnahmewerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Aufnahmewerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

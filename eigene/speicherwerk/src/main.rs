@@ -14,7 +14,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Speicherwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Speicherwerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
