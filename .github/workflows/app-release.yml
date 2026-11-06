@@ -96,7 +96,8 @@ jobs:
       fail-fast: false
       matrix:
         item: ${{ fromJson(needs.plan.outputs.items) }}
-        kind: [windows, linux, macos, web]
+        # macOS nutzt die Browser-Versionen über den Launcher (keine eigenen Mac-Builds).
+        kind: [windows, linux, web]
     defaults:
       run:
         shell: bash

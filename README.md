@@ -69,15 +69,16 @@ Endungen ein Programm anbietet, steht in `launcher/apps.toml` (`types`).
 Für Macs mit M1 oder neuer: im neuesten Release `werkbank-v…` die Datei
 `werkbank-macos-aarch64.zip` laden, entpacken und `Werkbank.app` in den Ordner «Programme» ziehen.
 
+Auf dem Mac laufen die Programme **im Browser**: Der Launcher lädt die Browser-Versionen und
+öffnet sie. Programme ohne Browser-Version (z. B. Diawerk, Wandelwerk, Abspielwerk) gibt es auf
+dem Mac nicht. Fremdprogramme wie Brave und KeePassXC installiert der Launcher wie gewohnt.
+
 Die Werkbank ist nicht bei Apple notarisiert. Beim ersten Öffnen meldet macOS deshalb, das Programm
 könne nicht überprüft werden. So gibt man es einmalig frei:
 
 1. Die Meldung mit «Fertig» schliessen.
 2. Systemeinstellungen → Datenschutz & Sicherheit, ganz nach unten: bei «Werkbank» auf
    «Trotzdem öffnen» klicken und bestätigen.
-
-Danach startet die Werkbank normal. Die Programme, die sie installiert, brauchen keine Freigabe.
-Aufnahmewerk gibt es nur für Windows.
 
 ## Offline-Setup für Windows
 

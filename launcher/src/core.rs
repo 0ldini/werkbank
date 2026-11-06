@@ -499,8 +499,20 @@ pub const MANIFEST_URL: &str = "https://raw.githubusercontent.com/0ldini/werkban
 pub fn load_manifest() -> Result<Manifest> {
     let mut m = load_manifest_all()?;
     m.app.retain(|a| a.systeme.is_empty() || a.systeme.iter().any(|s| s == std::env::consts::OS));
+    if cfg!(target_os = "macos") {
+        nur_browser(&mut m);
+    }
     add_fremd(&mut m);
     Ok(m)
+}
+
+/// macOS: Die Programme laufen dort nur als Browser-Version (es gibt keine Mac-Builds mehr).
+/// Programme ohne Browser-Version fallen weg; Fremdprogramme kommen danach dazu.
+pub fn nur_browser(m: &mut Manifest) {
+    m.app.retain(|a| !a.no_web || a.web_only);
+    for a in &mut m.app {
+        a.web_only = true;
+    }
 }
 
 /// Hängt die Fremdprogramme dieses Systems als Einträge an (ohne doppelte Kennungen).
@@ -1713,6 +1725,15 @@ pub fn serve_web(manifest: Manifest) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mac_nur_browser() {
+        let mut m: Manifest = toml::from_str(DEFAULT_MANIFEST).expect("eingebaute Liste");
+        nur_browser(&mut m);
+        assert!(m.app.iter().all(|a| a.web_only));
+        assert!(m.app.iter().any(|a| a.id == "pdfcraft"));
+        assert!(!m.app.iter().any(|a| a.id == "diawerk"), "Diawerk hat keine Browser-Version");
+    }
 
     #[test]
     fn variablen_einsetzen() {
