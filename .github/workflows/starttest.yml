@@ -43,6 +43,10 @@ jobs:
           apps = tomllib.load(open("launcher/apps.toml", "rb")).get("app", []) + [{"id": "werkbank", "name": "Launcher"}]
           quelle = dict(l.split()[:2] for l in open(".github/starttest-quelle.txt") if len(l.split()) >= 2 and not l.startswith("#"))
           want = os.environ.get("APPS", "").split()
+          arten = []
+          for l in open(".github/starttest-quelle.txt"):
+              if l.startswith("nur:"): want = l[4:].split()
+              if l.startswith("arten:"): arten = l[6:].split()
           rels = [json.loads(l) for l in open("rel.jsonl")]
           def ver(t):
               return tuple(int(x) for x in re.findall(r"\d+", t.split("-v", 1)[1]))
@@ -53,7 +57,8 @@ jobs:
                   continue
               if i in quelle:
                   run = quelle[i]
-                  kinds = ("linux", "windows") if i == "werkbank" else ("linux", "windows", "web")
+                  kinds = ("linux", "windows") if i == "werkbank" else ("linux", "windows", "web") if a.get("web") or a.get("web_only") or i in ("codewerk", "mailwerk", "organiwerk") else ("linux", "windows")
+                  kinds = [k for k in kinds if not a.get("systeme") or {"linux": "linux", "windows": "windows", "web": "web"}[k] in a["systeme"] or k == "web"]
                   for kind in kinds:
                       art = {"linux": "werkbank-linux-x86_64.tar.gz", "windows": "werkbank-windows-x64.zip"}[kind] if i == "werkbank" else f"eigene-{i}-{kind}"
                       items.append({"app": i, "name": a.get("name", i), "tag": "", "run": run, "kind": kind, "asset": art})
@@ -66,6 +71,8 @@ jobs:
                   hit = [n for n in r["assets"] if re.search(pat, n)]
                   if hit:
                       items.append({"app": i, "name": a.get("name", i), "tag": r["tag"], "run": "", "kind": kind, "asset": hit[0]})
+          if arten:
+              items = [x for x in items if x["kind"] in arten]
           print(json.dumps(items, indent=1))
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write("items=" + json.dumps(items) + "\n")
@@ -114,10 +121,17 @@ jobs:
 
       - name: Linux vorbereiten
         if: matrix.item.kind == 'linux'
+        timeout-minutes: 8
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
+          EXTRA=""
+          case "$APP" in abspielwerk|wandelwerk|diawerk|mediathekwerk|aufnahmewerk) EXTRA="libvlc5 vlc-plugin-base ffmpeg" ;; esac
           for i in 1 2 3; do
-            timeout 300 sudo apt-get update -qq && timeout 600 sudo apt-get install -y -qq xvfb x11-utils imagemagick libgl1-mesa-dri libegl1 libgles2 mesa-vulkan-drivers libvulkan1 \
-            libgtk-3-0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libasound2t64 libvlc5 vlc-plugin-base ffmpeg >/dev/null && break
+            timeout 180 sudo -E apt-get update -qq -o Acquire::Retries=3 && \
+            timeout 300 sudo -E apt-get install -y -qq --no-install-recommends -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
+              xvfb x11-utils imagemagick libgl1-mesa-dri libegl1 libgles2 mesa-vulkan-drivers libvulkan1 \
+              libgtk-3-0t64 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libasound2t64 $EXTRA </dev/null >/dev/null && break
             echo "apt hängt, neuer Versuch"; sleep 10
           done
 
@@ -222,7 +236,9 @@ jobs:
                   (d / "text.txt").write_text(txt)
               err = ""
               if "läuft" not in st and (d / "stderr.txt").exists():
-                  err = " | " + " ".join((d / "stderr.txt").read_text(errors="replace").split()[-25:])[:300]
+                  log = (d / "stderr.txt").read_text(errors="replace").splitlines()
+                  wichtig = [l for l in log if re.search(r"error|panic|warn|fehler", l, re.I)][-4:]
+                  err = " | " + " / ".join(x.strip()[:160] for x in (wichtig or log[-3:]))
               rows.append(f"{name}: {st}, deutsch {de} / englisch {en}{err}")
           print("\n".join(rows))
           EOF
