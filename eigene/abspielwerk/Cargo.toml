@@ -22,6 +22,9 @@ kamadak-exif = "0.6"
 trash = "5"
 
 [target.'cfg(windows)'.dependencies]
+# DirectX 12 für den wgpu-Ausweichweg (eframe bringt unter Windows sonst nur Vulkan mit;
+# ohne Grafiktreiber läuft DirectX 12 in Software).
+wgpu = { version = "22", default-features = false, features = ["dx12"] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 raw-window-handle = "0.6"
 

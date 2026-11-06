@@ -17,6 +17,9 @@ ab_glyph = "0.2"
 
 # Nur Windows: Aufnahme-Motor, Webcam, Win32-Helfer.
 [target.'cfg(windows)'.dependencies]
+# DirectX 12 für den wgpu-Ausweichweg (eframe bringt unter Windows sonst nur Vulkan mit;
+# ohne Grafiktreiber läuft DirectX 12 in Software).
+wgpu = { version = "22", default-features = false, features = ["dx12"] }
 windows-capture = "2.0.1"
 nokhwa = { version = "0.10", features = ["input-native"] }
 # Bildschirmfoto in die Zwischenablage.

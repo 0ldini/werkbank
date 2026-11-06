@@ -26,6 +26,9 @@ sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 
 [target.'cfg(windows)'.dependencies]
+# DirectX 12 für den wgpu-Ausweichweg (eframe bringt unter Windows sonst nur Vulkan mit;
+# ohne Grafiktreiber läuft DirectX 12 in Software).
+wgpu = { version = "24", default-features = false, features = ["dx12"] }
 winreg = "0.55"
 windows-sys = { version = "0.59", features = ["Win32_System_Power", "Win32_Foundation", "Win32_Graphics_Dwm"] }
 raw-window-handle = "0.6"
