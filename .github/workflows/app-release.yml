@@ -317,7 +317,7 @@ jobs:
           TAG="$APP-v$VERSION"
           cd out
           # Merker aus dem Rückfall ohne Werk-Übersetzungen: kommen nicht ins Release, nur in die Notiz.
-          EN=$(cat werk-englisch-*.txt 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')
+          EN=$( (cat werk-englisch-*.txt 2>/dev/null || true) | tr '\n' ' ' | sed 's/ *$//')
           rm -f werk-englisch-*.txt
           HINWEIS=""
           if [ -n "$EN" ]; then
