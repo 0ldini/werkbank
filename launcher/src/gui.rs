@@ -1344,7 +1344,9 @@ impl Gui {
     fn open_web(&mut self, ctx: &egui::Context, app: &App) {
         if let Some(addr) = self.web_addr() {
             // install() lädt nur, wenn die Web-Version fehlt oder veraltet ist.
-            self.install(ctx, app, Kind::Web, Some(format!("{addr}/{}/", app.id)));
+            // Sprache und Farben mitgeben: die Browser-Versionen sehen WERKBANK_LANG nicht.
+            let url = format!("{addr}/{}/?lang={}&theme={}", app.id, crate::sprache::lang().code(), theme_code());
+            self.install(ctx, app, Kind::Web, Some(url));
         }
     }
 

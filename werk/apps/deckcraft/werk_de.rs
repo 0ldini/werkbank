@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 const TABLE: &str = include_str!("werk_de.tsv");
 
 /// Die Sprache, die der Werkbank-Launcher vorgibt: «de», «en» oder None.
+#[cfg(not(target_arch = "wasm32"))]
 fn werkbank_lang() -> Option<String> {
     std::env::var("WERKBANK_LANG")
         .ok()
@@ -33,6 +34,21 @@ fn werkbank_lang() -> Option<String> {
         })
         .map(|v| v.trim().to_ascii_lowercase())
         .filter(|v| v == "de" || v == "en")
+}
+
+/// Browser-Version: «?lang=de» in der Adresse (so öffnet der Werkbank-Launcher sie), sonst die
+/// Sprache des Browsers.
+#[cfg(target_arch = "wasm32")]
+fn werkbank_lang() -> Option<String> {
+    let window = web_sys::window()?;
+    let search = window.location().search().unwrap_or_default();
+    let from_url = search
+        .trim_start_matches('?')
+        .split('&')
+        .find_map(|p| p.strip_prefix("lang="))
+        .map(|v| v.trim().to_ascii_lowercase());
+    let lang = from_url.or_else(|| window.navigator().language().map(|l| l.to_ascii_lowercase()))?;
+    Some(if lang.starts_with("de") { "de" } else { "en" }.to_string())
 }
 
 fn unescape(s: &str) -> String {

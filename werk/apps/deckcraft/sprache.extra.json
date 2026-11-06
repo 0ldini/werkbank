@@ -3884,6 +3884,17 @@
         "self.set_status(crate::werk_de::f(\"Couldn't create a private print preview: {}\", &[&e]));"
       ],
       "optional": true
+    },
+    {
+      "file": "crates/ui-egui/Cargo.toml",
+      "anchor": "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+      "kind": "before",
+      "lines": [
+        "# Werkbank: Sprache der Browser-Version (werk_de.rs).",
+        "[target.'cfg(target_arch = \"wasm32\")'.dependencies]",
+        "web-sys = { version = \"0.3\", features = [\"Window\", \"Navigator\", \"Location\"] }",
+        ""
+      ]
     }
   ],
   "wrap": [
