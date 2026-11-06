@@ -147,5 +147,5 @@ fn main() -> eframe::Result<()> {
             .with_title("Sicherwerk"),
         ..Default::default()
     };
-    eframe::run_native("Sicherwerk", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    stil::starten("Sicherwerk", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

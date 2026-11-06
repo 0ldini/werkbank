@@ -38,7 +38,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Mailwerk"),
         ..Default::default()
     };
-    eframe::run_native("Mailwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
+    stil::starten("Mailwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
 }
 
 // ---------------- Browser (WebAssembly) ----------------

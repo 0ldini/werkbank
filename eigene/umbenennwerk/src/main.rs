@@ -15,7 +15,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Umbenennwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Umbenennwerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

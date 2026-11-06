@@ -6,7 +6,8 @@ license = "Apache-2.0"
 description = "Launcher: Kreativ-Programme installieren, starten und einzeln aktualisieren"
 
 [dependencies]
-eframe = "0.31"
+# wgpu: Ausweichweg, wenn OpenGL fehlt (gui::starten).
+eframe = { version = "0.31", features = ["wgpu"] }
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier", "gzip"] }
 zip = { version = ">=2.5", default-features = false, features = ["deflate"] }
 tar = "0.4"

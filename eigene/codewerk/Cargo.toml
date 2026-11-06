@@ -12,6 +12,8 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Ausweichweg, wenn OpenGL fehlt (siehe stil::starten).
+eframe = { version = "0.29", default-features = false, features = ["wgpu"] }
 rfd = "0.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

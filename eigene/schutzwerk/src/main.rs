@@ -25,7 +25,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Schutzwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Schutzwerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

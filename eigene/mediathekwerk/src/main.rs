@@ -16,7 +16,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Mediathekwerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Mediathekwerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

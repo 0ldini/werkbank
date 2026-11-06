@@ -18,7 +18,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Diawerk"),
         ..Default::default()
     };
-    eframe::run_native(
+    stil::starten(
         "Diawerk",
         options,
         Box::new(|cc| Ok(Box::new(app::App::new(cc)))),

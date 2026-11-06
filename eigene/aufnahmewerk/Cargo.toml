@@ -48,3 +48,9 @@ strip = true
 # Nur Windows (Bildschirmaufnahme über die Windows-Grafik-Schnittstelle).
 linux = false
 macos = false
+
+# Ausweichweg, wenn OpenGL fehlt (siehe stil::starten): nur in der Desktop-Ausgabe.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.eframe]
+version = "0.29"
+default-features = false
+features = ["wgpu"]

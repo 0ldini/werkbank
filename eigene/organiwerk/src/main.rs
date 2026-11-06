@@ -22,7 +22,7 @@ fn main() -> eframe::Result<()> {
             .with_title("Organiwerk"),
         ..Default::default()
     };
-    eframe::run_native("Organiwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
+    stil::starten("Organiwerk", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
 }
 
 // ---------------- Browser (WebAssembly) ----------------
