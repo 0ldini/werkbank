@@ -1,0 +1,16 @@
+# Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
+abspielwerk 42207064090
+aufnahmewerk 42207064090
+codewerk 42207064090
+diawerk 42207064090
+ladewerk 42207064090
+mailwerk 42207064090
+mediathekwerk 42207064090
+organiwerk 42207064090
+packwerk 42207064090
+schutzwerk 42207064090
+sicherwerk 42207064090
+speicherwerk 42207064090
+umbenennwerk 42207064090
+wandelwerk 42207064090
+werkbank 42207067369
