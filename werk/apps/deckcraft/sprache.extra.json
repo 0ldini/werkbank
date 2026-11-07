@@ -3817,11 +3817,11 @@
     },
     {
       "file": "crates/ui-egui/src/presenter.rs",
-      "anchor": "left.label(\"Choose a slide in the audience window, or press G to return.\");",
+      "anchor": "ui.label(\"Choose a slide to show it, or press G to return.\");",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "left.label(crate::werk_de::t(\"Choose a slide in the audience window, or press G to return.\"));"
+        "ui.label(crate::werk_de::t(\"Choose a slide to show it, or press G to return.\"));"
       ]
     },
     {
@@ -3894,6 +3894,69 @@
         "[target.'cfg(target_arch = \"wasm32\")'.dependencies]",
         "web-sys = { version = \"0.3\", features = [\"Window\", \"Navigator\", \"Location\"] }",
         ""
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/dialogs/credits.rs",
+      "anchor": "let titles = [\"Company\", \"Model\", \"Version\", \"Commits\", \"% of all commits\", \"Lines +/−\"];",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let titles = [crate::werk_de::t(\"Company\"), crate::werk_de::t(\"Model\"), crate::werk_de::t(\"Version\"), crate::werk_de::t(\"Commits\"), crate::werk_de::t(\"% of all commits\"), crate::werk_de::t(\"Lines +/−\")];"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/backstage/info.rs",
+      "anchor": "\"Download the file\"",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "crate::werk_de::t(\"Download the file\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/backstage/info.rs",
+      "anchor": "\"Save to the page\"",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "crate::werk_de::t(\"Save to the page\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/backstage/info.rs",
+      "anchor": "\"Choose where to save\"",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "crate::werk_de::t(\"Choose where to save\")"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/app/files.rs",
+      "anchor": "let host = self.services.host_save.as_mut().ok_or(\"no page to save to\")?;",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let host = self.services.host_save.as_mut().ok_or(crate::werk_de::t(\"no page to save to\"))?;"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/app/files.rs",
+      "anchor": "host(&name, &bytes, save_as).map_err(|e| format!(\"Couldn't save {name}: {e}\"))?;",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "host(&name, &bytes, save_as).map_err(|e| crate::werk_de::f(\"Couldn't save {}: {}\", &[&name, &e]))?;"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/app/files.rs",
+      "anchor": "self.set_status(format!(\"Saved {name}\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "self.set_status(crate::werk_de::f(\"Saved {}\", &[&name]));"
       ]
     }
   ],
