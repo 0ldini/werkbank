@@ -197,8 +197,21 @@ jobs:
             await p.goto('http://localhost:8765/?lang=de&theme=light', { waitUntil: 'load', timeout: 60000 });
             await p.waitForTimeout(25000);
             await p.screenshot({ path: process.argv[2] });
+            const crashed = errs.some(e => e.startsWith('pageerror') && /panic|unreachable|RuntimeError/i.test(e));
+            // Zweites Öffnen: kommt die Programmdatei aus dem Zwischenspeicher (Service Worker)?
+            let speicher = 'kein Zwischenspeicher';
+            try {
+              await p.evaluate(async () => { if (navigator.serviceWorker) await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 15000))]); });
+              const ausSpeicher = [];
+              p.on('response', r => { if (/\.wasm$/.test(new URL(r.url()).pathname)) ausSpeicher.push(r.fromServiceWorker()); });
+              const t0 = Date.now();
+              await p.reload({ waitUntil: 'load', timeout: 60000 });
+              await p.waitForTimeout(5000);
+              const ctl = await p.evaluate(() => !!(navigator.serviceWorker && navigator.serviceWorker.controller));
+              if (ctl) speicher = `Zwischenspeicher ${ausSpeicher.includes(true) ? 'ja' : 'aktiv, wasm nicht daraus'} (${((Date.now() - t0) / 1000).toFixed(1)} s)`;
+            } catch (e) { speicher = 'Zwischenspeicher-Fehler: ' + e.message; }
             require('fs').writeFileSync(process.argv[3], errs.join('\n'));
-            require('fs').writeFileSync(process.argv[4], errs.some(e => e.startsWith('pageerror') && /panic|unreachable|RuntimeError/i.test(e)) ? 'abgestürzt' : 'läuft');
+            require('fs').writeFileSync(process.argv[4], (crashed ? 'abgestürzt' : 'läuft') + ', ' + speicher);
             await b.close();
           })().catch(e => { require('fs').writeFileSync(process.argv[4], 'Fehler: ' + e.message); process.exit(0); });
           EOF
