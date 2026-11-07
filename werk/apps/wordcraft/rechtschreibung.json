@@ -1,0 +1,108 @@
+{
+  "_info": "Schweizer Rechtschreibung eingebaut (werk/tools/rechtschreibung.py): das Wörterbuch de_CH_frami (GPL-2.0-only OR GPL-3.0-only) kommt in craft-proof, damit Deutsch (Schweiz) ohne Sprachpaket geprüft wird, auch in der Browser-Version.",
+  "locale": "de-ch",
+  "crate": "craft-proof",
+  "repo": "https://github.com/storytold/craft-libs",
+  "crate_dir": "crates/proof",
+  "module": "rechtschreibung/werk_de_ch.rs",
+  "data_dir": "src/werk_de_ch",
+  "source": "https://github.com/LibreOffice/dictionaries/tree/4f1df64b2e8e14751aa7c2205d170ca016071315/de",
+  "licence": "GPL-2.0-only OR GPL-3.0-only",
+  "files": [
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/de_CH_frami.aff",
+      "sha256": "d86884be4c3f07e5e08057884856feabf2872b4e2f90a587a11376082bc4126b",
+      "to": "spelling.aff.deflate",
+      "deflate": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/de_CH_frami.dic",
+      "sha256": "80a4df38cdc3e16d2f042f8eba4a99668ab9c075662e4262c62f8bba46c7bd16",
+      "to": "spelling.dic.deflate",
+      "deflate": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/README_extension_owner.txt",
+      "sha256": "7662cbc363fdee12bc03a5295148587bb76923c121792a401115e654fea37b5c",
+      "to": "README_extension_owner.txt",
+      "licence_text": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/README_de_DE_frami.txt",
+      "sha256": "c141f4f79c428b7348b5012836f4ad3db4d124f288f15effc22696dc876512ae",
+      "to": "README_de_DE_frami.txt",
+      "licence_text": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/COPYING_GPLv2",
+      "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89",
+      "to": "COPYING_GPLv2",
+      "licence_text": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/4f1df64b2e8e14751aa7c2205d170ca016071315/de/COPYING_GPLv3",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "to": "COPYING_GPLv3",
+      "licence_text": true
+    }
+  ],
+  "crate_patches": [
+    {
+      "file": "src/lib.rs",
+      "anchor": "mod pack_lang;",
+      "kind": "after",
+      "lines": ["mod werk_de_ch; // Werkbank: eingebautes Wörterbuch Deutsch (Schweiz)"]
+    },
+    {
+      "file": "src/pack_lang.rs",
+      "anchor": "crate::hunspell::clear_load_error(key);",
+      "kind": "after",
+      "lines": ["if let Some(found) = crate::werk_de_ch::load(locale.as_str()) { return found; } // Werkbank: eingebautes de-CH"]
+    },
+    {
+      "file": "src/packs.rs",
+      "anchor": "out.extend(crate::data::EMBEDDED_LICENCES.iter().map(|(t, x)| ((*t).to_string(), (*x).to_string())));",
+      "kind": "after",
+      "lines": ["out.extend(crate::werk_de_ch::licences()); // Werkbank: eingebautes de-CH"]
+    }
+  ],
+  "patches": [
+    {
+      "file": ["crates/ui-egui/src/i18n.rs", "crates/ui-egui/src/i18n/mod.rs"],
+      "anchor": "LangInfo { code: \"de\", prefer_hans: false, editing_lang: None },",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: mit deutscher Oberfläche werden neue Dokumente in Deutsch (Schweiz) geschrieben (eingebautes Wörterbuch).",
+        "LangInfo { code: \"de\", prefer_hans: false, editing_lang: Some(\"de-CH\") },"
+      ],
+      "optional": true
+    },
+    {
+      "file": "crates/ui-egui/src/i18n/tests.rs",
+      "anchor": "assert_eq!(with, [(\"pt-br\", \"pt-BR\"), (\"pl\", \"pl-PL\"), (\"cs\", \"cs-CZ\"), (\"tr\", \"tr-TR\"), (\"it\", \"it-IT\")]);",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: Deutsch schreibt Deutsch (Schweiz).",
+        "assert_eq!(with, [(\"pt-br\", \"pt-BR\"), (\"pl\", \"pl-PL\"), (\"cs\", \"cs-CZ\"), (\"de\", \"de-CH\"), (\"tr\", \"tr-TR\"), (\"it\", \"it-IT\")]);"
+      ],
+      "optional": true
+    },
+    {
+      "file": "crates/engine/src/packs.rs",
+      "anchor": "&& !installed.iter().any(|i| i.locale == p.locale)",
+      "kind": "after",
+      "lines": ["&& !(p.locale == \"de-ch\" && wordcraft_proof::has_dictionary(Some(tag.as_str()))) // Werkbank: de-CH ist eingebaut"],
+      "optional": true
+    },
+    {
+      "file": "crates/engine/src/packs.rs",
+      "anchor": "row.proofing = if lang.is_english() {",
+      "kind": "replace",
+      "lines": [
+        "// Werkbank: das eingebaute de-CH zeigt «Eingebaut» statt «Installieren».",
+        "row.proofing = if lang.is_english() || (!own && !installed_here && file.is_none() && row.pack.as_deref() == Some(\"de-ch\") && wordcraft_proof::has_dictionary(Some(tag.as_str()))) {"
+      ],
+      "optional": true
+    }
+  ]
+}

@@ -30,7 +30,7 @@ des Originals.
 | `launcher/apps.toml` | Programmliste; der Launcher lädt sie beim Start von hier |
 | `werk/rebrand.py` | Ersetzt Name, Logos und Links im Originalcode (ein Skript für alle) |
 | `werk/apps/<app>/` | Pro Programm: Name (`werk.json`) und Icons |
-| `werk/tools/` | Erzeugt Icons und Konfiguration neu |
+| `werk/tools/` | Erzeugt Icons und Konfiguration neu; `rechtschreibung.py` baut Schreibwerk das Schweizer Wörterbuch ein |
 | `.github/workflows/` | Build-Abläufe |
 
 Der Originalcode liegt nicht in diesem Repository. Der Build holt ihn bei jedem Lauf frisch
@@ -144,3 +144,14 @@ Symbole sind neutral (z. B. `fremd-browser`), nie das Logo des Herstellers.
 
 Launcher, Skripte und Icons in diesem Repository: Apache-2.0 (siehe `LICENSE`).
 Die gebauten Programme: wie das jeweilige Original, MIT oder Apache-2.0.
+
+Ausnahme in **Schreibwerk**: Für die Rechtschreibprüfung in Deutsch (Schweiz) ohne Sprachpaket
+(auch in der Browser-Version) ist das Hunspell-Wörterbuch `de_CH_frami` fest eingebaut
+(igerman98 von Björn Jacke, Erweiterung «frami» von Franz Michael Baumann; Quelle:
+[LibreOffice/dictionaries `de/`](https://github.com/LibreOffice/dictionaries/tree/4f1df64b2e8e14751aa7c2205d170ca016071315/de),
+Dateien unverändert). Es steht unter der **GNU GPL, Version 2 oder 3** (`GPL-2.0-only OR
+GPL-3.0-only`). Herkunft und beide Lizenztexte stehen in der Datei `NOTICE`, die jedem
+Schreibwerk-Paket beiliegt, und im Programm unter Info › Sprachdaten; die Release-Notizen
+nennen es ebenfalls. Eingebaut wird es beim Build von `werk/tools/rechtschreibung.py`
+(Einstellungen: `werk/apps/wordcraft/rechtschreibung.json`). Mit deutscher Oberfläche schreiben
+neue Dokumente in Deutsch (Schweiz); englischer Text (Sprache Englisch) wird weiter englisch geprüft.
