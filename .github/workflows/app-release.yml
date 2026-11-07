@@ -186,8 +186,9 @@ jobs:
           # (Aufzählungszeichen, Pfeile); Chinesisch, Japanisch, Koreanisch, Arabisch, Thai usw.
           # fallen weg. Das macht vor allem die Browser-Versionen deutlich kleiner. Die lateinischen
           # Dokumentschriften (latin-manifest.txt: Carlito, Lato, Liberation …) bleiben alle.
+          # Lichtwerk verlangt beim Bauen seine japanische Ersatzschrift (Wasserzeichen), darum dort alle.
           M=craft-fonts/fonts/manifest.txt
-          if [ -f "$M" ]; then
+          if [ -f "$M" ] && [ "$APP" != lightcraft ]; then
             awk -F' [|] ' '/^#/ || NF < 4 || $4 ~ /Zsym/' "$M" > "$RUNNER_TEMP/manifest.txt"
             mv "$RUNNER_TEMP/manifest.txt" "$M"
             echo "Zusatzschriften:"; grep -v '^#' "$M" | grep . | cut -d'|' -f1 || true
