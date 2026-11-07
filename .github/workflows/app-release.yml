@@ -22,8 +22,8 @@ on:
         description: "Neu bauen, auch wenn es das Release schon gibt"
         type: boolean
         default: false
-  schedule:
-    - cron: "17 4 * * *"
+  # Kein täglicher Lauf mehr: neue ArtCraft-Versionen kommen nur noch auf Ansage
+  # (erst prüfen, dann «Run workflow»), damit auf GitHub immer alles läuft.
   # Probelauf: baut alles, veröffentlicht aber nichts.
   push:
     branches: [probe]

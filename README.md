@@ -39,9 +39,10 @@ Originals nie Konflikte.
 
 ## Updates
 
-- **Automatisch:** Einmal täglich prüft «App-Release», ob ein Original eine neue Version
-  hat, baut sie und veröffentlicht sie als Release `<app>-v<version>`.
-- **Von Hand:** Reiter «Actions» → «App-Release» → «Run workflow», Programm wählen.
+- **Nur auf Ansage:** Neue Versionen der Originale kommen nicht mehr von selbst. Zuerst ein
+  Probelauf (Push auf den Branch `probe` mit `[probe <app> …]` im Commit, baut alles, veröffentlicht
+  nichts) und der «Starttest», dann Reiter «Actions» → «App-Release» → «Run workflow», Programm
+  wählen («all» für alle). Veröffentlicht wird als Release `<app>-v<version>`.
 - Der Launcher zeigt danach pro Programm «neu verfügbar» und aktualisiert auf Knopfdruck.
 
 Bricht ein Build mit «das Original hat sich geändert» ab, findet `rebrand.py` den
