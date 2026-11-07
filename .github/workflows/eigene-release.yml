@@ -141,7 +141,9 @@ jobs:
             web)
               trunk build --release --public-url ./ 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-web-$VERSION"; mkdir -p stage; cp -r dist "stage/$D"
-              (cd stage && zip -qr9 "../out/$D.zip" "$D") ;;
+              (cd stage && zip -qr9 "../out/$D.zip" "$D")
+              # Zwischenspeicher (Service Worker), damit die Browser-Version nach dem ersten Öffnen schnell lädt.
+              python3 ../../werk/tools/web_cache.py "out/$D.zip" "$APP" "$VERSION" ;;
           esac
           ls -l out
       - name: Fehler melden
@@ -193,15 +195,3 @@ jobs:
             gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
               --title "${NAME^} $VERSION" --notes "Eigenes Programm ${NAME^} $VERSION für Windows, Linux, macOS und den Browser."
           fi
-
-  setup:
-    name: Offline-Setup neu bauen
-    needs: [plan, release]
-    if: ${{ !cancelled() && needs.plan.outputs.apps != '[]' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run offline-setup.yml --repo "$GITHUB_REPOSITORY" --ref main
