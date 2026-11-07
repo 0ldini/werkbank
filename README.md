@@ -82,6 +82,7 @@ könne nicht überprüft werden. So gibt man es einmalig frei:
 
 ## Offline-Setup für Windows
 
+Wird nicht mehr automatisch gebaut, der Launcher reicht. Bei Bedarf von Hand:
 Reiter «Actions» → «Offline-Setup» → «Run workflow». Der Ablauf packt den neuesten Launcher und
 alle veröffentlichten Programme in ein Setup-Programm (`werkbank-setup-<Datum>.exe`, Release
 `setup-v<Datum>`). Beim Installieren wählt man die Programme; das Häkchen «nach neueren Versionen
