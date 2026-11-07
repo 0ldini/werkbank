@@ -294,18 +294,6 @@
       ]
     },
     {
-      "file": [
-        "crates/ui-egui/src/panels/windows.rs",
-        "crates/ui-egui/src/windows.rs"
-      ],
-      "anchor": "col.label(egui::RichText::new(title).strong());",
-      "kind": "replace",
-      "skip": 0,
-      "lines": [
-        "col.label(egui::RichText::new(crate::werk_de::t(title)).strong());"
-      ]
-    },
-    {
       "file": "crates/ui-egui/src/panels.rs",
       "anchor": "fn panel_header(ui: &mut Ui, title: &str) {",
       "kind": "after",
@@ -388,15 +376,6 @@
     },
     {
       "file": "crates/ui-egui/src/credits.rs",
-      "anchor": "ui.label(RichText::new(h).strong());",
-      "kind": "replace",
-      "skip": 0,
-      "lines": [
-        "ui.label(RichText::new(crate::werk_de::t(h)).strong());"
-      ]
-    },
-    {
-      "file": "crates/ui-egui/src/credits.rs",
       "anchor": "if ui.selectable_label(v.names == m, m.label()).clicked() {",
       "kind": "replace",
       "skip": 0,
@@ -424,11 +403,20 @@
     },
     {
       "file": "crates/ui-egui/src/credits.rs",
-      "anchor": "if ui.button(RichText::new(format!(\"{}{arrow}\", k.label().1)).strong()).on_hover_text(k.label().0).clicked() {",
+      "anchor": "RichText::new(k.label().1).strong()",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "if ui.button(RichText::new(format!(\"{}{arrow}\", crate::werk_de::t(k.label().1))).strong()).on_hover_text(crate::werk_de::t(k.label().0)).clicked() {"
+        "RichText::new(crate::werk_de::t(k.label().1)).strong()"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "let r = aligned(ui, k != SortKey::Name, |ui| ui.selectable_label(v.key == k, header_text(k))).on_hover_text(k.label().0);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let r = aligned(ui, k != SortKey::Name, |ui| ui.selectable_label(v.key == k, header_text(k))).on_hover_text(crate::werk_de::t(k.label().0));"
       ]
     },
     {
@@ -529,11 +517,11 @@
     },
     {
       "file": "crates/ui-egui/src/toolbar.rs",
-      "anchor": "if ui.button(label).clicked() {",
+      "anchor": "if ui.selectable_label(selected, label).clicked() {",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "if ui.button(crate::werk_de::t(label)).clicked() {"
+        "if ui.selectable_label(selected, crate::werk_de::t(label)).clicked() {"
       ]
     },
     {
@@ -638,6 +626,240 @@
         "[target.'cfg(target_arch = \"wasm32\")'.dependencies]",
         "web-sys = { version = \"0.3\", features = [\"Window\", \"Navigator\", \"Location\"] }",
         ""
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/credits.rs",
+      "anchor": "let titles = [\"Company\", \"Model\", \"Version\", \"Commits\", \"% of all commits\", \"Lines +/−\"];",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let titles = [crate::werk_de::t(\"Company\"), crate::werk_de::t(\"Model\"), crate::werk_de::t(\"Version\"), crate::werk_de::t(\"Commits\"), crate::werk_de::t(\"% of all commits\"), crate::werk_de::t(\"Lines +/−\")];"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "let grid_label = if clips_markers { GridScale::ClipsMarkers.label().to_string() } else { compact_grid_label(app.engine.session(), grid) };",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let grid_label = if clips_markers { crate::werk_de::t(GridScale::ClipsMarkers.label()).to_string() } else { compact_grid_label(app.engine.session(), grid) };"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "if ui.selectable_label(selected, scale.label()).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(selected, crate::werk_de::t(scale.label())).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "if allow_clips && ui.selectable_label(clips_markers, GridScale::ClipsMarkers.label()).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if allow_clips && ui.selectable_label(clips_markers, crate::werk_de::t(GridScale::ClipsMarkers.label())).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/toolbar.rs",
+      "anchor": "if ui.selectable_label(follow_main, \"Follow Main Time Scale\").clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(follow_main, crate::werk_de::t(\"Follow Main Time Scale\")).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels/extra_windows.rs",
+      "anchor": "craft_ui::ComboBox::from_label(\"Reduce visual effects\").selected_text(app.ui.reduce_visual_effects.label()).show_ui(ui, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "craft_ui::ComboBox::from_label(\"Reduce visual effects\").selected_text(crate::werk_de::t(app.ui.reduce_visual_effects.label())).show_ui(ui, |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels/extra_windows.rs",
+      "anchor": "if ui.selectable_label(app.ui.reduce_visual_effects == mode, mode.label()).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(app.ui.reduce_visual_effects == mode, crate::werk_de::t(mode.label())).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels/extra_windows.rs",
+      "anchor": "craft_ui::ComboBox::from_label(\"Theme\").selected_text(app.ui.theme.label()).show_ui(ui, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "craft_ui::ComboBox::from_label(\"Theme\").selected_text(crate::werk_de::t(app.ui.theme.label())).show_ui(ui, |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/panels/extra_windows.rs",
+      "anchor": "if ui.selectable_label(app.ui.theme == mode, mode.label()).clicked() {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if ui.selectable_label(app.ui.theme == mode, crate::werk_de::t(mode.label())).clicked() {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "if !search.is_empty() && hit { RichText::new(candidate.label()).color(t.meter_yellow) } else { RichText::new(candidate.label()) };",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if !search.is_empty() && hit { RichText::new(crate::werk_de::t(candidate.label())).color(t.meter_yellow) } else { RichText::new(crate::werk_de::t(candidate.label())) };"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "RichText::new(section.title).strong().color(t.meter_yellow)",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "RichText::new(crate::werk_de::t(section.title)).strong().color(t.meter_yellow)"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "RichText::new(section.title).strong()",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "RichText::new(crate::werk_de::t(section.title)).strong()"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "if !search.is_empty() && hit { RichText::new(text).color(t.meter_yellow) } else { RichText::new(text) }",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if !search.is_empty() && hit { RichText::new(crate::werk_de::t(text)).color(t.meter_yellow) } else { RichText::new(crate::werk_de::t(text)) }"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "craft_ui::ComboBox::new(id, label(\"UI Theme\")).selected_text(draft.theme.label()).show_ui(ui, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "craft_ui::ComboBox::new(id, label(\"UI Theme\")).selected_text(crate::werk_de::t(draft.theme.label())).show_ui(ui, |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "ui.selectable_value(&mut draft.theme, mode, mode.label());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.selectable_value(&mut draft.theme, mode, crate::werk_de::t(mode.label()));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "craft_ui::ComboBox::new(id, label(\"Reduce Visual Effects\")).selected_text(draft.reduce_visual_effects.label()).show_ui(ui, |ui| {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "craft_ui::ComboBox::new(id, label(\"Reduce Visual Effects\")).selected_text(crate::werk_de::t(draft.reduce_visual_effects.label())).show_ui(ui, |ui| {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "ui.selectable_value(&mut draft.reduce_visual_effects, mode, mode.label());",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.selectable_value(&mut draft.reduce_visual_effects, mode, crate::werk_de::t(mode.label()));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "craft_ui::ComboBox::new(id, label(text)).selected_text(value).show_ui(ui, |_| {});",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "craft_ui::ComboBox::new(id, label(text)).selected_text(crate::werk_de::t(value)).show_ui(ui, |_| {});"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "let mut shown = value.to_string();",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let mut shown = crate::werk_de::t(value).to_string();"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "ui.radio_value(&mut selected, value_index, *value);",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.radio_value(&mut selected, value_index, crate::werk_de::t(value));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "let text = text.to_lowercase();",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "let text = format!(\"{text} {}\", crate::werk_de::t(text)).to_lowercase();"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "Self::Choice(label, value) | Self::Value(label, value) => format!(\"{label} {value}\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "Self::Choice(label, value) | Self::Value(label, value) => format!(\"{label} {value} {} {}\", crate::werk_de::t(label), crate::werk_de::t(value)),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "Self::ChoiceOptions(label, value, values) => format!(\"{label} {value} {}\", values.join(\" \")),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "Self::ChoiceOptions(label, value, values) => format!(\"{label} {value} {} {} {} {}\", values.join(\" \"), crate::werk_de::t(label), crate::werk_de::t(value), values.iter().map(|v| crate::werk_de::t(v)).collect::<Vec<_>>().join(\" \")),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "Self::Radios(label, values) => format!(\"{label} {}\", values.join(\" \")),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "Self::Radios(label, values) => format!(\"{label} {} {} {}\", values.join(\" \"), crate::werk_de::t(label), values.iter().map(|v| crate::werk_de::t(v)).collect::<Vec<_>>().join(\" \")),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "Self::ReduceVisualEffects => format!(\"{} Never Only During Playback Always\", self.label()),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "Self::ReduceVisualEffects => format!(\"{} Never Only During Playback Always {} {} {} {}\", self.label(), crate::werk_de::t(self.label()), crate::werk_de::t(\"Never\"), crate::werk_de::t(\"Only During Playback\"), crate::werk_de::t(\"Always\")),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/preferences.rs",
+      "anchor": "_ => self.label().to_string(),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "_ => format!(\"{} {}\", self.label(), crate::werk_de::t(self.label())),"
       ]
     }
   ],

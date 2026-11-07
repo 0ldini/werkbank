@@ -1016,3 +1016,349 @@ Window > Edit	Edit
 Nothing to record on yet: add a track with Track › New…, then click its R button.	Noch nichts zum Aufnehmen: mit Spur › Neu… eine Spur hinzufügen, dann ihre R-Taste anklicken.
 No track is record-enabled: click the R button on the track to record.	Keine Spur ist aufnahmebereit: zum Aufnehmen die R-Taste der Spur anklicken.
 Stop recording before recovering other work.	Vor dem Wiederherstellen anderer Arbeit die Aufnahme stoppen.
+Never	Nie
+Always	Immer
+Reduce visual effects	Visuelle Effekte reduzieren
+SoundCraft Preferences	SoundCraft-Einstellungen
+Follow Main Time Scale	Hauptzeitskala folgen
+This preference is not available yet.	Diese Einstellung gibt es noch nicht.
+Type to search preferences	Tippen, um Einstellungen zu suchen
+Only During Playback	Nur während der Wiedergabe
+Display	Anzeige
+Editing	Bearbeitung
+Mixing	Mischen
+Metering	Pegelanzeige
+Processing	Verarbeitung
+UI Theme	Erscheinungsbild
+Reduce Visual Effects	Visuelle Effekte reduzieren
+Levels of Undo	Rückgängig-Schritte
+Basics	Grundlagen
+Track Position Numbers Stay with Hidden Tracks	Spurnummern bleiben bei ausgeblendeten Spuren
+Function Tool Tips	Tooltips zu Funktionen
+Detailed Tool Tips	Ausführliche Tooltips
+Edit Window Default Length	Standardlänge des Edit-Fensters
+Organize Plugin Menus By	Plugin-Menüs ordnen nach
+Category & Manufacturer	Kategorie und Hersteller
+Organize Track I/O Menus By	Ein-/Ausgangsmenüs der Spuren ordnen nach
+Auto-Switch Input Language	Eingabesprache automatisch wechseln
+Language	Sprache
+English	Englisch
+Default Automatic Naming to English	Automatische Benennung standardmässig auf Englisch
+General Color	Allgemeine Farben
+MIDI Note Color Shows Velocity	Farbe der MIDI-Noten zeigt die Anschlagstärke
+Default Track Color Coding	Standard-Farbcodierung der Spuren
+Track Type	Spurtyp
+Default Clip Color Coding	Standard-Farbcodierung der Clips
+Warnings & Dialogs	Warnungen und Dialoge
+Reset “Don’t Show This Again” Settings	«Nicht mehr anzeigen»-Einstellungen zurücksetzen
+Show Dashboard Window at Startup	Dashboard beim Start anzeigen
+Show Dashboard After Closing a Session	Dashboard nach dem Schliessen einer Session anzeigen
+Marker Colors	Markerfarben
+Randomize Marker Color Upon Creation	Markerfarbe beim Erstellen zufällig wählen
+Show Marker Lane Colors in Timeline Rulers	Farben der Markerspuren in den Zeitlinealen anzeigen
+Show Marker Lane Colors in Tracks	Farben der Markerspuren in den Spuren anzeigen
+Auto-Adjust Pinned Area for Tracks	Angehefteten Bereich automatisch an die Spuren anpassen
+Adjusting Pinned Area Resizes Tracks	Anpassen des angehefteten Bereichs ändert die Spurhöhe
+Original Track Height While Pinned	Ursprüngliche Spurhöhe beim Anheften
+Small	Klein
+Timeline Insertion and Play Start Follow Playback	Einfügemarke und Wiedergabestart folgen der Wiedergabe
+Edit Insertion Follows Scrub and Shuttle	Einfügemarke folgt Scrub und Shuttle
+Audio During Fast Forward and Rewind	Ton beim schnellen Vor- und Zurückspulen
+Latch Fast Forward and Rewind	Vor- und Zurückspulen einrasten
+Play Start Follows Timeline Selection	Wiedergabestart folgt der Zeitleistenauswahl
+Dynamic Transport Follows Selection During Playback	Dynamischer Transport folgt während der Wiedergabe der Auswahl
+Reserve Voices for Preview in Context	Stimmen für die Vorschau im Kontext reservieren
+Custom Shuttle Lock Speed	Eigene Shuttle-Lock-Geschwindigkeit
+Custom Fast Forward/Rewind Speed	Eigene Spulgeschwindigkeit
+Back/Forward Amount	Sprungweite zurück/vor
+Back/Forward Time Scale	Zeitskala für zurück/vor
+Numeric Keypad	Ziffernblock
+Classic	Klassisch
+Use Separate Play and Stop Keys	Getrennte Tasten für Wiedergabe und Stopp
+Record Enable Buttons	Aufnahmebereitschaftstasten
+Latch Audio Tracks	Audiospuren einrasten
+Enable Automation in Record	Automation bei der Aufnahme einschalten
+Link Record and Play Faders	Aufnahme- und Wiedergabefader koppeln
+Audio Track Record Lock	Aufnahmesperre für Audiospuren
+Transport Record Lock	Aufnahmesperre des Transports
+Disable Input Monitoring when Disarming a Stopped Track	Eingangsabhören beim Entschärfen einer gestoppten Spur ausschalten
+Mute Record-Armed Tracks While Stopped	Aufnahmebereite Spuren im Stopp stummschalten
+Enable DSP Mode for Record-Armed or Input-Monitored Tracks	DSP-Modus für aufnahmebereite oder abgehörte Spuren einschalten
+Disable DSP Mode when Disabling Record and Input	DSP-Modus beim Ausschalten von Aufnahme und Eingang ausschalten
+Console-Style Input Monitoring Indicators	Anzeigen für das Eingangsabhören wie am Mischpult
+Create New Playlists when Loop Recording	Bei Loop-Aufnahme neue Playlists erstellen
+Online Recording Starts	Online-Aufnahme beginnt
+At Timecode Lock	Bei Timecode-Synchronisation
+At Insertion or Selection	An der Einfügemarke oder Auswahl
+Destructive Punch File Length	Dateilänge für destruktives Punch
+25 minutes	25 Minuten
+Auto Backup	Automatische Sicherung
+Enable Session File Auto Backup	Automatische Sicherung der Session-Datei einschalten
+Keep Most Recent Session Backups	Anzahl neuester Session-Sicherungen behalten
+Backup Every	Sichern alle
+5 minutes	5 Minuten
+Miscellaneous	Verschiedenes
+Mouse Wheel Scrolling Snaps to Track	Scrollen mit dem Mausrad rastet an Spuren ein
+Clip Auto Fade In/Out Length	Länge der automatischen Ein-/Ausblendung von Clips
+Local Waveform Cache Versions	Versionen im lokalen Wellenform-Cache
+User Media and Settings Location	Speicherort für Benutzermedien und Einstellungen
+Change Documentation and Settings Location	Speicherort für Dokumentation und Einstellungen ändern
+Change Project Media Cache Location	Speicherort des Projektmedien-Caches ändern
+Change Sound Libraries Location	Speicherort der Klangbibliotheken ändern
+Show Sound Libraries in Workspace Locations	Klangbibliotheken bei den Workspace-Orten anzeigen
+Enable GPU Processing	GPU-Verarbeitung einschalten
+Prevent Tearing	Bildrisse verhindern
+Play Start Latency	Latenz beim Wiedergabestart
+1 — Shortest	1 — Kürzeste
+Slewing	Nachführen
+Disabled While Looping	Beim Loopen ausgeschaltet
+Data Collection and Personalization	Datenerfassung und Personalisierung
+Anonymous Usage Data	Anonyme Nutzungsdaten
+Personalize the Experience	Erlebnis personalisieren
+Logging	Protokollierung
+Save Logs	Protokolle speichern
+Reset Logging	Protokollierung zurücksetzen
+Advanced Video Logging	Erweiterte Videoprotokollierung
+Clip List Selection Follows Edit Selection	Auswahl in der Clipliste folgt der Bearbeitungsauswahl
+Edit Selection Follows Clip List Selection	Bearbeitungsauswahl folgt der Auswahl in der Clipliste
+Auto-Name Separated Clips	Getrennte Clips automatisch benennen
+Separate Clip Operates on All Related Takes	Clip trennen wirkt auf alle zugehörigen Takes
+Send Fully Overlapped Clips to a Playlist While Editing	Vollständig überdeckte Clips beim Bearbeiten in eine Playlist verschieben
+Send Fully Overlapped Clips to a Playlist While Recording	Vollständig überdeckte Clips bei der Aufnahme in eine Playlist verschieben
+Tab Respects Breakpoints in Automation Lanes	Tab beachtet Breakpoints in Automationsspuren
+Double-Click Selects Automation Breakpoints	Doppelklick wählt Automations-Breakpoints
+Clip Gain Nudge Value	Schrittweite für Clip-Gain
+Number Keys 1–5 Control	Zifferntasten 1–5 steuern
+Zoom Presets	Zoom-Voreinstellungen
+Double-Clicking an Audio Clip Opens	Doppelklick auf einen Audioclip öffnet
+Name Dialog	Namensdialog
+Fades Dialog Preview Pre-Roll	Vorlauf der Vorschau im Blendendialog
+Fades Dialog Preview Post-Roll	Nachlauf der Vorschau im Blendendialog
+Punch Recording Crossfade Length	Überblendlänge bei Punch-Aufnahmen
+Preserve Fades when Editing	Blenden beim Bearbeiten erhalten
+Auto Accept Adjust Bounds	Angepasste Grenzen automatisch übernehmen
+Smart Tool Fade Adjustment	Blendenanpassung mit dem Smart Tool
+Always On	Immer ein
+Default Fade In	Standard-Einblendung
+Default Fade Out	Standard-Ausblendung
+Default Crossfade	Standard-Überblendung
+Default Sliced-Loop Fade	Standardblende für geschnittene Loops
+New Tracks Default to Tick Timebase	Neue Spuren standardmässig mit Tick-Zeitbasis
+Suppress Name Dialog when Creating New Playlists	Namensdialog beim Erstellen neuer Playlists unterdrücken
+Show Target Playlists after Sending a Clip Selection	Zielplaylists nach dem Verschieben einer Clipauswahl anzeigen
+Add New Playlists	Neue Playlists hinzufügen
+At Bottom	Unten
+Vertical MIDI Zoom	Vertikaler MIDI-Zoom
+Horizontal Zoom	Horizontaler Zoom
+Remove Range Selection after Zooming In	Bereichsauswahl nach dem Hineinzoomen aufheben
+Fit to Window	An Fenster anpassen
+No Change	Keine Änderung
+Separate Grid Settings when Zoomed In	Eigene Rastereinstellungen beim Hineinzoomen
+Zoom Toggle Follows Edit Selection	Zoom-Umschaltung folgt der Bearbeitungsauswahl
+Auto-Name Memory Locations when Playing	Memory Locations bei der Wiedergabe automatisch benennen
+Recall Memory Location at Original Track	Memory Location auf der ursprünglichen Spur abrufen
+Sends Default to	Sends standardmässig auf
+Send Pans Default to Follow Main Pan	Send-Panorama folgt standardmässig dem Hauptpanorama
+Use Absolute Pan Linking	Absolute Panorama-Kopplung
+Allow Sends to Persist During Low-Latency Monitoring	Sends beim Abhören mit niedriger Latenz beibehalten
+Default EQ	Standard-EQ
+Default EQ Insert Slot	Standard-Insert-Platz für den EQ
+Default Dynamics	Standard-Dynamik
+Default Dynamics Insert Slot	Standard-Insert-Platz für die Dynamik
+Auto Insert Default Plugins from Control Surfaces	Standard-Plugins von Controllern aus automatisch einfügen
+Controllers	Controller
+Edit Window Follows Banking	Edit-Fenster folgt dem Banking
+Edit Window Follows Selection	Edit-Fenster folgt der Auswahl
+Mix Window Follows Banking	Mix-Fenster folgt dem Banking
+Mix Window Follows Selection	Mix-Fenster folgt der Auswahl
+Scroll to Track Banks Controllers	Scrollen zur Spur schaltet die Controller-Bank um
+Always Fill Channel Strips when Banking	Kanalzüge beim Banking immer füllen
+Always Show Assignable Knob Highlight	Hervorhebung zuweisbarer Regler immer anzeigen
+Touch Timeout	Touch-Zeitlimit
+EQ and Dynamics Cycling Starts at Insert	Durchschalten von EQ und Dynamik beginnt beim Insert
+Smooth and Thin Data after Pass	Daten nach dem Durchgang glätten und ausdünnen
+Degree of Thinning	Grad der Ausdünnung
+Some	Etwas
+Plugin Controls Default to Auto-Enabled	Plugin-Regler standardmässig für Automation freigegeben
+Suppress Automation Write-To Warnings	Warnungen beim Schreiben von Automation unterdrücken
+Latch Switch Controls in Touch Mode	Schalter im Touch-Modus einrasten
+Allow Latch Prime in Stop	Latch-Vorbereitung im Stopp erlauben
+Coalesce when Removing Members from a VCA Group	Beim Entfernen von Mitgliedern aus einer VCA-Gruppe zusammenführen
+Standard VCA Logic for Group Attributes	Standard-VCA-Logik für Gruppenattribute
+Include Sends in Trim Mode	Sends im Trim-Modus einbeziehen
+Include Control Changes in Undo Queue	Controller-Änderungen in die Rückgängig-Liste aufnehmen
+Link Object and Audio Recording	Objekt- und Audioaufnahme koppeln
+After Write Pass, Switch To	Nach dem Schreibdurchgang wechseln zu
+After Every Pass	Nach jedem Durchgang
+On Exiting Trim Mode	Beim Verlassen des Trim-Modus
+Manually	Manuell
+Steep Breakpoint Smoothing Time	Glättungszeit für steile Breakpoints
+Automation Match Time	Angleichzeit der Automation
+Automation Glide Time	Gleitzeit der Automation
+Time Mode	Zeitmodus
+Compensate Side Chains	Sidechains ausgleichen
+Compensate Hardware Inputs	Hardware-Eingänge ausgleichen
+Routing Coefficients	Routing-Koeffizienten
+New Session Fold Down	Downmix für neue Sessions
+New Session 5.x to 7.x/9.x	Neue Session 5.x zu 7.x/9.x
+Direct to Rear Surrounds	Direkt auf die hinteren Surround-Kanäle
+New Session 7.x/9.x to 5.x	Neue Session 7.x/9.x zu 5.x
+Downmix to Surrounds	Downmix auf die Surround-Kanäle
+New Session Surround to Stereo	Neue Session Surround zu Stereo
+New Session Includes LFE in Fold Down	Neue Session bezieht LFE in den Downmix ein
+Current Session Fold Down	Downmix der aktuellen Session
+Current Session 5.x to 7.x/9.x	Aktuelle Session 5.x zu 7.x/9.x
+Current Session 7.x/9.x to 5.x	Aktuelle Session 7.x/9.x zu 5.x
+Current Session Surround to Stereo	Aktuelle Session Surround zu Stereo
+Current Session Includes LFE in Fold Down	Aktuelle Session bezieht LFE in den Downmix ein
+Sample Peak	Sample-Spitze
+Linear Extended	Linear erweitert
+Live Peak	Live-Spitze
+Track and Master Meter Types	Pegelanzeigetypen für Spuren und Master
+Track and Master Meter Types Linked	Pegelanzeigetypen für Spuren und Master gekoppelt
+Track Meters	Spurpegel
+Master Meters	Masterpegel
+Advanced Meter Type Settings	Erweiterte Einstellungen des Pegelanzeigetyps
+Meter Type	Pegelanzeigetyp
+Decay	Abfall
+100 dB in 1.00 s	100 dB in 1,00 s
+0 dB Reference	0-dB-Referenz
+Integration Time	Integrationszeit
+Color Break High	Farbwechsel oben
+Color Break Low	Farbwechsel unten
+Reset Advanced Meter Settings	Erweiterte Pegeleinstellungen zurücksetzen
+Peak / Clip	Spitze / Übersteuerung
+Peak Hold	Spitzenwert halten
+3 Seconds	3 Sekunden
+Infinite	Unbegrenzt
+Clip Indication	Übersteuerungsanzeige
+Calibration Reference Level	Kalibrierungs-Referenzpegel
+Show Send Assignment Level Meter	Pegelanzeige bei Send-Zuweisungen anzeigen
+Show Insert Assignment Gain Reduction Meter	Gain-Reduction-Anzeige bei Insert-Zuweisungen anzeigen
+Show Track Gain Reduction Meter	Gain-Reduction-Anzeige der Spur anzeigen
+Gain Reduction Meter Type	Typ der Gain-Reduction-Anzeige
+Compressor/Limiter Only	Nur Kompressor/Limiter
+Expander/Gate Only	Nur Expander/Gate
+Priority Compressor/Limiter	Vorrang Kompressor/Limiter
+Priority Expander/Gate	Vorrang Expander/Gate
+All — Summed	Alle — summiert
+Offline Processing	Offline-Verarbeitung
+Default Handle Length	Standardlänge der Handles
+Whole File	Ganze Datei
+Handle Length	Handle-Länge
+2.00 seconds	2,00 Sekunden
+Time Compression / Expansion	Zeitkompression / -expansion
+Processor	Prozessor
+Default Settings	Standardeinstellungen
+Factory Default	Werkseinstellung
+Convert Imported WAV Files to Broadcast Wave	Importierte WAV-Dateien in Broadcast Wave umwandeln
+Automatically Copy Files on Import	Dateien beim Import automatisch kopieren
+Convert Copied Files to Session Format	Kopierte Dateien ins Session-Format umwandeln
+Do Not Convert Sample Rate on Import	Abtastrate beim Import nicht umwandeln
+Import Sliced Loops as Clip Groups	Geschnittene Loops als Clipgruppen importieren
+Automatically Create Fades	Blenden automatisch erstellen
+Desktop Drag-and-Drop Conforms to Session Tempo	Ziehen vom Schreibtisch passt sich dem Session-Tempo an
+No Files	Keine Dateien
+Tagged Loop Files Only	Nur markierte Loop-Dateien
+All Files	Alle Dateien
+Sample Rate Conversion Quality	Qualität der Abtastratenwandlung
+Highest	Höchste
+Default Plugin	Standard-Plugin
+Polyphonic	Polyphon
+Default Input Gain	Standard-Eingangsverstärkung
+0.0 dB	0,0 dB
+Enable Elastic Audio on New Tracks	Elastic Audio für neue Spuren einschalten
+Commit	Festschreiben
+Rendered File Bit Depth	Bittiefe gerenderter Dateien
+Always Use 32-bit	Immer 32 Bit verwenden
+Follow Session Settings	Session-Einstellungen folgen
+DSP Management	DSP-Verwaltung
+Open Unresourced DSP Plugins as Native	DSP-Plugins ohne Ressourcen nativ öffnen
+Enable Analog Console Processing in New Sessions	Analoge Mischpultverarbeitung in neuen Sessions einschalten
+Automatic Analysis on Tick-Based Tracks	Automatische Analyse auf tickbasierten Spuren
+Parallel Task Optimization	Optimierung paralleler Aufgaben
+High	Hoch
+Display Waveforms in Low Resolution While Loading	Wellenformen beim Laden in niedriger Auflösung anzeigen
+Noise Burst Peak Protection	Schutz vor Rauschspitzen
+Remove Range Selection after Opening a MIDI or Score Editor	Bereichsauswahl nach dem Öffnen eines MIDI- oder Noteneditors aufheben
+Use MIDI to Tap Tempo	Tempo per MIDI eintippen
+Display Events as Modified by Real-Time Properties	Ereignisse mit Echtzeit-Eigenschaften angewendet anzeigen
+Use F11 for Wait for Note	F11 für «Auf Note warten» verwenden
+Automatically Create Click Track in New Sessions	In neuen Sessions automatisch eine Klickspur erstellen
+MIDI Input Monitoring Follows Selected Track	MIDI-Eingangsabhören folgt der gewählten Spur
+Pencil Resolution for Controller Data	Stiftauflösung für Controllerdaten
+Global MIDI Playback Offset	Globaler Versatz der MIDI-Wiedergabe
+0 samples	0 Samples
+Double-Clicking a MIDI Clip Opens	Doppelklick auf einen MIDI-Clip öffnet
+Docked MIDI Editor	Angedockten MIDI-Editor
+MIDI Merge Release Mode	Freigabemodus beim MIDI-Merge
+Latch Until Next Event	Bis zum nächsten Ereignis halten
+Note Display	Notenanzeige
+Middle C	Mittleres C
+MIDI Note 60	MIDI-Note 60
+Delay Compensation for External Devices	Verzögerungsausgleich für externe Geräte
+MIDI Timecode	MIDI-Timecode
+MIDI Notes and Controllers	MIDI-Noten und Controller
+MIDI / Score Editor Display	Anzeige von MIDI- und Noteneditor
+Additional Empty Bars in the Score Editor	Zusätzliche leere Takte im Noteneditor
+Track Collaboration	Zusammenarbeit an Spuren
+New Tracks Are Shared	Neue Spuren werden geteilt
+First Invite Shares All Tracks	Erste Einladung teilt alle Spuren
+Joining a Project Downloads All Shared Tracks	Beitritt zu einem Projekt lädt alle geteilten Spuren herunter
+Enable Track Notes Dialog	Dialog für Spurnotizen einschalten
+Automatically Download New Shared Tracks	Neue geteilte Spuren automatisch herunterladen
+Cloud Storage Services	Cloud-Speicherdienste
+Prevent Others from Overwriting an Open Session	Verhindern, dass andere eine offene Session überschreiben
+Lock File Extension	Endung der Sperrdatei
+Keep Unused Folders on Session Close	Unbenutzte Ordner beim Schliessen der Session behalten
+Machine Control	Maschinensteuerung
+Machine Chases Memory Location	Maschine folgt Memory Locations
+Machine Follows Edit Insertion and Scrub	Maschine folgt Einfügemarke und Scrub
+Controlled Device Type	Gesteuerter Gerätetyp
+Non-Linear Device	Nichtlineares Gerät
+Machine Cues Intelligently	Maschine positioniert intelligent
+Stop at Shuttle Speed Zero	Bei Shuttle-Geschwindigkeit null anhalten
+Non-Linear Transport Error Suppression	Fehlerunterdrückung für nichtlinearen Transport
+Remote Mode	Fernsteuermodus
+Ignore Track Arming	Aufnahmebereitschaft der Spuren ignorieren
+Set Servo Lock at Play	Servo-Lock bei Wiedergabe setzen
+Allow External Track-Arm Commands in Local Mode	Externe Aufnahmebereitschaftsbefehle im lokalen Modus erlauben
+Allow External Transport Commands in Local Mode	Externe Transportbefehle im lokalen Modus erlauben
+Punch In Frame Offset	Frame-Versatz beim Punch-in
+0 frames	0 Frames
+Punch Out Frame Offset	Frame-Versatz beim Punch-out
+Delay after Play Command	Verzögerung nach dem Wiedergabebefehl
+Minimum Sync Delay	Minimale Synchronisationsverzögerung
+30 frames	30 Frames
+Delay before Locking to Longitudinal Timecode	Verzögerung vor dem Einrasten auf LTC
+Delay before Locking to Serial Timecode	Verzögerung vor dem Einrasten auf seriellen Timecode
+Linked Systems	Gekoppelte Systeme
+Transmit Solos	Solos senden
+Receive Solos	Solos empfangen
+Solo Independent of Linked State	Solo unabhängig von der Kopplung
+Audio Engine Errors Stop All Linked Systems	Fehler der Audio-Engine stoppen alle gekoppelten Systeme
+Transmit Play Selections	Wiedergabeauswahl senden
+Receive Play Selections	Wiedergabeauswahl empfangen
+1 bar	1 Takt
+Whole note	Ganze Note
+1/2 note	1/2-Note
+1/4 note	1/4-Note
+1/8 note	1/8-Note
+1/16 note	1/16-Note
+1/32 note	1/32-Note
+1/64 note	1/64-Note
+Clips/Markers	Clips/Marker
+5 frames	5 Frames
+1/2 frame	1/2 Frame
+1/4 frame	1/4 Frame
+1 subframe	1 Subframe
+1 foot	1 Fuss
+10000 samples	10000 Samples
+1000 samples	1000 Samples
+10 samples	10 Samples
+2 samples	2 Samples
+1 sample	1 Sample
+Dotted	Punktiert
+Triplet	Triole
+Light	Hell
+Dark	Dunkel
