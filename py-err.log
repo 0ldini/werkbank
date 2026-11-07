@@ -1,0 +1,150 @@
+127.0.0.1 - - [06/Nov/2026 16:46:04] "GET /geheim.7z.004 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:04] "GET /geheim.7z.002 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:04] "GET /geheim.7z.001 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:04] "GET /geheim.7z.003 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:05] "GET /geheim.7z.001 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:05] "GET /geheim.7z.002 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:05] "GET /geheim.7z.003 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:05] "GET /geheim.7z.004 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:06] "GET /api/v2/user/login?login=oli%40example.com&password=p%26w%20%C3%B6%3D1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:11] "GET /api/v2/user/login?login=oli%40example.com&password=p%26w%20%C3%B6%3D1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:11] "GET /api/v2/file/info?token=T1&file_id=abc123def HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:12] "GET /api/v2/file/download?token=T1&file_id=abc123def HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:12] "GET /plain.zip?sess=1 HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 65284)
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 1346, in finish_request
+    self.RequestHandlerClass(request, client_address, self,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             directory=args.directory)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 687, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 451, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 439, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 694, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 896, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+127.0.0.1 - - [06/Nov/2026 16:46:12] "GET /api/v2/file/download?token=T1&file_id=abc123def HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:12] "GET /plain.zip?sess=1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:13] "GET /plain.zip?falsch=1 HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 65291)
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 1346, in finish_request
+    self.RequestHandlerClass(request, client_address, self,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             directory=args.directory)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 687, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 451, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 439, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 694, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 896, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+127.0.0.1 - - [06/Nov/2026 16:46:14] "GET /plain.zip?falsch=1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:18] "GET /paketpw.7z.001 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:18] "GET /paketpw.7z.002 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:18] "GET /paketpw.7z.003 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:18] "GET /paketpw.7z.004 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:19] "GET /paketpw.7z.001 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:19] "GET /paketpw.7z.002 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:19] "GET /paketpw.7z.003 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:19] "GET /paketpw.7z.004 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 16:46:21] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:21] "GET /cnl-a.zip HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:21] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:21] "GET /cnl-b.zip HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:21] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:21] "GET /cnl-c.zip HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:21] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:21] "GET /cnl-d.rar HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:24] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:24] "GET /clip-test.zip HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:34] code 404, message File not found
+127.0.0.1 - - [06/Nov/2026 16:46:34] "GET /proxy-test.zip HTTP/1.1" 404 -
+127.0.0.1 - - [06/Nov/2026 16:46:35] "GET /plain.zip HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 65367)
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 1346, in finish_request
+    self.RequestHandlerClass(request, client_address, self,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             directory=args.directory)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 687, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 451, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 439, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 694, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\http\server.py", line 896, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.13.17\arm64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+127.0.0.1 - - [06/Nov/2026 16:46:36] "GET /plain.zip HTTP/1.1" 200 -
