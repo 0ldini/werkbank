@@ -1,6 +1,6 @@
 [package]
 name = "organiwerk"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 description = "Organiwerk – Organigramme und Diagramme zeichnen (Teil der Werkbank-Suite)"
 authors = ["Oli"]
@@ -18,6 +18,9 @@ js-sys = "0.3"
 
 
 [target.'cfg(windows)'.dependencies]
+# DirectX 12 für den wgpu-Ausweichweg (eframe bringt unter Windows sonst nur Vulkan mit;
+# ohne Grafiktreiber läuft DirectX 12 in Software).
+wgpu = { version = "22", default-features = false, features = ["dx12"] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 raw-window-handle = "0.6"
 
@@ -26,3 +29,9 @@ winresource = "0.1"
 
 [profile.release]
 opt-level = 2
+
+# Ausweichweg, wenn OpenGL fehlt (siehe stil::starten): nur in der Desktop-Ausgabe.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.eframe]
+version = "0.29"
+default-features = false
+features = ["wgpu"]

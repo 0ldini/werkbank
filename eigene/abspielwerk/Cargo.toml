@@ -1,6 +1,6 @@
 [package]
 name = "abspielwerk"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Videos, Musik und Bilder ansehen – Teil der Werkbank"
 
@@ -22,6 +22,9 @@ kamadak-exif = "0.6"
 trash = "5"
 
 [target.'cfg(windows)'.dependencies]
+# DirectX 12 für den wgpu-Ausweichweg (eframe bringt unter Windows sonst nur Vulkan mit;
+# ohne Grafiktreiber läuft DirectX 12 in Software).
+wgpu = { version = "22", default-features = false, features = ["dx12"] }
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 raw-window-handle = "0.6"
 
@@ -35,3 +38,9 @@ strip = true
 
 [package.metadata.werkbank]
 # Keine Browser-Version (keine index.html): libVLC gibt es nur auf dem Desktop.
+
+# Ausweichweg, wenn OpenGL fehlt (siehe stil::starten): nur in der Desktop-Ausgabe.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.eframe]
+version = "0.29"
+default-features = false
+features = ["wgpu"]

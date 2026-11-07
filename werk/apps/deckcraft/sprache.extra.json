@@ -2217,7 +2217,8 @@
       "skip": 0,
       "lines": [
         "crate::werk_de::t(\"The version, the people and models who built it, and where to find us.\"),"
-      ]
+      ],
+      "optional": true
     },
     {
       "file": [
@@ -3723,6 +3724,177 @@
         "ui.label(crate::werk_de::t(if all { \"Mark all text in the presentation as:\" } else { \"Mark selected text as:\" }));"
       ],
       "optional": true
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "ui.label(format!(\"Slide {} of {}\", snapshot.slide.saturating_add(1), snapshot.total));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "ui.label(crate::werk_de::f(\"Slide {} of {}\", &[&snapshot.slide.saturating_add(1), &snapshot.total]));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "for (label, name) in [(\"◀ Previous\", \"ArrowLeft\"), (\"Next ▶\", \"ArrowRight\")] {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "for (label, name) in [(crate::werk_de::t(\"◀ Previous\"), \"ArrowLeft\"), (crate::werk_de::t(\"Next ▶\"), \"ArrowRight\")] {"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(if snapshot.paused { \"Resume\" } else { \"Pause\" }, \"T\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(if snapshot.paused { crate::werk_de::t(\"Resume\") } else { crate::werk_de::t(\"Pause\") }, \"T\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(\"Reset\", \"R\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"Reset\"), \"R\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(\"Black\", \"B\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"Black\"), \"B\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(\"White\", \"W\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"White\"), \"W\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(\"All slides\", \"G\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"All slides\"), \"G\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "(\"Zoom\", \"Z\"),",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "(crate::werk_de::t(\"Zoom\"), \"Z\"),"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "left.heading(\"End of slide show\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "left.heading(crate::werk_de::t(\"End of slide show\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "left.label(\"Click the preview to zoom.\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "left.label(crate::werk_de::t(\"Click the preview to zoom.\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "left.label(\"Choose a slide in the audience window, or press G to return.\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "left.label(crate::werk_de::t(\"Choose a slide in the audience window, or press G to return.\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "right.label(\"Next\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "right.label(crate::werk_de::t(\"Next\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "right.label(\"End of slide show\");",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "right.label(crate::werk_de::t(\"End of slide show\"));"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/presenter.rs",
+      "anchor": "egui::RichText::new(if snapshot.notes.is_empty() { \"No notes.\" } else { &snapshot.notes })",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "egui::RichText::new(if snapshot.notes.is_empty() { crate::werk_de::t(\"No notes.\") } else { &snapshot.notes })"
+      ]
+    },
+    {
+      "file": "crates/ui-egui/src/ribbon/animations.rs",
+      "anchor": "fn animation_option_label(effect: &str, option: &str) -> String {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "// Werkbank: Effektoptionen übersetzt (die Tests sehen weiter Englisch).",
+        "fn animation_option_label(effect: &str, option: &str) -> String {",
+        "    crate::werk_de::t_dyn(&animation_option_label_en(effect, option))",
+        "}",
+        "fn animation_option_label_en(effect: &str, option: &str) -> String {"
+      ],
+      "optional": true
+    },
+    {
+      "file": "crates/ui-egui/src/backstage/info.rs",
+      "anchor": "if task(ui, Icon::Help, \"Credits\", \"Credits\", \"The people and models who built DeckCraft.\", true) {",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "if task(ui, Icon::Help, crate::werk_de::t(\"Credits\"), crate::werk_de::t(\"Credits\"), crate::werk_de::t(\"The people and models who built DeckCraft.\"), true) {"
+      ],
+      "optional": true
+    },
+    {
+      "file": "crates/ui-egui/src/app/files.rs",
+      "anchor": "self.set_status(format!(\"Couldn't create a private print preview: {e}\"));",
+      "kind": "replace",
+      "skip": 0,
+      "lines": [
+        "self.set_status(crate::werk_de::f(\"Couldn't create a private print preview: {}\", &[&e]));"
+      ],
+      "optional": true
+    },
+    {
+      "file": "crates/ui-egui/Cargo.toml",
+      "anchor": "[target.'cfg(not(target_arch = \"wasm32\"))'.dependencies]",
+      "kind": "before",
+      "lines": [
+        "# Werkbank: Sprache der Browser-Version (werk_de.rs).",
+        "[target.'cfg(target_arch = \"wasm32\")'.dependencies]",
+        "web-sys = { version = \"0.3\", features = [\"Window\", \"Navigator\", \"Location\"] }",
+        ""
+      ]
     }
   ],
   "wrap": [

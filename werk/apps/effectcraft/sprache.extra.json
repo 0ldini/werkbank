@@ -132,7 +132,7 @@
     },
     {
       "file": "crates/ui-egui/src/i18n/effects.rs",
-      "anchor": "/// Traditional Chinese (`zh-hant`) category labels, keyed by the registry's English category.",
+      "anchor": "/// The 21 category folder names in Traditional Chinese, written from the English source with the",
       "kind": "before",
       "skip": 0,
       "lines": [
@@ -143,21 +143,21 @@
     },
     {
       "file": "crates/ui-egui/src/i18n/effects.rs",
-      "anchor": "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN)];",
+      "anchor": "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN), (\"sv\", SWEDISH), (\"fr\", FRENCH)];",
       "kind": "replace",
       "skip": 0,
       "lines": [
-        "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN), (\"de\", GERMAN_EFFECTS)];"
+        "const PARTIAL: &[(&str, &[Row])] = &[(\"ja\", JAPANESE_EFFECTS), (\"ka\", GEORGIAN), (\"sv\", SWEDISH), (\"fr\", FRENCH), (\"de\", GERMAN_EFFECTS)];"
       ],
       "optional": true
     },
     {
       "file": "crates/ui-egui/src/i18n/effects.rs",
-      "anchor": "[(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"ka\", GEORGIAN_CATEGORIES)]",
-      "kind": "replace",
+      "anchor": "(\"fr\", FRENCH_CATEGORIES),",
+      "kind": "after",
       "skip": 0,
       "lines": [
-        "[(\"zh-hans\", SIMPLIFIED_CHINESE_CATEGORIES), (\"zh-hant\", TRADITIONAL_CHINESE_CATEGORIES), (\"ja\", JAPANESE_CATEGORIES), (\"ka\", GEORGIAN_CATEGORIES), (\"de\", GERMAN_CATEGORIES)]"
+        "(\"de\", GERMAN_CATEGORIES),"
       ],
       "optional": true
     }

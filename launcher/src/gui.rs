@@ -222,7 +222,7 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
         viewport = viewport.with_icon(icon);
     }
     let options = eframe::NativeOptions { viewport, ..Default::default() };
-    let result = eframe::run_native(
+    let result = starten(
         "Werkbank",
         options,
         Box::new(move |cc| {
@@ -300,6 +300,30 @@ pub fn run(load: impl Fn() -> Manifest + 'static, bundle: Option<std::path::Path
         eprintln!("Oberfläche konnte nicht starten: {e}");
         std::process::exit(1);
     }
+}
+
+/// Wie `eframe::run_native`, aber mit Ausweichweg: zuerst OpenGL (glow); fehlt OpenGL 2.0
+/// (Rechner ohne Grafiktreiber, virtuelle Maschinen, Fernzugriff), noch einmal mit wgpu
+/// (DirectX 12, Vulkan oder Metal, notfalls in Software). Die Oberfläche wird erst erzeugt,
+/// wenn die Grafik steht; darum lässt sie sich für den zweiten Versuch aufbewahren.
+fn starten(name: &str, options: eframe::NativeOptions, app: eframe::AppCreator<'static>) -> eframe::Result {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    let slot = Rc::new(RefCell::new(Some(app)));
+    let fach = slot.clone();
+    let erster = eframe::NativeOptions { renderer: eframe::Renderer::Glow, ..options.clone() };
+    let res = eframe::run_native(
+        name,
+        erster,
+        Box::new(move |cc| match fach.borrow_mut().take() {
+            Some(make) => make(cc),
+            None => Err("Oberfläche schon erzeugt".into()),
+        }),
+    );
+    let Err(fehler) = res else { return Ok(()) };
+    let Some(app) = slot.borrow_mut().take() else { return Err(fehler) };
+    eprintln!("OpenGL geht nicht ({fehler}), versuche wgpu");
+    eframe::run_native(name, eframe::NativeOptions { renderer: eframe::Renderer::Wgpu, ..options }, app)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1320,7 +1344,9 @@ impl Gui {
     fn open_web(&mut self, ctx: &egui::Context, app: &App) {
         if let Some(addr) = self.web_addr() {
             // install() lädt nur, wenn die Web-Version fehlt oder veraltet ist.
-            self.install(ctx, app, Kind::Web, Some(format!("{addr}/{}/", app.id)));
+            // Sprache und Farben mitgeben: die Browser-Versionen sehen WERKBANK_LANG nicht.
+            let url = format!("{addr}/{}/?lang={}&theme={}", app.id, crate::sprache::lang().code(), theme_code());
+            self.install(ctx, app, Kind::Web, Some(url));
         }
     }
 
