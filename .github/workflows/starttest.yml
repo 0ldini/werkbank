@@ -57,10 +57,15 @@ jobs:
                   continue
               if i in quelle:
                   run = quelle[i]
-                  kinds = ("linux", "windows") if i == "werkbank" else ("linux", "windows", "web") if a.get("web") or a.get("web_only") or i in ("codewerk", "mailwerk", "organiwerk") else ("linux", "windows")
+                  kinds = ("linux", "windows") if i == "werkbank" else ("linux", "windows", "web") if a.get("web") or a.get("web_only") or i.endswith("craft") or i in ("codewerk", "mailwerk", "organiwerk") else ("linux", "windows")
                   kinds = [k for k in kinds if not a.get("systeme") or {"linux": "linux", "windows": "windows", "web": "web"}[k] in a["systeme"] or k == "web"]
                   for kind in kinds:
-                      art = {"linux": "werkbank-linux-x86_64.tar.gz", "windows": "werkbank-windows-x64.zip"}[kind] if i == "werkbank" else f"eigene-{i}-{kind}"
+                      if i == "werkbank":
+                          art = {"linux": "werkbank-linux-x86_64.tar.gz", "windows": "werkbank-windows-x64.zip"}[kind]
+                      elif i.endswith("craft"):
+                          art = f"werk-{i}-{kind}"
+                      else:
+                          art = f"eigene-{i}-{kind}"
                       items.append({"app": i, "name": a.get("name", i), "tag": "", "run": run, "kind": kind, "asset": art})
                   continue
               mine = [r for r in rels if r["tag"].startswith(i + "-v") and "probe" not in r["tag"]]
@@ -189,7 +194,7 @@ jobs:
             const errs = [];
             p.on('pageerror', e => errs.push('pageerror: ' + e.message));
             p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-            await p.goto('http://localhost:8765/', { waitUntil: 'load', timeout: 60000 });
+            await p.goto('http://localhost:8765/?lang=de&theme=light', { waitUntil: 'load', timeout: 60000 });
             await p.waitForTimeout(25000);
             await p.screenshot({ path: process.argv[2] });
             require('fs').writeFileSync(process.argv[3], errs.join('\n'));

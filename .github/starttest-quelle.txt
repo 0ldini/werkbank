@@ -1,16 +1,6 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-abspielwerk 42212374870
-aufnahmewerk 42212374870
-codewerk 42212374870
-diawerk 42212374870
-ladewerk 42212374870
-mailwerk 42212374870
-mediathekwerk 42212374870
-organiwerk 42212374870
-packwerk 42212374870
-schutzwerk 42212374870
-sicherwerk 42212374870
-speicherwerk 42212374870
-umbenennwerk 42212374870
-wandelwerk 42212374870
-werkbank 42212377913
+nur: soundcraft deckcraft effectcraft werkbank
+soundcraft 42215746164
+deckcraft 42215746164
+effectcraft 42204651713
+werkbank 42215746161
