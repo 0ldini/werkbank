@@ -180,7 +180,19 @@ jobs:
 
       - name: Schriften einbinden
         if: env.FONTS_REF != '' && (matrix.kind != 'web' || env.FONTS_WEB != '')
-        run: echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          # Werkbank braucht nur Deutsch und Englisch: aus den Zusatzschriften bleiben die Symbole
+          # (Aufzählungszeichen, Pfeile); Chinesisch, Japanisch, Koreanisch, Arabisch, Thai usw.
+          # fallen weg. Das macht vor allem die Browser-Versionen deutlich kleiner. Die lateinischen
+          # Dokumentschriften (latin-manifest.txt: Carlito, Lato, Liberation …) bleiben alle.
+          M=craft-fonts/fonts/manifest.txt
+          if [ -f "$M" ]; then
+            awk -F' [|] ' '/^#/ || NF < 4 || $4 ~ /Zsym/' "$M" > "$RUNNER_TEMP/manifest.txt"
+            mv "$RUNNER_TEMP/manifest.txt" "$M"
+            echo "Zusatzschriften:"; grep -v '^#' "$M" | grep . | cut -d'|' -f1 || true
+          fi
+          echo "CRAFT_FONTS_DIR=$GITHUB_WORKSPACE/craft-fonts" >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
