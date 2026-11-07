@@ -289,6 +289,10 @@ jobs:
           for f in src/dist/release/*-portable.zip src/dist/release/"$APP-$VERSION"-linux-*.tar.gz src/dist/release/"$APP-$VERSION"-macos-*.tar.gz src/dist/release/*-web-*.zip; do
             cp "$f" out/
           done
+          # Browser-Version: Zwischenspeicher (Service Worker), damit sie nach dem ersten Öffnen schnell lädt.
+          for f in out/*-web-*.zip; do
+            python3 werkbank/werk/tools/web_cache.py "$f" "$APP" "$VERSION"
+          done
           ls -l out
           [ -z "$(ls -A out)" ] || [ "${WERK_ENGLISCH:-}" != 1 ] || echo "${{ matrix.kind }}" > "out/werk-englisch-${{ matrix.kind }}.txt"
           [ -n "$(ls -A out)" ] || { echo "::error::$APP: keine Release-Datei entstanden: $(ls src/dist/release 2>/dev/null | tr '\n' ' ')"; exit 1; }

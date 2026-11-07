@@ -141,7 +141,9 @@ jobs:
             web)
               trunk build --release --public-url ./ 2>&1 | tee "$RUNNER_TEMP/build.log"
               D="$APP-web-$VERSION"; mkdir -p stage; cp -r dist "stage/$D"
-              (cd stage && zip -qr9 "../out/$D.zip" "$D") ;;
+              (cd stage && zip -qr9 "../out/$D.zip" "$D")
+              # Zwischenspeicher (Service Worker), damit die Browser-Version nach dem ersten Öffnen schnell lädt.
+              python3 ../../werk/tools/web_cache.py "out/$D.zip" "$APP" "$VERSION" ;;
           esac
           ls -l out
       - name: Fehler melden
