@@ -170,6 +170,19 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "Schriften: ${FONTS_REF:-keine}"
 
+      # Schreibwerk: das Schweizer Wörterbuch (de_CH_frami, GPL-2.0-only OR GPL-3.0-only) fest
+      # eingebaut, damit Deutsch (Schweiz) ohne Sprachpaket geprüft wird, auch im Browser. Passt es
+      # nicht mehr auf das Original, wird ohne es gebaut (mit allen Werk-Übersetzungen).
+      - name: Wörterbuch einbauen
+        if: env.WERK_ENGLISCH != '1'
+        run: |
+          [ -f "werkbank/werk/apps/$APP/rechtschreibung.json" ] || exit 0
+          if "$PY" werkbank/werk/tools/rechtschreibung.py "$APP" src; then
+            echo "WERK_WOERTERBUCH=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning title=$APP ${{ matrix.kind }}::Das eingebaute Wörterbuch (Deutsch, Schweiz) passt nicht mehr auf das Original, gebaut wird ohne es."
+          fi
+
       - name: Schriften holen
         if: env.FONTS_REF != '' && (matrix.kind != 'web' || env.FONTS_WEB != '')
         uses: actions/checkout@v4
@@ -254,6 +267,15 @@ jobs:
           esac 2>&1 | tee -a "$RUNNER_TEMP/build.log"
           }
           if bauen; then exit 0; fi
+          if [ "${WERK_WOERTERBUCH:-}" = 1 ]; then
+            # Zuerst nur das eingebaute Wörterbuch weglassen; die Werk-Übersetzungen bleiben.
+            echo "::warning title=$APP ${{ matrix.kind }}::Mit dem eingebauten Wörterbuch (Deutsch, Schweiz) klappt der Bau nicht, gebaut wird ohne es."
+            (cd "$GITHUB_WORKSPACE" && "$PY" werkbank/werk/tools/rechtschreibung.py "$APP" src --zurueck)
+            echo "WERK_WOERTERBUCH=0" >> "$GITHUB_ENV"
+            export WERK_WOERTERBUCH=0
+            echo "===== ohne eingebautes Wörterbuch =====" >> "$RUNNER_TEMP/build.log"
+            if bauen; then exit 0; fi
+          fi
           [ "${WERK_ENGLISCH:-}" != 1 ] || exit 1
           # Rückfall: mit den Werk-Übersetzungen kompiliert das neue Original nicht mehr. Noch
           # einmal ohne sie bauen (Name, Logos und Titelleiste bleiben), fehlendes Deutsch englisch.
@@ -268,6 +290,19 @@ jobs:
           cd src
           echo "===== Rückfall ohne Werk-Übersetzungen =====" >> "$RUNNER_TEMP/build.log"
           bauen
+
+      # Das gebaute Programm prüft einen deutschen (Schweiz) und einen englischen Text; das Ergebnis
+      # steht als Anmerkung am Lauf. Bricht nie ab.
+      - name: Wörterbuch prüfen
+        if: matrix.kind == 'linux' && env.WERK_WOERTERBUCH == '1'
+        continue-on-error: true
+        run: |
+          CLI="${CARGO_TARGET_DIR:-src/target}/release/wordcraft-cli"
+          if [ -x "$CLI" ]; then
+            timeout 900 "$PY" werkbank/werk/tools/rechtschreibung_pruefen.py "$CLI" "$APP" "${{ matrix.kind }}" || echo "::warning title=$APP ${{ matrix.kind }} Rechtschreibprüfung::Prüfung lief nicht durch"
+          else
+            echo "::warning title=$APP ${{ matrix.kind }} Rechtschreibprüfung::$CLI fehlt"
+          fi
 
       # Die Protokolle selbst sind von aussen schwer zu lesen; das Ende des Fehlers kommt
       # deshalb als Anmerkung direkt an den Lauf.
@@ -295,6 +330,7 @@ jobs:
           done
           ls -l out
           [ -z "$(ls -A out)" ] || [ "${WERK_ENGLISCH:-}" != 1 ] || echo "${{ matrix.kind }}" > "out/werk-englisch-${{ matrix.kind }}.txt"
+          [ -z "$(ls -A out)" ] || [ "${WERK_WOERTERBUCH:-}" != 1 ] || echo "${{ matrix.kind }}" > "out/werk-woerterbuch-${{ matrix.kind }}.txt"
           [ -n "$(ls -A out)" ] || { echo "::error::$APP: keine Release-Datei entstanden: $(ls src/dist/release 2>/dev/null | tr '\n' ' ')"; exit 1; }
 
       - uses: actions/upload-artifact@v4
@@ -336,9 +372,15 @@ jobs:
           # Merker aus dem Rückfall ohne Werk-Übersetzungen: kommen nicht ins Release, nur in die Notiz.
           EN=$( (cat werk-englisch-*.txt 2>/dev/null || true) | tr '\n' ' ' | sed 's/ *$//')
           rm -f werk-englisch-*.txt
+          # Merker «eingebautes Wörterbuch»: Herkunft und Lizenz in die Notiz (der volle Text steht in NOTICE).
+          WB=$( (cat werk-woerterbuch-*.txt 2>/dev/null || true) | tr '\n' ' ' | sed 's/ *$//')
+          rm -f werk-woerterbuch-*.txt
           HINWEIS=""
+          if [ -n "$WB" ]; then
+            HINWEIS=" Rechtschreibung ($WB): Das Schweizer Wörterbuch de_CH_frami (igerman98 von Björn Jacke, frami von Franz Michael Baumann; https://github.com/LibreOffice/dictionaries/tree/4f1df64b2e8e14751aa7c2205d170ca016071315/de) ist eingebaut und steht unter der GPL, Version 2 oder 3 (GPL-2.0-only OR GPL-3.0-only); Hinweis und Lizenztexte in der Datei NOTICE und im Programm unter Info › Sprachdaten (Language data). Der übrige Code bleibt MIT/Apache-2.0."
+          fi
           if [ -n "$EN" ]; then
-            HINWEIS=" Hinweis ($EN): Die Werk-Übersetzungen passten nicht auf diese Version, Texte ohne deutsche Fassung im Original erscheinen englisch."
+            HINWEIS="$HINWEIS Hinweis ($EN): Die Werk-Übersetzungen passten nicht auf diese Version, Texte ohne deutsche Fassung im Original erscheinen englisch."
             echo "::warning title=$APP $VERSION::ohne Werk-Übersetzungen gebaut ($EN)"
           fi
           sha256sum * > SHA256SUMS.txt
