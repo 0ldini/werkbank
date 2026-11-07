@@ -1,3 +1,2 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-nur: wordcraft
 wordcraft 42352750160
