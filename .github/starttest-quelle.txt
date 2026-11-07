@@ -1,6 +1,27 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-nur: soundcraft deckcraft effectcraft werkbank
-soundcraft 42215746164
-deckcraft 42215746164
-effectcraft 42204651713
-werkbank 42215746161
+wordcraft 42325775387
+pdfcraft 42325775387
+photocraft 42325775387
+vectorcraft 42325775387
+gridcraft 42325775387
+deckcraft 42325775387
+effectcraft 42325775387
+filmcraft 42325775387
+soundcraft 42325775387
+cadcraft 42325775387
+lightcraft 42325775387
+designcraft 42325775387
+abspielwerk 42325773869
+aufnahmewerk 42325773869
+codewerk 42325773869
+diawerk 42325773869
+ladewerk 42325773869
+mailwerk 42325773869
+mediathekwerk 42325773869
+organiwerk 42325773869
+packwerk 42325773869
+schutzwerk 42325773869
+sicherwerk 42325773869
+speicherwerk 42325773869
+umbenennwerk 42325773869
+wandelwerk 42325773869
