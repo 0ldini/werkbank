@@ -1,6 +1,6 @@
 [package]
 name = "wandelwerk"
-version = "1.7.1"
+version = "1.8.0"
 edition = "2021"
 description = "Dateien umwandeln – Teil der Werkbank"
 
@@ -12,6 +12,8 @@ eframe = { version = "0.29", default-features = false, features = [
 ] }
 rfd = "0.14"
 image = "0.25"
+# «Originale nach dem Umwandeln löschen»: nur in den Papierkorb, nie endgültig.
+trash = "5"
 
 
 [target.'cfg(windows)'.dependencies]

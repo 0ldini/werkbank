@@ -95,6 +95,235 @@ pub fn default_target(kind: MediaKind) -> Target {
     }
 }
 
+/// Gilt ein beim Zielformat gewähltes `tgt` für eine Datei der Art `kind`? Gleichartige Dateien,
+/// und ein Ton-Ziel auch für Videos («Nur Ton»). Gleiche Regel wie «Für alle übernehmen».
+pub fn ziel_passt(kind: MediaKind, tgt: Target) -> bool {
+    kind == tgt.kind() || (tgt.kind() == MediaKind::Audio && kind == MediaKind::Video)
+}
+
+/// Endung vereinheitlicht (Gross/Klein egal, «jpeg» = «jpg», «tif» = «tiff»).
+fn norm_ext(ext: &str) -> String {
+    let e = ext.to_lowercase();
+    match e.as_str() {
+        "jpeg" => "jpg".into(),
+        "tif" => "tiff".into(),
+        _ => e,
+    }
+}
+
+/// true, wenn die Datei schon im Zielformat ist (gleiche Endung, Gross/Klein egal). Solche
+/// Dateien werden nicht umgewandelt und nie gelöscht.
+pub fn schon_im_ziel(input: &std::path::Path, target: Target) -> bool {
+    match input.extension() {
+        Some(e) => norm_ext(&e.to_string_lossy()) == norm_ext(target.ext()),
+        None => false,
+    }
+}
+
+// ---------------- Ablage und Originale ----------------
+
+/// Wohin die umgewandelte Datei kommt.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Ablage {
+    /// In den gewählten Ausgabeordner (wie bisher).
+    #[default]
+    Ausgabeordner,
+    /// In denselben Ordner wie die Quelldatei.
+    NebenOriginal,
+}
+
+/// Zielordner einer Datei je nach Ablage.
+pub fn ziel_ordner(input: &std::path::Path, ablage: Ablage, ausgabe: &std::path::Path) -> std::path::PathBuf {
+    match ablage {
+        Ablage::Ausgabeordner => ausgabe.to_path_buf(),
+        Ablage::NebenOriginal => match input.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+            _ => std::path::PathBuf::from("."),
+        },
+    }
+}
+
+/// Darf das Original nach dem Umwandeln in den Papierkorb? Nur, wenn der Auftrag gelungen ist,
+/// die Ausgabe existiert und nicht leer ist (`out_size`) und Ein- und Ausgabe nicht dieselbe
+/// Datei sind (`gleiche_datei`: nach dem Auflösen der Pfade; im Zweifel true).
+pub fn darf_original_loeschen(
+    ok: bool,
+    input: &std::path::Path,
+    output: &std::path::Path,
+    out_size: Option<u64>,
+    gleiche_datei: bool,
+) -> bool {
+    ok && out_size.is_some_and(|n| n > 0)
+        && !gleiche_datei
+        && input != output
+        && !output.as_os_str().is_empty()
+}
+
+/// Wie viele Umwandlungen gleichzeitig laufen: halb so viele wie Prozessorkerne, 1 bis 4.
+pub fn gleichzeitig(kerne: usize) -> usize {
+    (kerne / 2).clamp(1, 4)
+}
+
+// ---------------- Ordner durchsuchen ----------------
+
+/// Höchstens so tief wird in Unterordner geschaut.
+pub const MAX_TIEFE: usize = 64;
+/// Höchstens so viele Dateien nimmt eine Suche auf.
+pub const MAX_DATEIEN: usize = 200_000;
+
+/// Medientyp einer Datei anhand ihrer Endung.
+pub fn kind_of_path(p: &std::path::Path) -> Option<MediaKind> {
+    detect_kind(&p.extension()?.to_string_lossy())
+}
+
+/// Ergebnis einer Ordnersuche.
+#[derive(Default, Debug)]
+pub struct Fund {
+    /// Unterstützte Dateien in fester Reihenfolge (Ordner für Ordner, nach Namen).
+    pub dateien: Vec<(std::path::PathBuf, MediaKind)>,
+    /// Ordner, die sich nicht lesen liessen (still übersprungen).
+    pub ordner_uebersprungen: usize,
+    /// true, wenn bei `max_dateien` abgebrochen wurde oder Ordner zu tief lagen.
+    pub abgeschnitten: bool,
+}
+
+impl Fund {
+    /// Anzahl Ton-, Bild- und Videodateien.
+    #[allow(dead_code)]
+    pub fn zaehlen(&self) -> [usize; 3] {
+        let mut n = [0usize; 3];
+        for (_, k) in &self.dateien {
+            n[kind_index(*k)] += 1;
+        }
+        n
+    }
+}
+
+/// 0 = Ton, 1 = Bild, 2 = Video (für kleine Felder je Art).
+pub fn kind_index(k: MediaKind) -> usize {
+    match k {
+        MediaKind::Audio => 0,
+        MediaKind::Image => 1,
+        MediaKind::Video => 2,
+    }
+}
+
+/// Sucht in `wurzeln` (Ordner oder einzelne Dateien) alle unterstützten Mediendateien, auch in
+/// allen Unterordnern. Verknüpfte Ordner (Symlinks, Junctions) werden nicht betreten, nicht
+/// lesbare Ordner still übersprungen; tiefer als `max_tiefe` wird nicht gesucht.
+pub fn sammeln(wurzeln: &[std::path::PathBuf], max_tiefe: usize, max_dateien: usize) -> Fund {
+    use std::path::PathBuf;
+    let mut fund = Fund::default();
+    let mut gesehen: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    let mut nimm = |fund: &mut Fund, p: PathBuf| -> bool {
+        if fund.dateien.len() >= max_dateien {
+            fund.abgeschnitten = true;
+            return false;
+        }
+        if let Some(k) = kind_of_path(&p) {
+            if gesehen.insert(p.clone()) {
+                fund.dateien.push((p, k));
+            }
+        }
+        true
+    };
+    for w in wurzeln {
+        let meta = match std::fs::metadata(w) {
+            Ok(m) => m,
+            Err(_) => {
+                fund.ordner_uebersprungen += 1;
+                continue;
+            }
+        };
+        if meta.is_file() {
+            if !nimm(&mut fund, w.clone()) {
+                return fund;
+            }
+            continue;
+        }
+        if !meta.is_dir() {
+            continue;
+        }
+        // Tiefensuche ohne Rekursion: (Ordner, Tiefe)
+        let mut stapel: Vec<(PathBuf, usize)> = vec![(w.clone(), 0)];
+        while let Some((dir, tiefe)) = stapel.pop() {
+            let rd = match std::fs::read_dir(&dir) {
+                Ok(rd) => rd,
+                Err(_) => {
+                    fund.ordner_uebersprungen += 1;
+                    continue;
+                }
+            };
+            let mut dateien: Vec<PathBuf> = Vec::new();
+            let mut ordner: Vec<PathBuf> = Vec::new();
+            for e in rd.flatten() {
+                let p = e.path();
+                let Ok(ft) = e.file_type() else { continue };
+                if ft.is_symlink() {
+                    // Verknüpfte Datei ja, verknüpfter Ordner nie (keine Schleifen).
+                    if std::fs::metadata(&p).is_ok_and(|m| m.is_file()) {
+                        dateien.push(p);
+                    }
+                } else if ft.is_dir() {
+                    ordner.push(p);
+                } else if ft.is_file() {
+                    dateien.push(p);
+                }
+            }
+            dateien.sort();
+            ordner.sort();
+            for p in dateien {
+                if !nimm(&mut fund, p) {
+                    return fund;
+                }
+            }
+            if tiefe >= max_tiefe {
+                if !ordner.is_empty() {
+                    fund.abgeschnitten = true;
+                }
+                continue;
+            }
+            // Umgekehrt auf den Stapel, damit «a» vor «b» drankommt.
+            for o in ordner.into_iter().rev() {
+                stapel.push((o, tiefe + 1));
+            }
+        }
+    }
+    fund
+}
+
+/// Welche Dateien einer Ordnersuche aufgenommen werden.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Auswahl {
+    Ton,
+    Bilder,
+    Videos,
+    Alles,
+}
+
+impl Auswahl {
+    pub fn passt(self, k: MediaKind) -> bool {
+        match self {
+            Auswahl::Ton => k == MediaKind::Audio,
+            Auswahl::Bilder => k == MediaKind::Image,
+            Auswahl::Videos => k == MediaKind::Video,
+            Auswahl::Alles => true,
+        }
+    }
+    /// Vorschlag aus den Anzahlen [Ton, Bild, Video]: die Art, die mehr als die Hälfte ausmacht,
+    /// sonst alles.
+    pub fn vorschlag(n: [usize; 3]) -> Auswahl {
+        let total: usize = n.iter().sum();
+        let arten = [Auswahl::Ton, Auswahl::Bilder, Auswahl::Videos];
+        for (i, a) in arten.iter().enumerate() {
+            if n[i] * 2 > total {
+                return *a;
+            }
+        }
+        Auswahl::Alles
+    }
+}
+
 // ---------------- Seitenverhältnis ----------------
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -238,6 +467,11 @@ impl Quality {
     }
     pub fn video_crf(self) -> u32 {
         match self { Quality::Hoch=>18, Quality::Mittel=>23, Quality::Klein=>28 }
+    }
+    /// Vorbis-Qualitätsstufe (VBR) für OGG: etwa 256 / 192 / 128 kbit/s bei Stereo. Eine feste
+    /// Bitrate lehnt libvorbis bei Mono oder tiefer Abtastrate ab («encoder setup failed»).
+    pub fn vorbis_q(self) -> u32 {
+        match self { Quality::Hoch=>8, Quality::Mittel=>6, Quality::Klein=>4 }
     }
     /// Qualität 1..=100 für JPEG/WebP.
     pub fn image_q(self) -> u8 {
@@ -383,7 +617,7 @@ pub fn audio_codec_args(f: AudioFmt, q: Quality) -> Vec<String> {
     match f {
         AudioFmt::Mp3 => push(&mut a, &["-c:a", "libmp3lame", "-b:a", &kbps(q)]),
         AudioFmt::M4a => push(&mut a, &["-c:a", "aac", "-b:a", &kbps(q)]),
-        AudioFmt::Ogg => push(&mut a, &["-c:a", "libvorbis", "-b:a", &kbps(q)]),
+        AudioFmt::Ogg => push(&mut a, &["-c:a", "libvorbis", "-q:a", &q.vorbis_q().to_string()]),
         AudioFmt::Opus => push(&mut a, &["-c:a", "libopus", "-b:a", &kbps(q)]),
         AudioFmt::Flac => push(&mut a, &["-c:a", "flac"]),
         AudioFmt::Wav => push(&mut a, &["-c:a", "pcm_s16le"]),
@@ -586,6 +820,174 @@ mod tests {
     Metadata:
       title           : Forced
 At least one output file must be specified";
+
+    use std::path::{Path, PathBuf};
+
+    /// Frischer, leerer Testordner.
+    fn testordner(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("wandelwerk-test-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).expect("Testordner");
+        d
+    }
+
+    fn datei(p: &Path) {
+        if let Some(d) = p.parent() {
+            std::fs::create_dir_all(d).expect("Ordner");
+        }
+        std::fs::write(p, b"x").expect("Datei");
+    }
+
+    #[test]
+    fn ordner_durchsuchen() {
+        let d = testordner("sammeln");
+        datei(&d.join("b.mp3"));
+        datei(&d.join("a.WAV"));
+        datei(&d.join("notiz.txt"));
+        datei(&d.join("Alben/Eins/01 Lied.wav"));
+        datei(&d.join("Alben/Eins/cover.jpg"));
+        datei(&d.join("Alben/Zwei/song.mp3"));
+        datei(&d.join("Alben/Zwei/song.wav"));
+        datei(&d.join("Filme/f.mkv"));
+        std::fs::create_dir_all(d.join("Leer")).expect("leer");
+        let f = sammeln(std::slice::from_ref(&d), MAX_TIEFE, MAX_DATEIEN);
+        let rel: Vec<String> = f
+            .dateien
+            .iter()
+            .map(|(p, _)| p.strip_prefix(&d).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_default())
+            .collect();
+        assert_eq!(rel, ["a.WAV", "b.mp3", "Alben/Eins/01 Lied.wav", "Alben/Eins/cover.jpg", "Alben/Zwei/song.mp3", "Alben/Zwei/song.wav", "Filme/f.mkv"]);
+        assert_eq!(f.zaehlen(), [5, 1, 1]);
+        assert_eq!(f.ordner_uebersprungen, 0);
+        assert!(!f.abgeschnitten);
+        // Dieselbe Datei zweimal (Ordner + Datei darin) wird nur einmal aufgenommen.
+        let f2 = sammeln(&[d.clone(), d.join("b.mp3")], MAX_TIEFE, MAX_DATEIEN);
+        assert_eq!(f2.dateien.len(), 7);
+        // Einzelne Datei als Wurzel; fehlende Wurzel zählt als übersprungen.
+        let f3 = sammeln(&[d.join("a.WAV"), d.join("gibtsnicht")], MAX_TIEFE, MAX_DATEIEN);
+        assert_eq!(f3.dateien.len(), 1);
+        assert_eq!(f3.ordner_uebersprungen, 1);
+        // Obergrenze
+        let f4 = sammeln(std::slice::from_ref(&d), MAX_TIEFE, 3);
+        assert_eq!(f4.dateien.len(), 3);
+        assert!(f4.abgeschnitten);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn ordner_tiefe_begrenzt() {
+        let d = testordner("tiefe");
+        let mut p = d.clone();
+        for i in 0..5 {
+            p = p.join(format!("t{i}"));
+        }
+        datei(&p.join("tief.wav"));
+        datei(&d.join("t0/oben.wav"));
+        let f = sammeln(std::slice::from_ref(&d), 2, MAX_DATEIEN);
+        assert_eq!(f.dateien.len(), 1);
+        assert!(f.abgeschnitten);
+        assert_eq!(sammeln(std::slice::from_ref(&d), MAX_TIEFE, MAX_DATEIEN).dateien.len(), 2);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ordner_verknuepfungen() {
+        let d = testordner("links");
+        datei(&d.join("echt/lied.wav"));
+        // Schleife: Unterordner verweist auf den Startordner.
+        std::os::unix::fs::symlink(&d, d.join("echt/schleife")).expect("Link");
+        std::os::unix::fs::symlink(d.join("echt/lied.wav"), d.join("verweis.mp3")).expect("Link");
+        let f = sammeln(std::slice::from_ref(&d), MAX_TIEFE, MAX_DATEIEN);
+        assert_eq!(f.dateien.len(), 2, "{:?}", f.dateien);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ordner_unlesbar() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = testordner("unlesbar");
+        datei(&d.join("zu/geheim.wav"));
+        datei(&d.join("offen.wav"));
+        std::fs::set_permissions(d.join("zu"), std::fs::Permissions::from_mode(0o000)).expect("Rechte");
+        let f = sammeln(std::slice::from_ref(&d), MAX_TIEFE, MAX_DATEIEN);
+        let lesbar = std::fs::read_dir(d.join("zu")).is_ok(); // als root trotzdem lesbar
+        std::fs::set_permissions(d.join("zu"), std::fs::Permissions::from_mode(0o755)).expect("Rechte");
+        if !lesbar {
+            assert_eq!(f.dateien.len(), 1);
+            assert_eq!(f.ordner_uebersprungen, 1);
+        }
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn schon_im_zielformat() {
+        let ogg = Target::Audio(AudioFmt::Ogg);
+        assert!(schon_im_ziel(Path::new("a/lied.ogg"), ogg));
+        assert!(schon_im_ziel(Path::new("a/LIED.OGG"), ogg));
+        assert!(!schon_im_ziel(Path::new("a/lied.wav"), ogg));
+        assert!(!schon_im_ziel(Path::new("a/lied.mp3"), ogg));
+        assert!(!schon_im_ziel(Path::new("a/ogg"), ogg));
+        assert!(schon_im_ziel(Path::new("bild.JPEG"), Target::Image(ImageFmt::Jpg)));
+        assert!(schon_im_ziel(Path::new("bild.tif"), Target::Image(ImageFmt::Tiff)));
+        assert!(!schon_im_ziel(Path::new("film.mkv"), Target::Audio(AudioFmt::Mp3)));
+    }
+
+    #[test]
+    fn zielformat_gilt_fuer() {
+        let ogg = Target::Audio(AudioFmt::Ogg);
+        assert!(ziel_passt(MediaKind::Audio, ogg));
+        assert!(ziel_passt(MediaKind::Video, ogg));
+        assert!(!ziel_passt(MediaKind::Image, ogg));
+        assert!(!ziel_passt(MediaKind::Audio, Target::Video(VideoFmt::Mp4)));
+        assert!(ziel_passt(MediaKind::Image, Target::Image(ImageFmt::Png)));
+    }
+
+    #[test]
+    fn ablage_ordner() {
+        let aus = Path::new("/home/oli/Umgewandelt");
+        let inp = Path::new("/musik/Alben/song.wav");
+        assert_eq!(ziel_ordner(inp, Ablage::Ausgabeordner, aus), aus);
+        assert_eq!(ziel_ordner(inp, Ablage::NebenOriginal, aus), Path::new("/musik/Alben"));
+        assert_eq!(ziel_ordner(Path::new("song.wav"), Ablage::NebenOriginal, aus), Path::new("."));
+        assert_eq!(Ablage::default(), Ablage::Ausgabeordner);
+    }
+
+    #[test]
+    fn original_loeschen_nur_wenn_sicher() {
+        let i = Path::new("/m/song.wav");
+        let o = Path::new("/m/song.ogg");
+        assert!(darf_original_loeschen(true, i, o, Some(1234), false));
+        assert!(!darf_original_loeschen(false, i, o, Some(1234), false), "Auftrag fehlgeschlagen");
+        assert!(!darf_original_loeschen(true, i, o, Some(0), false), "leere Ausgabe");
+        assert!(!darf_original_loeschen(true, i, o, None, false), "Ausgabe fehlt");
+        assert!(!darf_original_loeschen(true, i, o, Some(9), true), "dieselbe Datei");
+        assert!(!darf_original_loeschen(true, i, i, Some(9), false), "gleicher Pfad");
+        assert!(!darf_original_loeschen(true, i, Path::new(""), Some(9), false));
+    }
+
+    #[test]
+    fn auswahl_vorschlag() {
+        assert_eq!(Auswahl::vorschlag([900, 50, 3]), Auswahl::Ton);
+        assert_eq!(Auswahl::vorschlag([1, 9, 0]), Auswahl::Bilder);
+        assert_eq!(Auswahl::vorschlag([0, 0, 4]), Auswahl::Videos);
+        assert_eq!(Auswahl::vorschlag([5, 5, 0]), Auswahl::Alles);
+        assert_eq!(Auswahl::vorschlag([0, 0, 0]), Auswahl::Alles);
+        assert!(Auswahl::Ton.passt(MediaKind::Audio) && !Auswahl::Ton.passt(MediaKind::Video));
+        assert!(Auswahl::Alles.passt(MediaKind::Image));
+        assert_eq!(gleichzeitig(1), 1);
+        assert_eq!(gleichzeitig(4), 2);
+        assert_eq!(gleichzeitig(64), 4);
+        assert_eq!(gleichzeitig(0), 1);
+    }
+
+    #[test]
+    fn ogg_argumente() {
+        let a = ffmpeg_args("/m/song.wav", "/m/song.ogg", Target::Audio(AudioFmt::Ogg), Aspect::Original, Fit::Crop, Quality::Hoch, None, Sprache::default()).join(" ");
+        assert_eq!(a, "-hide_banner -y -i /m/song.wav -vn -sn -dn -c:a libvorbis -q:a 8 /m/song.ogg");
+        assert_eq!(audio_codec_args(AudioFmt::Ogg, Quality::Klein).join(" "), "-c:a libvorbis -q:a 4");
+    }
 
     #[test]
     fn tonspuren_lesen() {
