@@ -1,2 +1,3 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-wordcraft 42352750160
+nur: wandelwerk
+wandelwerk 42518771533
