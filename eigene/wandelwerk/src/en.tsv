@@ -85,3 +85,54 @@ Stimme B: {min} Min.	Voice B: {min} min
 , +{db} dB Präsenz	, +{db} dB presence
 , +{db} dB Höhen	, +{db} dB treble
 , −{db} dB Tiefen	, −{db} dB bass
+# 1.8: Ordner, Ablage, Papierkorb, Warteschlange
+Die Suche konnte nicht gestartet werden.	The search could not be started.
+Keine unterstützten Dateien gefunden.	No supported files found.
+ · nicht alle Dateien aufgenommen (zu viele oder zu tief)	 · not all files added (too many or nested too deep)
+Ordner hinzufügen …	Add folder …
+Alle Ton-, Bild- und Videodateien aus dem Ordner und allen Unterordnern	All audio, image and video files from the folder and all subfolders
+Anhalten	Stop
+Wartende Dateien nicht mehr umwandeln (laufende werden fertig)	Don't convert waiting files (running ones will finish)
+Die neuen Dateien kommen jeweils neben das Original.	Each new file is saved next to its original.
+Originale in den Papierkorb?	Move originals to the recycle bin?
+Nur Dateien, die erfolgreich umgewandelt wurden. Dateien mit Fehler und Dateien im Zielformat bleiben, wo sie sind.	Only files that were converted successfully. Files with errors and files already in the output format stay where they are.
+Umwandeln, Originale in den Papierkorb	Convert, move originals to recycle bin
+Abbrechen	Cancel
+Gilt für alle Tondateien und Videos mit «Nur Ton» in der Liste.	Applies to all audio files and videos with «audio only» in the list.
+Gilt für alle Bilder in der Liste.	Applies to all images in the list.
+Gilt für alle Videos in der Liste.	Applies to all videos in the list.
+In den Ausgabeordner	Into the output folder
+Neben das Original	Next to the original
+Jede neue Datei kommt in den Ordner ihres Originals.	Each new file goes into the folder of its original.
+Originale nach dem Umwandeln löschen	Delete originals after converting
+Originale kommen in den Papierkorb – nur nach erfolgreicher Umwandlung. Vor dem Start wird nachgefragt.	Originals go to the recycle bin – only after a successful conversion. You will be asked before starting.
+Ordner werden durchsucht …	Searching folders …
+Welche Dateien aufnehmen?	Which files should be added?
+Schliessen	Close
+Dateien oder Ordner hierher ziehen – Ton, Bild oder Video gemischt.	Drag files or folders here – audio, images or video, mixed.
+fertig · Original behalten	done · original kept
+fertig · Original im Papierkorb	done · original in recycle bin
+wartet	waiting
+angehalten	stopped
+schon im Zielformat	already in output format
+Hat schon die Endung des Zielformats: wird nicht umgewandelt und nicht gelöscht.	Already has the extension of the output format: it is not converted and not deleted.
+{n} Dateien hinzugefügt	{n} files added
+ · {n} waren schon in der Liste	 · {n} were already in the list
+ · {n} Ordner nicht lesbar	 · {n} folders not readable
+ · {n} fertig	 · {n} done
+ · {n} in Arbeit	 · {n} in progress
+ · {n} mit Fehler	 · {n} with errors
+ · {n} schon im Zielformat	 · {n} already in output format
+Die neuen Dateien kommen in den Ausgabeordner: {ordner}	The new files go into the output folder: {ordner}
+{n} Originale kommen nach dem Umwandeln in den Papierkorb.	{n} originals will be moved to the recycle bin after converting.
+nur Ton ({n})	audio only ({n})
+nur Bilder ({n})	images only ({n})
+nur Videos ({n})	videos only ({n})
+alles ({n})	everything ({n})
+{n} Dateien hinzufügen	Add {n} files
+{n} Originale behalten: Papierkorb nicht möglich. Details: Maus auf «Original behalten».	{n} originals kept: recycle bin not possible. Details: hover over «original kept».
+Kein freier Dateiname im Zielordner.	No free file name in the output folder.
+Interner Fehler beim Umwandeln.	Internal error while converting.
+Ausgabe nicht bestätigt – Original behalten.	Output not confirmed – original kept.
+Zieldatei anlegen: {e}	Creating output file: {e}
+Nicht in den Papierkorb verschoben: {e}	Not moved to the recycle bin: {e}

@@ -1,6 +1,7 @@
 //! Umwandel-Motor: Bilder über die image-Crate (ohne Fremdprogramm), Ton und
-//! Video über ffmpeg. Jeder Auftrag läuft in einem eigenen Thread und meldet
-//! Fortschritt/Status über einen geteilten Zustand.
+//! Video über ffmpeg. Aufträge laufen über die Warteschlange (warteschlange.rs, höchstens ein
+//! paar gleichzeitig) und melden Fortschritt/Status über einen geteilten Zustand. Auf Wunsch
+//! kommt das Original danach in den Papierkorb – nur nach geprüftem Erfolg.
 
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -25,6 +26,20 @@ pub struct Job {
     pub audio_track: Option<u32>,
     /// «Sprache verbessern»: Stimmen angleichen, Brummen und Rauschen entfernen.
     pub sprache: model::Sprache,
+    /// Original nach geprüftem Erfolg in den Papierkorb verschieben (nie endgültig löschen).
+    pub original_in_papierkorb: bool,
+}
+
+/// Was mit dem Original geschah.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub enum Papierkorb {
+    /// Nicht verlangt (oder noch nicht so weit).
+    #[default]
+    Nein,
+    /// In den Papierkorb verschoben.
+    Verschoben,
+    /// Behalten, mit Grund (Papierkorb ging nicht, Ausgabe nicht in Ordnung …).
+    Behalten(String),
 }
 
 /// Geteilter Fortschritt/Status eines Auftrags.
@@ -35,10 +50,22 @@ pub struct JobState {
     pub running: AtomicBool,
     pub msg: Mutex<String>,
     pub out: Mutex<String>,
+    /// Angehalten, bevor der Auftrag begann (wartende Aufträge werden übersprungen).
+    pub abgebrochen: AtomicBool,
+    /// Für diesen Auftrag angelegte Zieldatei (wird bei einem Fehler wieder entfernt).
+    ziel: Mutex<Option<PathBuf>>,
+    /// Fertige Ausgabedatei.
+    out_path: Mutex<Option<PathBuf>>,
+    pub papierkorb: Mutex<Papierkorb>,
+}
+
+/// Sperre nehmen, auch wenn ein anderer Thread dabei abgestürzt ist (nur einfache Werte darin).
+pub fn sperren<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 impl JobState {
-    fn new() -> Arc<Self> {
+    pub fn new() -> Arc<Self> {
         Arc::new(JobState {
             progress: AtomicU32::new(0),
             done: AtomicBool::new(false),
@@ -46,18 +73,23 @@ impl JobState {
             running: AtomicBool::new(false),
             msg: Mutex::new(String::new()),
             out: Mutex::new(String::new()),
+            abgebrochen: AtomicBool::new(false),
+            ziel: Mutex::new(None),
+            out_path: Mutex::new(None),
+            papierkorb: Mutex::new(Papierkorb::Nein),
         })
     }
     pub fn percent(&self) -> f32 {
         self.progress.load(Ordering::Relaxed) as f32 / 1000.0
     }
     fn fail(&self, m: impl Into<String>) {
-        *self.msg.lock().unwrap() = m.into();
+        *sperren(&self.msg) = m.into();
         self.done.store(true, Ordering::SeqCst);
         self.running.store(false, Ordering::SeqCst);
     }
     fn finish(&self, out: &Path) {
-        *self.out.lock().unwrap() = out.display().to_string();
+        *sperren(&self.out) = out.display().to_string();
+        *sperren(&self.out_path) = Some(out.to_path_buf());
         self.progress.store(1000, Ordering::SeqCst);
         self.ok.store(true, Ordering::SeqCst);
         self.done.store(true, Ordering::SeqCst);
@@ -188,46 +220,76 @@ pub fn probe_audio(ffmpeg: &str, input: &Path) -> Option<Vec<model::AudioTrack>>
     Some(model::parse_audio_tracks(&text))
 }
 
-/// Zielpfad ohne Kollision: hängt " (n)" an, falls nötig.
-fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
-    let mut n = 1;
-    loop {
+/// Zielpfad ohne Kollision: hängt " (n)" an, falls nötig. Die Datei wird dabei gleich (leer)
+/// angelegt, damit zwei gleichzeitige Aufträge (z. B. «song.wav» und «song.mp3» im selben
+/// Ordner) nie denselben Namen bekommen und sich gegenseitig überschreiben.
+pub(crate) fn unique_path(dir: &Path, stem: &str, ext: &str) -> Result<PathBuf, String> {
+    for n in 1..=9999u32 {
         let p = dir.join(model::name_with_index(stem, ext, n));
-        if !p.exists() {
-            return p;
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&p) {
+            Ok(_) => return Ok(p),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(tf("Zieldatei anlegen: {e}", &[("e", &e)])),
         }
-        n += 1;
-        if n > 9999 {
-            return dir.join(model::name_with_index(stem, ext, n));
+    }
+    Err(t("Kein freier Dateiname im Zielordner.").to_string())
+}
+
+/// Führt einen Auftrag aus (im Arbeiter-Thread der Warteschlange). Danach kommt das Original
+/// auf Wunsch in den Papierkorb.
+pub fn run_job(job: &Job, ffmpeg: Option<&str>, st: &JobState) {
+    if st.abgebrochen.load(Ordering::SeqCst) {
+        st.done.store(true, Ordering::SeqCst);
+        return;
+    }
+    st.running.store(true, Ordering::SeqCst);
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match job.target.kind() {
+        MediaKind::Image => convert_image(job, st),
+        MediaKind::Audio | MediaKind::Video => convert_av(job, ffmpeg, st),
+    }))
+    .unwrap_or_else(|_| Err(t("Interner Fehler beim Umwandeln.").to_string()));
+    if let Err(e) = res {
+        // Eigene, halb geschriebene Zieldatei wieder entfernen (sie wurde von uns angelegt).
+        if let Some(z) = sperren(&st.ziel).take() {
+            let _ = std::fs::remove_file(z);
         }
+        st.fail(e);
+        return;
+    }
+    if job.original_in_papierkorb {
+        let p = original_entfernen(job, st);
+        *sperren(&st.papierkorb) = p;
     }
 }
 
-/// Startet einen Auftrag in einem Hintergrund-Thread.
-pub fn start_job(job: Job, ffmpeg: Option<String>) -> Arc<JobState> {
-    let state = JobState::new();
-    let st = state.clone();
-    std::thread::spawn(move || {
-        st.running.store(true, Ordering::SeqCst);
-        let res = match job.target.kind() {
-            MediaKind::Image => convert_image(&job, &st),
-            MediaKind::Audio | MediaKind::Video => convert_av(&job, ffmpeg.as_deref(), &st),
-        };
-        if let Err(e) = res {
-            st.fail(e);
-        }
-    });
-    state
+/// Prüft die Ausgabe und verschiebt dann das Original in den Papierkorb – nie endgültig löschen.
+fn original_entfernen(job: &Job, st: &JobState) -> Papierkorb {
+    let out = sperren(&st.out_path).clone().unwrap_or_default();
+    let size = std::fs::metadata(&out).ok().filter(|m| m.is_file()).map(|m| m.len());
+    // Im Zweifel (Pfad nicht auflösbar) als «dieselbe Datei» werten: dann bleibt das Original.
+    let gleich = match (std::fs::canonicalize(&job.input), std::fs::canonicalize(&out)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => true,
+    };
+    if !model::darf_original_loeschen(st.ok.load(Ordering::SeqCst), &job.input, &out, size, gleich) {
+        return Papierkorb::Behalten(t("Ausgabe nicht bestätigt – Original behalten.").to_string());
+    }
+    match trash::delete(&job.input) {
+        Ok(()) => Papierkorb::Verschoben,
+        Err(e) => Papierkorb::Behalten(tf("Nicht in den Papierkorb verschoben: {e}", &[("e", &e)])),
+    }
 }
 
-fn out_target(job: &Job) -> PathBuf {
+fn out_target(job: &Job, st: &JobState) -> Result<PathBuf, String> {
     let stem = job
         .input
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "ausgabe".into());
     let _ = std::fs::create_dir_all(&job.out_dir);
-    unique_path(&job.out_dir, &stem, job.target.ext())
+    let p = unique_path(&job.out_dir, &stem, job.target.ext())?;
+    *sperren(&st.ziel) = Some(p.clone());
+    Ok(p)
 }
 
 // ---------------- Bilder (image-Crate) ----------------
@@ -253,7 +315,7 @@ fn convert_image(job: &Job, st: &JobState) -> Result<(), String> {
     };
     st.progress.store(700, Ordering::Relaxed);
 
-    let out = out_target(job);
+    let out = out_target(job, st)?;
     save_image(&out_img, &out, job.target, job.quality).map_err(|e| tf("Bild schreiben: {e}", &[("e", &e)]))?;
     st.finish(&out);
     Ok(())
@@ -290,7 +352,7 @@ fn save_image(
 
 fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), String> {
     let ffmpeg = ffmpeg.ok_or(t("ffmpeg wurde nicht gefunden. ffmpeg.exe neben das Programm legen oder installieren."))?;
-    let out = out_target(job);
+    let out = out_target(job, st)?;
     // Vollständige Pfade: bei der Rauschunterdrückung läuft ffmpeg im Ordner des Stimm-Modells.
     let input = std::path::absolute(&job.input).unwrap_or_else(|_| job.input.clone()).display().to_string();
     let output = std::path::absolute(&out).unwrap_or_else(|_| out.clone()).display().to_string();
@@ -374,9 +436,7 @@ fn convert_av(job: &Job, ffmpeg: Option<&str>, st: &JobState) -> Result<(), Stri
 }
 
 fn set_msg(st: &JobState, m: String) {
-    if let Ok(mut g) = st.msg.lock() {
-        *g = m;
-    }
+    *sperren(&st.msg) = m;
 }
 
 // ---------------- Zwei Sprecher angleichen ----------------
@@ -676,8 +736,12 @@ fn push_tail(tail: &mut String, line: &str) {
     tail.push_str(line);
     tail.push('\n');
     if tail.len() > 2000 {
-        let cut = tail.len() - 2000;
-        *tail = tail[cut..].to_string();
+        // Nur an einer Zeichengrenze schneiden (Dateinamen mit Umlauten in der ffmpeg-Ausgabe).
+        let mut cut = tail.len() - 2000;
+        while cut < tail.len() && !tail.is_char_boundary(cut) {
+            cut += 1;
+        }
+        *tail = tail.get(cut..).unwrap_or_default().to_string();
     }
 }
 
@@ -687,4 +751,148 @@ fn last_meaningful(tail: &str) -> String {
         .find(|l| !l.trim().is_empty())
         .unwrap_or("")
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{AudioFmt, Sprache};
+    use crate::warteschlange::Warteschlange;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn kurzer_rest_an_zeichengrenze() {
+        let mut tail = String::new();
+        for _ in 0..400 {
+            push_tail(&mut tail, "Ünterordner äöü");
+        }
+        assert!(tail.len() <= 2003);
+    }
+
+    #[test]
+    fn zielnamen_reserviert() {
+        let d = std::env::temp_dir().join(format!("wandelwerk-namen-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).expect("Ordner");
+        let a = unique_path(&d, "song", "ogg").expect("frei");
+        let b = unique_path(&d, "song", "ogg").expect("frei");
+        assert_eq!(a.file_name().and_then(|n| n.to_str()), Some("song.ogg"));
+        assert_eq!(b.file_name().and_then(|n| n.to_str()), Some("song (2).ogg"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    fn ffmpeg_ton(ff: &str, out: &Path, extra: &[&str]) {
+        if let Some(d) = out.parent() {
+            std::fs::create_dir_all(d).expect("Ordner");
+        }
+        let ok = cmd(ff)
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1"])
+            .args(extra)
+            .arg(out)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        assert!(ok, "Testdatei erzeugen: {}", out.display());
+    }
+
+    /// Ende-zu-Ende: Ordner mit .wav/.mp3 in Unterordnern → .ogg neben den Originalen, Originale
+    /// im Papierkorb, eine kaputte Datei bleibt erhalten, eine .ogg wird nicht angefasst.
+    /// Läuft nur, wenn ffmpeg da ist.
+    #[test]
+    fn ordner_zu_ogg_mit_papierkorb() {
+        let Some(ff) = find_ffmpeg() else {
+            eprintln!("ffmpeg fehlt – Ende-zu-Ende-Test übersprungen");
+            return;
+        };
+        let root = std::env::temp_dir().join(format!("wandelwerk-e2e-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let musik = root.join("Musik");
+        // Papierkorb unter Linux in den Testordner legen (gleiches Laufwerk).
+        #[cfg(all(unix, not(target_os = "macos")))]
+        std::env::set_var("XDG_DATA_HOME", root.join("xdg"));
+        ffmpeg_ton(&ff, &musik.join("a.wav"), &[]);
+        ffmpeg_ton(&ff, &musik.join("Album 1/b.mp3"), &["-c:a", "libmp3lame"]);
+        ffmpeg_ton(&ff, &musik.join("Album 1/Ünterordner äöü/c.WAV"), &[]);
+        ffmpeg_ton(&ff, &musik.join("Album 1/song.wav"), &[]);
+        ffmpeg_ton(&ff, &musik.join("Album 1/song.mp3"), &["-c:a", "libmp3lame"]);
+        ffmpeg_ton(&ff, &musik.join("schon.ogg"), &["-c:a", "libvorbis"]);
+        // Mono mit tiefer Abtastrate (Sprachaufnahme): feste Vorbis-Bitrate ginge hier nicht.
+        ffmpeg_ton(&ff, &musik.join("Album 1/sprache.wav"), &["-ar", "22050"]);
+        ffmpeg_ton(&ff, &musik.join("Album 1/stereo.wav"), &["-ac", "2", "-ar", "48000"]);
+        std::fs::write(musik.join("kaputt.wav"), b"kein Ton").expect("kaputt");
+
+        let fund = model::sammeln(std::slice::from_ref(&musik), model::MAX_TIEFE, model::MAX_DATEIEN);
+        assert_eq!(fund.dateien.len(), 9, "{:?}", fund.dateien);
+        let ziel = Target::Audio(AudioFmt::Ogg);
+        let kerne = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+        let ffq = ff.clone();
+        let q = Warteschlange::new(model::gleichzeitig(kerne), move |(job, st): (Job, Arc<JobState>)| run_job(&job, Some(&ffq), &st));
+        let mut laeufe: Vec<(PathBuf, Arc<JobState>)> = Vec::new();
+        let mut uebersprungen = 0;
+        for (p, _) in &fund.dateien {
+            if model::schon_im_ziel(p, ziel) {
+                uebersprungen += 1;
+                continue;
+            }
+            let job = Job {
+                input: p.clone(),
+                target: ziel,
+                aspect: Aspect::Original,
+                fit: Fit::Crop,
+                quality: Quality::Mittel,
+                out_dir: model::ziel_ordner(p, model::Ablage::NebenOriginal, &root.join("unbenutzt")),
+                audio_track: None,
+                sprache: Sprache::default(),
+                original_in_papierkorb: true,
+            };
+            let st = JobState::new();
+            q.add((job, st.clone()));
+            laeufe.push((p.clone(), st));
+        }
+        assert_eq!(uebersprungen, 1);
+        let start = Instant::now();
+        while !laeufe.iter().all(|(_, s)| s.done.load(Ordering::SeqCst)) {
+            assert!(start.elapsed() < Duration::from_secs(180), "Zeitüberschreitung");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        // Nach `done` setzt der Arbeiter noch den Papierkorb-Stand.
+        std::thread::sleep(Duration::from_millis(300));
+        let streng = cfg!(all(unix, not(target_os = "macos")));
+        for (p, st) in &laeufe {
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+            let pk = sperren(&st.papierkorb).clone();
+            if name == "kaputt.wav" {
+                assert!(!st.ok.load(Ordering::SeqCst));
+                assert!(p.exists(), "kaputtes Original muss bleiben");
+                assert!(!musik.join("kaputt.ogg").exists(), "keine halbe Ausgabe");
+                assert_eq!(pk, Papierkorb::Nein);
+                continue;
+            }
+            let msg = sperren(&st.msg).clone();
+            assert!(st.ok.load(Ordering::SeqCst), "{name}: {msg}");
+            let out = sperren(&st.out_path).clone().unwrap_or_default();
+            assert_eq!(out.parent(), p.parent(), "{name}: neben dem Original");
+            let kopf = std::fs::read(&out).unwrap_or_default();
+            assert!(kopf.starts_with(b"OggS") && kopf.len() > 1000, "{name}: keine Ogg-Datei");
+            match pk {
+                Papierkorb::Verschoben => assert!(!p.exists(), "{name}: Original noch da"),
+                Papierkorb::Behalten(ref m) => {
+                    assert!(!streng, "{name}: {m}");
+                    assert!(p.exists(), "{name}: behalten, aber weg");
+                    eprintln!("{name}: {m}");
+                }
+                Papierkorb::Nein => panic!("{name}: kein Papierkorb-Stand"),
+            }
+        }
+        let album = musik.join("Album 1");
+        assert!(album.join("song.ogg").exists() && album.join("song (2).ogg").exists());
+        assert!(album.join("Ünterordner äöü/c.ogg").exists());
+        assert!(musik.join("schon.ogg").exists(), "Datei im Zielformat bleibt");
+        if streng {
+            let korb = root.join("xdg/Trash/files");
+            let n = std::fs::read_dir(&korb).map(|r| r.count()).unwrap_or(0);
+            assert_eq!(n, 7, "Originale im Papierkorb {}", korb.display());
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

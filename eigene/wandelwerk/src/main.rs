@@ -7,6 +7,7 @@ mod sprache;
 mod sprecher;
 mod stil;
 mod thema;
+mod warteschlange;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {

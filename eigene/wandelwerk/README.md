@@ -23,7 +23,18 @@ Rust + egui, passend zu Codewerk, Umbenennwerk, Speicherwerk und Aufnahmewerk.
 - **Qualität**: Hoch / Mittel / Klein (steuert Bitrate bzw. CRF bzw. JPEG-Güte).
 - **Stapel**: viele Dateien auf einmal, Fortschritt je Datei; „Für alle
   übernehmen" setzt die Einstellung der gewählten Datei auf die ganze Liste.
-- Zielordner frei wählbar, Namenskollisionen werden mit „ (2)" umgangen.
+  Das **Zielformat** gilt ohnehin für alle gleichartigen Dateien der Liste und
+  für neu hinzugefügte. Umgewandelt wird über eine Warteschlange (höchstens
+  vier gleichzeitig), auch mit Tausenden Dateien.
+- **Ordner hinzufügen …** (oder Ordner hineinziehen): alle Ton-, Bild- und
+  Videodateien aus dem Ordner und allen Unterordnern; bei gemischten Arten
+  fragt Wandelwerk, ob nur Ton, nur Bilder, nur Videos oder alles.
+- **Zielordner**: „In den Ausgabeordner" oder „Neben das Original".
+  Namenskollisionen werden mit „ (2)" umgangen.
+- **Originale nach dem Umwandeln löschen** (aus beim Start): Originale kommen
+  in den Papierkorb, nur nach geprüftem Erfolg (Ausgabe vorhanden und nicht
+  leer); vorher fragt Wandelwerk nach. Geht der Papierkorb nicht, bleibt das
+  Original. Dateien, die schon im Zielformat sind, werden übersprungen.
 
 ## Motor
 
@@ -52,6 +63,8 @@ Fertige Datei danach unter `target/release/wandelwerk` (bzw.
   nur Standardbibliothek, **eigenständig getestet**.
 - `src/convert.rs` – Motor: Bilder (image-Crate), Ton/Video (ffmpeg) mit
   Fortschritt; die Fortschritts-Parser sind **eigenständig getestet**.
+- `src/warteschlange.rs` – Warteschlange mit begrenzter Zahl gleichzeitiger
+  Umwandlungen, **eigenständig getestet**.
 - `src/app.rs` – die egui-Oberfläche (Liste, Ausgabe, Vorschau, Fortschritt).
 - `src/main.rs` – Fenster und Start.
 
