@@ -1,3 +1,3 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-nur: wandelwerk
-wandelwerk 42518771533
+nur: speicherwerk
+speicherwerk 42524980133
