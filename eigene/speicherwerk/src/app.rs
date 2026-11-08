@@ -2,6 +2,7 @@
 //! grössten Dateien und Dateitypen. Der Scan läuft in einem Hintergrund-Thread,
 //! damit das Fenster flüssig bleibt; Fortschritt über Atomics.
 
+use crate::doppelt_ui::Doppelt;
 use crate::scan::{self, fmt_size, group_thousands, Node};
 use crate::sprache::{t, tf};
 use crate::stil::{self, Sym};
@@ -25,7 +26,16 @@ struct Prog {
     cancel: Arc<AtomicBool>,
 }
 
+/// Die beiden Ansichten (Reiter in der Kopfleiste).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Ansicht {
+    Platz,
+    Doppelt,
+}
+
 pub struct App {
+    ansicht: Ansicht,
+    doppelt: Doppelt,
     root: Option<PathBuf>,
     tree: Option<Node>,
     largest: Vec<(String, u64)>,
@@ -50,6 +60,8 @@ impl App {
         thema::titelleiste(cc, [0x6B, 0x4F, 0xA0]);
         stil::init(&cc.egui_ctx, [0x6B, 0x4F, 0xA0]);
         App {
+            ansicht: Ansicht::Platz,
+            doppelt: Doppelt::new(),
             root: None,
             tree: None,
             largest: Vec::new(),
@@ -123,9 +135,56 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll();
+        self.doppelt.poll();
         if self.scanning {
             ctx.request_repaint();
         }
+
+        // ---------------- Kopfleiste mit Reitern
+        let mut ansicht = self.ansicht;
+        stil::kopfleiste(ctx, |ui| {
+            stil::titel(ui, "Speicherwerk");
+            stil::trenner(ui);
+            ui.allocate_ui(egui::vec2(300.0, 28.0), |ui| {
+                stil::wahl(ui, &mut ansicht, &[(Ansicht::Platz, t("Speicherplatz")), (Ansicht::Doppelt, t("Doppelte Dateien"))]);
+            });
+            stil::trenner(ui);
+            match self.ansicht {
+                Ansicht::Platz => self.kopf_platz(ui),
+                Ansicht::Doppelt => self.doppelt.kopf(ui),
+            }
+        });
+        if ansicht != self.ansicht {
+            if ansicht == Ansicht::Doppelt {
+                self.doppelt.ordner_vorschlagen(self.root.clone());
+            }
+            self.ansicht = ansicht;
+        }
+        match self.ansicht {
+            Ansicht::Platz => self.platz(ctx),
+            Ansicht::Doppelt => self.doppelt.zeigen(ctx),
+        }
+    }
+}
+
+impl App {
+    fn kopf_platz(&mut self, ui: &mut egui::Ui) {
+        if stil::knopf_an(ui, !self.scanning, Sym::OrdnerAuf, t("Ordner wählen")).clicked() {
+            if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                self.start_scan(d);
+            }
+        }
+        if let Some(r) = &self.root {
+            ui.add(egui::Label::new(egui::RichText::new(r.display().to_string()).color(thema::muted())).truncate());
+        }
+        stil::rechts(ui, |ui| {
+            if stil::leise(ui, self.tree.is_some(), Sym::Download, t("CSV speichern …"), "").clicked() {
+                self.export_csv();
+            }
+        });
+    }
+
+    fn platz(&mut self, ctx: &egui::Context) {
 
         let total = self
             .tree
@@ -133,25 +192,6 @@ impl eframe::App for App {
             .map(|t| t.size)
             .or_else(|| self.prog.as_ref().map(|p| p.bytes.load(Ordering::Relaxed)))
             .unwrap_or(0);
-
-        // ---------------- Kopfleiste
-        stil::kopfleiste(ctx, |ui| {
-            stil::titel(ui, "Speicherwerk");
-            stil::trenner(ui);
-            if stil::knopf_an(ui, !self.scanning, Sym::OrdnerAuf, t("Ordner wählen")).clicked() {
-                if let Some(d) = rfd::FileDialog::new().pick_folder() {
-                    self.start_scan(d);
-                }
-            }
-            if let Some(r) = &self.root {
-                ui.add(egui::Label::new(egui::RichText::new(r.display().to_string()).color(thema::muted())).truncate());
-            }
-            stil::rechts(ui, |ui| {
-                if stil::leise(ui, self.tree.is_some(), Sym::Download, t("CSV speichern …"), "").clicked() {
-                    self.export_csv();
-                }
-            });
-        });
 
         // ---------------- Fussleiste
         stil::fussleiste(ctx, |ui| {

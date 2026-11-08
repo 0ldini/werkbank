@@ -17,3 +17,91 @@ Scanne … {files} Dateien · {dirs} Ordner	Scanning … {files} files · {dirs}
 Grösste Dateien	Largest files
 Dateitypen	File types
 Noch kein Ordner	No folder yet
+# Doppelte Dateien
+Speicherplatz	Disk usage
+Doppelte Dateien	Duplicate files
+Ordner wählen, um doppelte Dateien zu finden.	Choose a folder to find duplicate files.
+Suche liess sich nicht starten: {e}	Could not start the search: {e}
+Wird gesucht …	Searching …
+Papierkorb liess sich nicht starten: {e}	Could not start moving to the trash: {e}
+Wird geprüft und verschoben …	Checking and moving …
+{n} Gruppen gefunden in {secs} s	{n} groups found in {secs} s
+Die Suche ist unerwartet beendet worden.	The search ended unexpectedly.
+Das Verschieben ist unerwartet beendet worden. Bitte neu suchen.	Moving ended unexpectedly. Please search again.
+{n} Dateien in den Papierkorb verschoben ({size}), {m} nicht	{n} files moved to the trash ({size}), {m} not
+Gruppe;Bytes;SHA-256;Aktion;Pfad	Group;Bytes;SHA-256;Action;Path
+behalten	keep
+Papierkorb	trash
+harter Link	hard link
+Gespeichert: {p}	Saved: {p}
+CSV nicht gespeichert: {e}	CSV not saved: {e}
+Liste der doppelten Dateien als CSV	List of duplicate files as CSV
+Sammle Dateien … {files} Dateien · {dirs} Ordner	Collecting files … {files} files · {dirs} folders
+Vergleiche Anfang und Ende … {n} von {m} Dateien	Comparing start and end … {n} of {m} files
+Vergleiche Inhalte … {n} von {m} Dateien · {p} %	Comparing contents … {n} of {m} files · {p} %
+Prüfe und verschiebe … {n} von {m}	Checking and moving … {n} of {m}
+Wird abgeschlossen …	Finishing …
+In den Papierkorb …	Move to trash …
+Suchen	Search
+{n} markiert · {size}	{n} marked · {size}
+Suche	Search
+mit Unterordnern	include subfolders
+Mindestgrösse	Minimum size
+alle Dateien (ausser leere)	all files (except empty ones)
+ab 1 KB	from 1 KB
+ab 100 KB	from 100 KB
+ab 1 MB	from 1 MB
+ab 10 MB	from 10 MB
+ab 100 MB	from 100 MB
+Gleicher Inhalt zählt, nicht der Name. Leere Dateien, Verknüpfungen und harte Links gelten nie als doppelt.	Identical content counts, not the name. Empty files, shortcuts and hard links never count as duplicates.
+Geänderte Einstellungen gelten ab der nächsten Suche («Neu suchen»).	Changed settings apply from the next search (“Search again”).
+Behalten	Keep
+kürzester Pfad behalten	keep shortest path
+älteste behalten	keep oldest
+neueste behalten	keep newest
+Regel neu anwenden	Apply rule again
+Nichts markieren	Mark nothing
+Je Gruppe bleibt mindestens eine Datei. Mit den Häkchen lässt sich die Wahl pro Datei ändern.	At least one file per group is kept. Use the checkboxes to change the choice per file.
+Ergebnis	Result
+Gruppen	Groups
+Dateien in Gruppen	Files in groups
+Freigebbar	Reclaimable
+Markiert	Marked
+{n} · {size}	{n} · {size}
+Dateien durchsucht	Files searched
+Ordner durchsucht	Folders searched
+Zu klein / leer	Too small / empty
+Ordner ohne Zugriff	Folders without access
+Dateien nicht lesbar	Unreadable files
+Verknüpfungen übergangen	Shortcuts skipped
+Ordner zu tief verschachtelt	Folders nested too deep
+Sehr viele Dateien: die Suche hat nur einen Teil berücksichtigt.	Very many files: the search only covered part of them.
+Der Platz wird erst frei, wenn der Papierkorb geleert wird.	The space is only freed once the trash is emptied.
+Keine doppelten Dateien	No duplicate files
+Im gewählten Ordner hat keine Datei denselben Inhalt wie eine andere.	No file in the chosen folder has the same content as another.
+Doppelte Dateien finden	Find duplicate files
+Oben einen Ordner wählen. Verglichen wird der Inhalt, nicht der Name.	Choose a folder above. Content is compared, not names.
+In den Papierkorb verschieben?	Move to trash?
+{n} Dateien ({size}) kommen in den Papierkorb.	{n} files ({size}) will be moved to the trash.
+Vorher wird jede Datei noch einmal mit der behaltenen verglichen. Geänderte oder fehlende Dateien werden übersprungen. Endgültig gelöscht wird nichts.	Each file is first compared again with the kept one. Changed or missing files are skipped. Nothing is deleted permanently.
+In den Papierkorb	Move to trash
+{n} Dateien in den Papierkorb verschoben ({size}).	{n} files moved to the trash ({size}).
+{n} Dateien nicht verschoben:	{n} files not moved:
+Schliessen	Close
+Datei fehlt	file missing
+seit der Suche geändert	changed since the search
+behaltene Datei fehlt oder wurde geändert	kept file is missing or was changed
+ist jetzt dieselbe Datei wie die behaltene	is now the same file as the kept one
+nicht lesbar: {e}	not readable: {e}
+Papierkorb ging nicht: {e}	trash failed: {e}
+abgebrochen	cancelled
+{n} gleiche Dateien zu je {size}	{n} identical files of {size} each
+{size} freigebbar	{size} reclaimable
+Markiert = kommt in den Papierkorb	Checked = goes to the trash
+Mindestens eine Datei der Gruppe bleibt erhalten.	At least one file of the group is kept.
+PAPIERKORB	TRASH
+BEHALTEN	KEEP
+Zuletzt geändert (UTC)	Last modified (UTC)
++{n} harte Links	+{n} hard links
+Derselbe Dateieintrag unter weiteren Namen (kein Doppel, belegt keinen zusätzlichen Platz). Wird die Datei verschoben, kommen diese Namen mit:\n{liste}	The same file entry under further names (not a duplicate, uses no extra space). If the file is moved, these names go along:\n{liste}
+Neu suchen	Search again
