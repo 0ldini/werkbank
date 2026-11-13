@@ -78,3 +78,213 @@ Bild nicht lesbar	Picture not readable
 Dateiname nicht lesbar	File name not readable
 Datei lässt sich nicht öffnen	File cannot be opened
 Wiedergabe startet nicht	Playback does not start
+# 0.2.0: wie VLC (Menüs, Bedienleiste, Wiedergabeliste, Fenster)
+Netzwerkstreams gehen mit diesem libVLC nicht	Network streams do not work with this libVLC
+Adresse nicht lesbar	Address not readable
+1 min zurück / vor (mittlerer Sprung)	1 min back / forward (medium jump)
+10 s zurück / vor (Bilder: blättern)	10 s back / forward (pictures: browse)
+10 s zurück / vor (kurzer Sprung)	10 s back / forward (short jump)
+3 s zurück / vor (sehr kurzer Sprung)	3 s back / forward (very short jump)
+5 min zurück / vor (langer Sprung)	5 min back / forward (long jump)
+Abspielen	Play
+Abspielen (Leertaste)	Play (space)
+Abspielen / Pause (Bilder: Diashow)	Play / pause (pictures: slideshow)
+Abtastrate	Sample rate
+Adresse	Address
+Album	Album
+Album-Künstler	Album artist
+Allgemein	General
+Angezeigte Bilder	Displayed frames
+Ansicht	View
+Audio	Audio
+Audio-Equalizer	Audio equalizer
+Audiogerät	Audio device
+Auflösung	Resolution
+Beenden	Quit
+Beschreibung	Description
+Bild anpassen	Adjust image
+Bild für Bild	Frame by frame
+Bildgrösse	Picture size
+Bildrate	Frame rate
+Bildschirmfoto	Snapshot
+Bildschirmfoto gespeichert: {p}	Snapshot saved: {p}
+Bildschirmfotos speichern in	Save snapshots to
+Bitrate	Bitrate
+Bitte eine Adresse wie https://… oder rtsp://… eingeben.	Please enter an address like https://… or rtsp://….
+Codec	Codec
+Copyright	Copyright
+Datei	File
+Datei öffnen	Open file
+Datei öffnen …	Open file …
+Dateien hineinziehen oder über Medien › Datei öffnen …	Drag files in or use Media › Open file …
+Datum	Date
+Dauer	Duration
+Deinterlace	Deinterlace
+Deinterlace wechseln	Cycle deinterlace
+Deinterlace: {s}	Deinterlace: {s}
+Dekodierte Audioblöcke	Decoded audio blocks
+Dekodierte Videobilder	Decoded video frames
+Demux gelesen	Demuxed
+Die Untertiteldatei liess sich nicht laden.	The subtitle file could not be loaded.
+Die Wiedergabeliste ist leer.	The playlist is empty.
+Dieses libVLC hat keinen Equalizer (oder es ist noch nicht geladen).	This libVLC has no equalizer (or it is not loaded yet).
+Dieses libVLC kann das Bild nicht anpassen (oder es ist noch nicht geladen).	This libVLC cannot adjust the image (or it is not loaded yet).
+Dolby Surround	Dolby Surround
+Effekte und Filter	Effects and filters
+Eigene	Custom
+Eingangs-Bitrate	Input bitrate
+Einstellungen	Preferences
+Equalizer einschalten	Enable equalizer
+Erweiterte Einstellungen: Effekte und Filter (Strg+E)	Extended settings: effects and filters (Ctrl+E)
+Farbton	Hue
+Fehlerhaft	Corrupted
+Fortgesetzt ab {t}	Resumed at {t}
+Fortsetzen	Continue
+Fortsetzen ab {t}?	Continue from {t}?
+Fragen	Ask
+Für Videos ab 1 Minute und Musik ab 20 Minuten.	For videos of 1 minute or more and music of 20 minutes or more.
+Gamma	Gamma
+Gelesen	Read
+Gemerkte Positionen vergessen	Forget saved positions
+Genre	Genre
+Geschwindigkeit	Speed
+Geschwindigkeit {s}	Speed {s}
+Gespielte Audiopuffer	Played audio buffers
+Gewählten Eintrag aus der Liste nehmen (Bilder: In Papierkorb)	Remove selected item from the list (pictures: move to trash)
+Grösse	Size
+Helligkeit	Brightness
+Herausgeber	Publisher
+Hilfe	Help
+Immer	Always
+Immer im Vordergrund	Always on top
+Inhalts-Bitrate	Content bitrate
+Kanäle	Channels
+Kapitel	Chapter
+Kapitel {n}	Chapter {n}
+Kein Videobild für ein Bildschirmfoto.	No video frame for a snapshot.
+Keine Angaben (erst während der Wiedergabe).	No information (only during playback).
+Keine Angaben.	No information.
+Keine Audiogeräte gemeldet (erst während der Wiedergabe).	No audio devices reported (only during playback).
+Klick: Gesamtzeit oder verbleibende Zeit	Click: total or remaining time
+Kodiert von	Encoded by
+Kontrast	Contrast
+Künstler	Artist
+Langsamer	Slower
+Lauter	Louder
+Lauter / leiser (Bilder: zoomen)	Louder / quieter (pictures: zoom)
+Lauter / leiser (bis 125 %)	Louder / quieter (up to 125 %)
+Lautstärke (Mausrad, ↑ / ↓)	Volume (mouse wheel, ↑ / ↓)
+Lautstärke {v} %	Volume {v} %
+Leiser	Quieter
+Links	Left
+Länge: {t}	Length: {t}
+Läuft gerade	Now playing
+Medien	Media
+Medieninformationen	Media information
+Mehrere Dateien öffnen	Open multiple files
+Mehrere Dateien öffnen …	Open multiple files …
+Minimale Ansicht	Minimal view
+Minimale Ansicht – zurück mit Strg+H oder Rechtsklick ins Bild.	Minimal view – back with Ctrl+H or a right-click into the picture.
+Netzwerkadresse	Network address
+Netzwerkstream öffnen	Open network stream
+Netzwerkstream öffnen …	Open network stream …
+Nicht gespeichert: {e}	Not saved: {e}
+Nichts gefunden.	Nothing found.
+Nie	Never
+Normale Geschwindigkeit	Normal speed
+Normale Geschwindigkeit (=)	Normal speed (=)
+Nächstes	Next
+Nächstes (N)	Next (N)
+Nächstes / Vorheriges	Next / previous
+Ordner wählen …	Choose folder …
+Pause	Pause
+Pause (Leertaste)	Pause (space)
+Rechts	Right
+Regie	Director
+Schneller	Faster
+Schneller / langsamer / normale Geschwindigkeit	Faster / slower / normal speed
+Seitenverhältnis	Aspect ratio
+Seitenverhältnis wechseln	Cycle aspect ratio
+Seitenverhältnis, Zuschneiden und Deinterlace stehen im Menü Video.	Aspect ratio, crop and deinterlace are in the Video menu.
+Seitenverhältnis: {s}	Aspect ratio: {s}
+Sprache	Language
+Springen	Jump
+Sprung rückwärts	Jump backward
+Sprung vorwärts	Jump forward
+Spur {n}: {art}	Track {n}: {art}
+Standard	Default
+Statistik	Statistics
+Stereo	Stereo
+Stereo-Modus	Stereo mode
+Stopp	Stop
+Stopp (S)	Stop (S)
+Stumm	Mute
+Suchen (Titel, Album) …	Search (title, album) …
+Sättigung	Saturation
+Tastenkürzel	Keyboard shortcuts
+Titel	Title
+Titel {n}	Title {n}
+Titelnummer	Track number
+Ton an	Sound on
+Tonspur wechseln	Cycle audio track
+Tonspur: {name}	Audio track: {name}
+Umgekehrtes Stereo	Reverse stereo
+Unbekannt	Unknown
+Unbekanntes Zeitformat	Unknown time format
+Unterbrechungen	Discontinuities
+Untertitel wechseln	Cycle subtitles
+Untertitel-Verzögerung −50 / +50 ms	Subtitle delay −50 / +50 ms
+Untertitel-Verzögerung: {ms} ms	Subtitle delay: {ms} ms
+Untertitel: {name}	Subtitles: {name}
+Untertiteldatei hinzufügen	Add subtitle file
+Untertiteldatei hinzufügen …	Add subtitle file …
+Untertitelspur	Subtitle track
+Verbleibende statt gesamte Zeit anzeigen	Show remaining instead of total time
+Verlorene Audiopuffer	Lost audio buffers
+Verlorene Bilder	Lost frames
+Verzögerung +50 ms	Delay +50 ms
+Verzögerung zurücksetzen	Reset delay
+Verzögerung −50 ms	Delay −50 ms
+Verzögerung: {ms} ms	Delay: {ms} ms
+Video	Video
+Video-Anpassungen	Video adjustments
+Videos und Musik spielt libVLC von VideoLAN (LGPL 2.1 oder später). Abspielwerk ist kein Produkt von VideoLAN.	Videos and music are played by libVLC from VideoLAN (LGPL 2.1 or later). Abspielwerk is not a VideoLAN product.
+Videos, Musik und Bilder ansehen – Teil der Werkbank.	Watch videos, play music, view pictures – part of the Werkbank.
+Vollbild	Full screen
+Vollbild beenden	Exit full screen
+Von vorne	From the start
+Vorheriges	Previous
+Vorheriges (P)	Previous (P)
+Vorlage	Preset
+Vorverst.	Preamp
+Werkzeuge	Tools
+Werte in dB. Gilt sofort und für alle folgenden Stücke.	Values in dB. Applies immediately and to all following items.
+Wie in VLC. Ein Doppelklick ins Bild schaltet Vollbild, ein Rechtsklick zeigt alle Menüs.	As in VLC. A double-click into the picture toggles full screen, a right-click shows all menus.
+Wiedergabe	Playback
+Wiedergabe fortsetzen, wo sie aufgehört hat	Continue playback where it stopped
+Wiedergabeliste (Strg+L)	Playlist (Ctrl+L)
+Wiedergabeliste ein / aus	Playlist on / off
+Wiedergabeliste gespeichert: {p}	Playlist saved: {p}
+Wiedergabeliste leeren	Clear playlist
+Wiedergabeliste nicht lesbar: {e}	Playlist not readable: {e}
+Wiedergabeliste speichern	Save playlist
+Wiedergabeliste speichern …	Save playlist …
+Wiedergabeliste.m3u8	Playlist.m3u8
+Wiedergabelisten	Playlists
+Wiederholen wechseln	Cycle repeat
+Zeit (h:mm:ss, mm:ss oder Sekunden)	Time (h:mm:ss, mm:ss or seconds)
+Zeit anzeigen	Show time
+Zu Zeit springen	Jump to time
+Zu Zeit springen …	Jump to time …
+Zufall ein / aus	Shuffle on / off
+Zufall: an	Shuffle: on
+Zufall: aus	Shuffle: off
+Zufällige Reihenfolge (R)	Shuffle (R)
+Zuletzt geöffnet	Recently opened
+Zurücksetzen	Reset
+Zuschneiden	Crop
+Zuschneiden wechseln	Cycle crop
+Zuschneiden: {s}	Crop: {s}
+z. B. http://, https://, rtsp://, rtp://, udp://, mms:// oder eine Adresse zu einer Video- oder Musikdatei.	e.g. http://, https://, rtsp://, rtp://, udp://, mms:// or the address of a video or music file.
+{name} gibt es nicht mehr.	{name} no longer exists.
+Über Abspielwerk	About Abspielwerk

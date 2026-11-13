@@ -22,8 +22,10 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    Server dazwischen; Beispielkonto zum Ausprobieren)
 10. **organiwerk** – Organigramme und Diagramme (Karten, Verbinder, automatisches
    Anordnen als Baum, SVG-Export; auch im Browser)
-11. **abspielwerk** – Videos, Musik und Bilder ansehen (libVLC; Wiedergabeliste gemischt,
-   Tonspur/Untertitel, Albumbild, Bildbetrachter mit Zoom, Drehen und Diashow)
+11. **abspielwerk** – Videos, Musik und Bilder ansehen (libVLC; Aufbau, Menüs und Tasten wie
+   VLC, Lautstärke bis 125 %, Equalizer, Video-Anpassungen, Seitenverhältnis/Zuschneiden,
+   Bildschirmfoto, Fortsetzen, Netzwerkstreams; Wiedergabeliste gemischt mit Titel/Dauer/Album,
+   Albumbild, Bildbetrachter mit Zoom, Drehen und Diashow)
 
 ## Stand
 

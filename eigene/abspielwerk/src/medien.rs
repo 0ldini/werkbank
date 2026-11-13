@@ -132,6 +132,41 @@ pub fn zeit_text(ms: i64) -> String {
     }
 }
 
+/// «1:23:45», «12:34», «95» (Sekunden) oder «1:02:03.5» → Millisekunden.
+pub fn zeit_parsen(s: &str) -> Option<i64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let teile: Vec<&str> = s.split(':').map(str::trim).collect();
+    if teile.len() > 3 || teile.iter().any(|t| t.is_empty()) {
+        return None;
+    }
+    let mut ms: i64 = 0;
+    let n = teile.len();
+    for (i, t) in teile.iter().enumerate() {
+        let letzter = i + 1 == n;
+        let wert_ms: i64 = if letzter {
+            let f: f64 = t.replace(',', ".").parse().ok()?;
+            if !f.is_finite() || f < 0.0 || f > 1e9 {
+                return None;
+            }
+            (f * 1000.0).round() as i64
+        } else {
+            if !t.chars().all(|c| c.is_ascii_digit()) || t.len() > 6 {
+                return None;
+            }
+            t.parse::<i64>().ok()?.checked_mul(1000)?
+        };
+        // Minuten und Sekunden nach dem ersten Teil höchstens 59
+        if i > 0 && wert_ms >= 60_000 {
+            return None;
+        }
+        ms = ms.checked_mul(60)?.checked_add(wert_ms)?;
+    }
+    Some(ms)
+}
+
 /// «file:///C:/Users/a%20b/x.jpg» → Pfad (libVLC liefert das Albumbild so).
 pub fn url_zu_pfad(url: &str) -> Option<PathBuf> {
     let rest = url.strip_prefix("file://")?;
@@ -215,6 +250,26 @@ mod tests {
         assert_eq!(zeit_text(5_010_999), "1:23:30");
         assert_eq!(zeit_text(-5), "0:00");
         assert_eq!(zeit_text(i64::MAX), format!("{}:{:02}:{:02}", i64::MAX / 1000 / 3600, (i64::MAX / 1000 / 60) % 60, (i64::MAX / 1000) % 60));
+    }
+
+    #[test]
+    fn zeit_lesen() {
+        assert_eq!(zeit_parsen("1:23:45"), Some(5_025_000));
+        assert_eq!(zeit_parsen("12:34"), Some(754_000));
+        assert_eq!(zeit_parsen(" 95 "), Some(95_000));
+        assert_eq!(zeit_parsen("0:00:01,5"), Some(1_500));
+        assert_eq!(zeit_parsen("90:00"), Some(5_400_000));
+        assert_eq!(zeit_parsen("1:60"), None);
+        assert_eq!(zeit_parsen("1:2:3:4"), None);
+        assert_eq!(zeit_parsen(""), None);
+        assert_eq!(zeit_parsen("a:b"), None);
+        assert_eq!(zeit_parsen("-5"), None);
+        assert_eq!(zeit_parsen("1::2"), None);
+        assert_eq!(zeit_parsen("NaN"), None);
+        assert_eq!(zeit_parsen("999999:59:59"), Some(((999_999 * 60 + 59) * 60 + 59) * 1000));
+        for ms in [0, 42_000, 754_000, 5_025_000] {
+            assert_eq!(zeit_parsen(&zeit_text(ms)), Some(ms));
+        }
     }
 
     #[test]
