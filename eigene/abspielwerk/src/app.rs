@@ -1,7 +1,15 @@
-//! Oberfläche: oben die Kopfleiste, in der Mitte die Anzeige (Video, Bild oder Musik mit
-//! Albumbild), rechts die Wiedergabeliste, unten die Bedienung (Transport oder Bildleiste).
+//! Oberfläche wie VLC: oben die Menüleiste (Medien, Wiedergabe, Audio, Video, Untertitel,
+//! Werkzeuge, Ansicht, Hilfe), in der Mitte die Anzeige (Video, Bild oder Musik mit
+//! Albumbild), rechts die Wiedergabeliste, unten die Bedienleiste (Suchleiste mit Zeit, darunter
+//! die Knöpfe und die Lautstärke bis 125 %).
 //!
-//! Videos und Musik spielt libVLC (vlc.rs), Bilder lädt bild.rs im Hilfsthread.
+//! Videos und Musik spielt libVLC (vlc.rs), Bilder lädt bild.rs im Hilfsthread. Die Leisten
+//! stehen in `app/leisten.rs`, die Menüs in `app/menues.rs`, die Fenster (Effekte,
+//! Medieninformationen, Einstellungen …) in `app/fenster.rs`.
+
+mod fenster;
+mod leisten;
+mod menues;
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -9,21 +17,30 @@ use std::rc::Rc;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
-use egui::{Align, Color32, Pos2, Rect, RichText, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Pos2, Rect, Vec2};
 
+use crate::befehl::{self, Aktion, Mods, Taste};
 use crate::bild::{self, Geladen, Zweck};
 use crate::medien::{self, Art, Zufall};
+use crate::merken::{self, Positionen, Zuletzt};
 use crate::sprache::{t, tf};
-use crate::stil::{self, Sym};
+use crate::stil;
 use crate::thema;
-use crate::vlc::{self, Meta, Player, Zustand};
+use crate::vlc::{self, meta, Player, Zustand};
 
 const LOGO: [u8; 3] = [0xB5, 0x17, 0x9E];
 /// So viele Bilder behält der Betrachter auf der Grafikkarte.
 const BILD_CACHE: usize = 6;
-/// Spulen mit ← / →
-const SPRUNG_MS: i64 = 5_000;
-const TEMPI: [f32; 7] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+/// Lautstärke wie in VLC: bis 125 %.
+const MAX_LAUTSTAERKE: f32 = 125.0;
+/// Schritt für Lautstärke-Tasten und Mausrad
+const LAUT_SCHRITT: f32 = 5.0;
+/// Bedienung im Vollbild ausblenden nach …
+const VOLLBILD_AUSBLENDEN: Duration = Duration::from_millis(3000);
+/// So lange steht die Frage «Fortsetzen ab …?»
+const FRAGE_DAUER: Duration = Duration::from_secs(10);
+/// Gleichzeitig im Hintergrund gelesene Medien (Dauer/Album für die Liste)
+const PROBEN: usize = 3;
 
 fn tex_opt() -> egui::TextureOptions {
     egui::TextureOptions {
@@ -36,13 +53,15 @@ fn tex_opt() -> egui::TextureOptions {
 
 /// Meldungen aus bild.rs/vlc.rs übersetzen (diese Dateien bleiben ohne Sprachmodul).
 fn engine_msg(s: &str) -> String {
-    let bekannt: [&'static str; 6] = [
+    let bekannt: [&'static str; 8] = [
         "Datei zu gross",
         "Bild ist leer",
         "Bild nicht lesbar",
         "Dateiname nicht lesbar",
         "Datei lässt sich nicht öffnen",
         "Wiedergabe startet nicht",
+        "Netzwerkstreams gehen mit diesem libVLC nicht",
+        "Adresse nicht lesbar",
     ];
     match bekannt.iter().copied().find(|de| *de == s) {
         Some(de) => t(de).to_string(),
@@ -58,17 +77,63 @@ fn vlc_fehlt_text() -> &'static str {
     }
 }
 
-struct Eintrag {
+/// Tastenkürzel für die Anzeige: «Strg+O» → «Ctrl+O» (Englisch) bzw. «⌘O» (macOS).
+fn kurz_text(k: &str) -> String {
+    if k.is_empty() {
+        return String::new();
+    }
+    let en = crate::sprache::is_en();
+    let mac = cfg!(target_os = "macos");
+    let mut s = k.to_string();
+    let ersatz: [(&str, &str, &str); 5] = [("Strg+", "Ctrl+", "⌘"), ("Umschalt+", "Shift+", "⇧"), ("Alt+", "Alt+", "⌥"), ("Leertaste", "Space", "Space"), ("Entf", "Del", "⌫")];
+    for (de, e, m) in ersatz {
+        s = s.replace(de, if mac { m } else if en { e } else { de });
+    }
+    if en {
+        s = s.replace("Doppelklick", "double-click").replace("Mausrad", "mouse wheel");
+    }
+    s
+}
+
+pub(crate) struct Eintrag {
     pfad: PathBuf,
+    /// Netzwerkstream statt Datei
+    url: Option<String>,
     art: Art,
     name: String,
+    /// aus den Angaben der Datei (leer = Dateiname)
+    titel: String,
+    album: String,
+    dauer: Option<i64>,
+    geprueft: bool,
 }
 
 impl Eintrag {
     fn neu(pfad: PathBuf) -> Option<Eintrag> {
         let art = medien::art_von(&pfad)?;
         let name = pfad.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| pfad.display().to_string());
-        Some(Eintrag { pfad, art, name })
+        Some(Eintrag { pfad, url: None, art, name, titel: String::new(), album: String::new(), dauer: None, geprueft: art == Art::Bild })
+    }
+
+    fn adresse(url: &str) -> Eintrag {
+        let url = url.trim().to_string();
+        let ohne = url.split(['?', '#']).next().unwrap_or("");
+        let art = if medien::art_von(Path::new(ohne)) == Some(Art::Musik) { Art::Musik } else { Art::Video };
+        let name = ohne.rsplit('/').find(|s| !s.is_empty()).map(|s| merken::url_dekodieren(s)).filter(|s| !s.contains("://") && !s.is_empty()).unwrap_or_else(|| url.clone());
+        Eintrag { pfad: PathBuf::from(&url), url: Some(url), art, name, titel: String::new(), album: String::new(), dauer: None, geprueft: true }
+    }
+
+    /// Schlüssel für «Fortsetzen» und «Zuletzt geöffnet».
+    fn schluessel(&self) -> String {
+        self.url.clone().unwrap_or_else(|| self.pfad.to_string_lossy().into_owned())
+    }
+
+    fn anzeige(&self) -> &str {
+        if self.titel.is_empty() {
+            &self.name
+        } else {
+            &self.titel
+        }
     }
 }
 
@@ -85,29 +150,94 @@ enum Wdh {
     Eins,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Fortsetzen {
+    Fragen,
+    Immer,
+    Nie,
+}
+
 struct Textur {
     pfad: PathBuf,
     tex: egui::TextureHandle,
     size: [usize; 2],
 }
 
-/// Was ein Klick in einer Leiste auslöst; ausgeführt nach dem Zeichnen.
-enum Aktion {
-    Oeffnen,
-    OrdnerOeffnen,
-    Zeigen(usize),
-    Entfernen(usize),
-    Zurueck,
-    Weiter,
-    PlayPause,
-    Spulen(i64),
-    Springen(i64),
-    Vollbild,
-    Diashow,
-    Drehen(u8),
-    Einpassen,
-    Papierkorb,
-    Leeren,
+/// Audio-Equalizer (Werte in dB).
+#[derive(Clone, PartialEq)]
+struct Equalizer {
+    an: bool,
+    vorlage: Option<usize>,
+    vor: f32,
+    baender: Vec<f32>,
+}
+
+impl Equalizer {
+    fn to_text(&self) -> String {
+        let b: Vec<String> = self.baender.iter().map(|v| format!("{v:.1}")).collect();
+        format!("{};{};{:.1};{}", self.an as u8, self.vorlage.map(|v| v as i64).unwrap_or(-1), self.vor, b.join(","))
+    }
+
+    fn from_text(s: &str) -> Equalizer {
+        let mut e = Equalizer { an: false, vorlage: None, vor: 0.0, baender: Vec::new() };
+        let mut it = s.split(';');
+        e.an = it.next() == Some("1");
+        e.vorlage = it.next().and_then(|v| v.parse::<usize>().ok()).filter(|v| *v < 64);
+        e.vor = it.next().and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| v.clamp(-20.0, 20.0)).unwrap_or(0.0);
+        e.baender = it.next().unwrap_or("").split(',').filter_map(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| v.clamp(-20.0, 20.0)).take(32).collect();
+        e
+    }
+}
+
+/// Video-Anpassungen: Helligkeit, Kontrast, Sättigung, Farbton, Gamma.
+#[derive(Clone, PartialEq)]
+struct Anpassung {
+    an: bool,
+    werte: [f32; 5],
+}
+
+const ANPASSUNG_STD: [f32; 5] = [1.0, 1.0, 1.0, 0.0, 1.0];
+
+impl Anpassung {
+    fn to_text(&self) -> String {
+        let w: Vec<String> = self.werte.iter().map(|v| format!("{v:.3}")).collect();
+        format!("{};{}", self.an as u8, w.join(","))
+    }
+
+    fn from_text(s: &str) -> Anpassung {
+        let (an, rest) = s.split_once(';').unwrap_or(("0", ""));
+        let mut werte = ANPASSUNG_STD;
+        for (k, v) in rest.split(',').enumerate().take(5) {
+            if let (Some(w), Ok(x)) = (werte.get_mut(k), v.parse::<f32>()) {
+                if x.is_finite() {
+                    *w = x;
+                }
+            }
+        }
+        Anpassung { an: an == "1", werte }
+    }
+}
+
+/// Offene Fenster
+#[derive(Default)]
+struct Fenster {
+    effekte: bool,
+    effekte_reiter: u8,
+    info: bool,
+    info_reiter: u8,
+    einstellungen: bool,
+    tasten: bool,
+    ueber: bool,
+    netzwerk: bool,
+    zeit: bool,
+}
+
+/// Für «Medieninformationen» gelesene Angaben (jede Sekunde neu).
+#[derive(Default)]
+struct Info {
+    meta: Vec<(&'static str, String)>,
+    spuren: Vec<vlc::SpurInfo>,
+    statistik: Option<vlc::Statistik>,
 }
 
 pub struct App {
@@ -152,6 +282,8 @@ pub struct App {
     maus_seit: Instant,
     maus_pos: Option<Pos2>,
     meldung: Option<(String, Instant)>,
+    /// Kurze Anzeige oben rechts im Bild (wie das OSD von VLC)
+    osd: Option<(String, Instant)>,
     frage_papierkorb: Option<usize>,
     ordner: Option<PathBuf>,
     rng: Zufall,
@@ -160,6 +292,45 @@ pub struct App {
     max_tex: usize,
     /// Massstab «Einpassen» des aktuellen Bildes (1.0 = Originalgrösse).
     basis: f32,
+    // --- wie VLC
+    rest_zeit: bool,
+    seiten: usize,
+    zuschnitt: usize,
+    deinterlace: usize,
+    sar: Option<(u32, u32)>,
+    sar_seit: Instant,
+    eq: Equalizer,
+    eq_vorlagen: Vec<String>,
+    eq_frequenzen: Vec<f32>,
+    anpassung: Anpassung,
+    /// Effekte nach dem Start eines Mediums noch einmal setzen
+    effekte_neu: bool,
+    spu_verzoegerung: i64,
+    fenster: Fenster,
+    netz_url: String,
+    zeit_eingabe: String,
+    positionen: Positionen,
+    fortsetzen: Fortsetzen,
+    frage_fortsetzen: Option<(i64, Instant)>,
+    auto_fortsetzen: Option<i64>,
+    zuletzt: Zuletzt,
+    minimal: bool,
+    oben: bool,
+    filter: String,
+    auswahl: Option<usize>,
+    liste_fokus: bool,
+    ziehen: Option<usize>,
+    ziehen_vor: Option<usize>,
+    proben: Vec<vlc::Probe>,
+    probe_ab: usize,
+    snap_tx: Sender<Result<PathBuf, String>>,
+    snap_rx: Receiver<Result<PathBuf, String>>,
+    snap_ordner: Option<PathBuf>,
+    /// Bedienung im Vollbild (für «Maus darüber»)
+    overlay: Option<Rect>,
+    info: Info,
+    info_seit: Instant,
+    laut_rest: f32,
 }
 
 impl App {
@@ -174,7 +345,7 @@ impl App {
         stil::init(&cc.egui_ctx, LOGO);
 
         let lies = |k: &str| cc.storage.and_then(|s| s.get_string(k));
-        let lautstaerke = lies("lautstaerke").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| v.clamp(0.0, 100.0)).unwrap_or(80.0);
+        let lautstaerke = lies("lautstaerke").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_LAUTSTAERKE)).unwrap_or(80.0);
         let stumm = lies("stumm").is_some_and(|v| v == "1");
         let wdh = match lies("wiederholen").as_deref() {
             Some("alle") => Wdh::Alle,
@@ -184,8 +355,19 @@ impl App {
         let zufall = lies("zufall").is_some_and(|v| v == "1");
         let diashow_s = lies("diashow").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| v.clamp(1.0, 120.0)).unwrap_or(5.0);
         let liste_sichtbar = lies("liste").is_none_or(|v| v != "0");
-        let tempo = lies("tempo").and_then(|v| v.parse::<f32>().ok()).filter(|v| TEMPI.contains(v)).unwrap_or(1.0);
+        let tempo = lies("tempo").and_then(|v| v.parse::<f32>().ok()).filter(|v| befehl::TEMPI.contains(v)).unwrap_or(1.0);
         let ordner = lies("ordner").map(PathBuf::from).filter(|p| p.is_dir());
+        let rest_zeit = lies("restzeit").is_some_and(|v| v == "1");
+        let fortsetzen = match lies("fortsetzen").as_deref() {
+            Some("immer") => Fortsetzen::Immer,
+            Some("nie") => Fortsetzen::Nie,
+            _ => Fortsetzen::Fragen,
+        };
+        let positionen = lies("positionen").map(|s| Positionen::from_text(&s)).unwrap_or_default();
+        let zuletzt = lies("zuletzt").map(|s| Zuletzt::from_text(&s)).unwrap_or_default();
+        let eq = lies("equalizer").map(|s| Equalizer::from_text(&s)).unwrap_or(Equalizer { an: false, vorlage: None, vor: 0.0, baender: Vec::new() });
+        let anpassung = lies("anpassung").map(|s| Anpassung::from_text(&s)).unwrap_or(Anpassung { an: false, werte: ANPASSUNG_STD });
+        let snap_ordner = lies("fotoordner").map(PathBuf::from).filter(|p| p.is_dir());
 
         // libVLC im Hilfsthread laden: das Einlesen der Plugins dauert einen Moment.
         let (vtx, vrx) = channel();
@@ -200,6 +382,7 @@ impl App {
         };
 
         let (tx, rx) = channel();
+        let (snap_tx, snap_rx) = channel();
         let jetzt = Instant::now();
         let mut app = App {
             liste: Vec::new(),
@@ -242,6 +425,7 @@ impl App {
             maus_seit: jetzt,
             maus_pos: None,
             meldung: None,
+            osd: None,
             frage_papierkorb: None,
             ordner,
             rng: Zufall::neu(),
@@ -249,6 +433,42 @@ impl App {
             scroll_zu: false,
             max_tex: 8192,
             basis: 1.0,
+            rest_zeit,
+            seiten: 0,
+            zuschnitt: 0,
+            deinterlace: 0,
+            sar: None,
+            sar_seit: jetzt,
+            eq,
+            eq_vorlagen: Vec::new(),
+            eq_frequenzen: Vec::new(),
+            anpassung,
+            effekte_neu: false,
+            spu_verzoegerung: 0,
+            fenster: Fenster::default(),
+            netz_url: String::new(),
+            zeit_eingabe: String::new(),
+            positionen,
+            fortsetzen,
+            frage_fortsetzen: None,
+            auto_fortsetzen: None,
+            zuletzt,
+            minimal: false,
+            oben: false,
+            filter: String::new(),
+            auswahl: None,
+            liste_fokus: false,
+            ziehen: None,
+            ziehen_vor: None,
+            proben: Vec::new(),
+            probe_ab: 0,
+            snap_tx,
+            snap_rx,
+            snap_ordner,
+            overlay: None,
+            info: Info::default(),
+            info_seit: jetzt,
+            laut_rest: 0.0,
         };
         if let Some(p) = start {
             app.oeffne_pfad(&cc.egui_ctx, p);
@@ -260,9 +480,22 @@ impl App {
         self.meldung = Some((s.into(), Instant::now()));
     }
 
+    /// Kurze Anzeige im Bild (Lautstärke, Tempo, Seitenverhältnis …).
+    fn osd(&mut self, s: impl Into<String>) {
+        self.osd = Some((s.into(), Instant::now()));
+    }
+
     fn player(&self) -> Option<&Player> {
         match &self.engine {
             Engine::Bereit(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    /// Player mit geladenem Medium (Video oder Musik wird gezeigt).
+    fn medium_player(&self) -> Option<&Player> {
+        match (&self.engine, self.aktuelle_art()) {
+            (Engine::Bereit(p), Some(Art::Video | Art::Musik)) if p.hat_medium() => Some(p),
             _ => None,
         }
     }
@@ -271,12 +504,23 @@ impl App {
         self.aktuell.and_then(|i| self.liste.get(i)).map(|e| e.art)
     }
 
+    fn liste_geaendert(&mut self) {
+        self.verlauf.clear();
+        self.probe_ab = 0;
+        self.auswahl = None;
+        self.ziehen = None;
+    }
+
     // ------------------------------------------------------------------ Öffnen und Liste
 
-    /// Datei (füllt die Liste mit ihrem Ordner) oder Ordner öffnen.
+    /// Datei (füllt die Liste mit ihrem Ordner), Wiedergabeliste (M3U) oder Ordner öffnen.
     fn oeffne_pfad(&mut self, ctx: &egui::Context, p: PathBuf) {
         if p.is_dir() {
             self.ordner_laden(ctx, &p, None);
+            return;
+        }
+        if ist_liste(&p) {
+            self.liste_laden(ctx, &p);
             return;
         }
         if medien::art_von(&p).is_none() {
@@ -290,8 +534,10 @@ impl App {
                 self.ordner_laden(ctx, &d, Some(p.as_path()));
             }
             None => {
+                self.anhalten();
                 self.liste = Eintrag::neu(p).into_iter().collect();
-                self.verlauf.clear();
+                self.aktuell = None;
+                self.liste_geaendert();
                 self.zeigen(ctx, 0);
             }
         }
@@ -305,27 +551,69 @@ impl App {
                         v.insert(0, w.to_path_buf());
                     }
                 }
+                self.anhalten();
                 self.ordner = Some(dir.to_path_buf());
                 self.liste = v.into_iter().filter_map(Eintrag::neu).collect();
-                self.verlauf.clear();
+                self.aktuell = None;
+                self.liste_geaendert();
                 if self.liste.is_empty() {
-                    self.anhalten();
-                    self.aktuell = None;
                     self.melden(t("In diesem Ordner gibt es keine Videos, Musik oder Bilder."));
+                    self.titel_setzen(ctx);
                     return;
                 }
                 let i = wahl.and_then(|w| self.liste.iter().position(|e| e.pfad == w)).unwrap_or(0);
                 self.zeigen(ctx, i);
             }
             Err(e) => {
-                let e = e.to_string();
                 self.melden(tf("Ordner nicht lesbar: {e}", &[("e", &e)]));
             }
         }
     }
 
+    /// M3U/M3U8-Wiedergabeliste laden (ersetzt die Liste).
+    fn liste_laden(&mut self, ctx: &egui::Context, p: &Path) {
+        let text = match std::fs::metadata(p) {
+            Ok(m) if m.len() > 32 * 1024 * 1024 => {
+                self.melden(t("Datei zu gross"));
+                return;
+            }
+            Ok(_) => match std::fs::read(p) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(e) => {
+                    self.melden(tf("Wiedergabeliste nicht lesbar: {e}", &[("e", &e)]));
+                    return;
+                }
+            },
+            Err(e) => {
+                self.melden(tf("Wiedergabeliste nicht lesbar: {e}", &[("e", &e)]));
+                return;
+            }
+        };
+        let basis = p.parent().map(Path::to_path_buf).unwrap_or_default();
+        let neu: Vec<Eintrag> = merken::m3u_lesen(&text, &basis)
+            .into_iter()
+            .filter_map(|s| if merken::ist_url(&s) { Some(Eintrag::adresse(&s)) } else { Eintrag::neu(PathBuf::from(s)) })
+            .take(medien::MAX_EINTRAEGE)
+            .collect();
+        if neu.is_empty() {
+            self.melden(t("Keine Videos, Musik oder Bilder dabei."));
+            return;
+        }
+        self.anhalten();
+        self.liste = neu;
+        self.aktuell = None;
+        self.liste_geaendert();
+        self.zeigen(ctx, 0);
+    }
+
     /// Hineingezogene Dateien/Ordner an die Liste anhängen.
     fn hinzufuegen(&mut self, ctx: &egui::Context, pfade: Vec<PathBuf>) {
+        if pfade.len() == 1 && pfade.first().is_some_and(|p| ist_liste(p)) {
+            if let Some(p) = pfade.into_iter().next() {
+                self.liste_laden(ctx, &p);
+            }
+            return;
+        }
         let neu: Vec<Eintrag> = medien::aufloesen(&pfade).into_iter().filter_map(Eintrag::neu).collect();
         if neu.is_empty() {
             self.melden(t("Keine Videos, Musik oder Bilder dabei."));
@@ -339,19 +627,27 @@ impl App {
         }
     }
 
-    fn dialog_dateien(&mut self, ctx: &egui::Context) {
+    fn dialog_dateien(&mut self, ctx: &egui::Context, mehrere: bool) {
         let mut alle: Vec<&str> = Vec::new();
         alle.extend_from_slice(medien::VIDEO);
         alle.extend_from_slice(medien::MUSIK);
         alle.extend_from_slice(medien::BILD);
+        alle.extend_from_slice(LISTEN);
         let mut d = rfd::FileDialog::new()
-            .set_title(t("Dateien öffnen"))
+            .set_title(if mehrere { t("Mehrere Dateien öffnen") } else { t("Datei öffnen") })
             .add_filter(t("Videos, Musik und Bilder"), alle.as_slice())
             .add_filter(t("Videos"), medien::VIDEO)
             .add_filter(t("Musik"), medien::MUSIK)
-            .add_filter(t("Bilder"), medien::BILD);
+            .add_filter(t("Bilder"), medien::BILD)
+            .add_filter(t("Wiedergabelisten"), LISTEN);
         if let Some(o) = &self.ordner {
             d = d.set_directory(o);
+        }
+        if !mehrere {
+            if let Some(p) = d.pick_file() {
+                self.oeffne_pfad(ctx, p);
+            }
+            return;
         }
         let Some(v) = d.pick_files() else { return };
         if v.len() == 1 {
@@ -362,11 +658,16 @@ impl App {
             if let Some(d) = v.first().and_then(|p| p.parent()) {
                 self.ordner = Some(d.to_path_buf());
             }
-            self.liste = medien::aufloesen(&v).into_iter().filter_map(Eintrag::neu).collect();
-            self.verlauf.clear();
-            if !self.liste.is_empty() {
-                self.zeigen(ctx, 0);
+            let neu: Vec<Eintrag> = medien::aufloesen(&v).into_iter().filter_map(Eintrag::neu).collect();
+            if neu.is_empty() {
+                self.melden(t("Keine Videos, Musik oder Bilder dabei."));
+                return;
             }
+            self.anhalten();
+            self.liste = neu;
+            self.aktuell = None;
+            self.liste_geaendert();
+            self.zeigen(ctx, 0);
         }
     }
 
@@ -380,18 +681,86 @@ impl App {
         }
     }
 
+    /// Netzwerkstream an die Liste hängen und abspielen.
+    fn adresse_oeffnen(&mut self, ctx: &egui::Context, url: &str) -> bool {
+        let url = url.trim();
+        if url.starts_with("file://") {
+            if let Some(p) = merken::file_url_zu_pfad(url) {
+                self.oeffne_pfad(ctx, PathBuf::from(p));
+                return true;
+            }
+        }
+        if !merken::ist_url(url) || url.contains(['\n', '\r', '\t']) {
+            self.melden(t("Bitte eine Adresse wie https://… oder rtsp://… eingeben."));
+            return false;
+        }
+        if self.liste.len() >= medien::MAX_EINTRAEGE {
+            return false;
+        }
+        self.liste.push(Eintrag::adresse(url));
+        let i = self.liste.len() - 1;
+        self.zeigen(ctx, i);
+        true
+    }
+
+    fn zuletzt_oeffnen(&mut self, ctx: &egui::Context, i: usize) {
+        let Some(s) = self.zuletzt.v.get(i).cloned() else { return };
+        if merken::ist_url(&s) {
+            self.adresse_oeffnen(ctx, &s);
+            return;
+        }
+        let p = PathBuf::from(&s);
+        if p.exists() {
+            self.oeffne_pfad(ctx, p);
+        } else {
+            self.melden(tf("{name} gibt es nicht mehr.", &[("name", &s)]));
+            self.zuletzt.v.retain(|x| *x != s);
+        }
+    }
+
+    fn liste_speichern(&mut self) {
+        if self.liste.is_empty() {
+            self.melden(t("Die Wiedergabeliste ist leer."));
+            return;
+        }
+        let mut d = rfd::FileDialog::new()
+            .set_title(t("Wiedergabeliste speichern"))
+            .add_filter("M3U", &["m3u8", "m3u"])
+            .add_filter("XSPF", &["xspf"])
+            .set_file_name(t("Wiedergabeliste.m3u8"));
+        if let Some(o) = &self.ordner {
+            d = d.set_directory(o);
+        }
+        let Some(ziel) = d.save_file() else { return };
+        let orte: Vec<String> = self.liste.iter().map(Eintrag::schluessel).collect();
+        let v: Vec<merken::ListenEintrag> = self.liste.iter().zip(orte.iter()).map(|(e, ort)| merken::ListenEintrag { ort, titel: e.anzeige(), dauer_ms: e.dauer }).collect();
+        let xspf = ziel.extension().is_some_and(|e| e.eq_ignore_ascii_case("xspf"));
+        let text = if xspf { merken::xspf_schreiben(&v, t("Wiedergabeliste")) } else { merken::m3u_schreiben(&v) };
+        match std::fs::write(&ziel, text) {
+            Ok(()) => {
+                let p = ziel.display().to_string();
+                self.melden(tf("Wiedergabeliste gespeichert: {p}", &[("p", &p)]));
+            }
+            Err(e) => self.melden(tf("Nicht gespeichert: {e}", &[("e", &e)])),
+        }
+    }
+
     fn entfernen(&mut self, ctx: &egui::Context, i: usize) {
         if i >= self.liste.len() {
             return;
         }
         let war_aktuell = self.aktuell == Some(i);
+        if war_aktuell {
+            self.position_merken();
+        }
         let pfad = self.liste.remove(i).pfad;
         self.bilder.retain(|b| b.pfad != pfad);
         self.verlauf.clear();
-        match self.aktuell {
-            Some(a) if a > i => self.aktuell = Some(a - 1),
-            _ => {}
+        self.probe_ab = 0;
+        if let Some(a) = self.aktuell.filter(|a| *a > i) {
+            self.aktuell = Some(a - 1);
         }
+        self.auswahl = if self.liste.is_empty() { None } else { Some(i.min(self.liste.len() - 1)) };
         if war_aktuell {
             self.anhalten();
             self.aktuell = None;
@@ -405,7 +774,11 @@ impl App {
     }
 
     fn papierkorb(&mut self, ctx: &egui::Context, i: usize) {
-        let Some(pfad) = self.liste.get(i).map(|e| e.pfad.clone()) else { return };
+        let Some(e) = self.liste.get(i) else { return };
+        if e.url.is_some() {
+            return;
+        }
+        let pfad = e.pfad.clone();
         if self.aktuell == Some(i) {
             // Unter Windows lässt sich eine geöffnete Datei nicht verschieben.
             self.anhalten();
@@ -413,7 +786,6 @@ impl App {
         match trash::delete(&pfad) {
             Ok(()) => self.entfernen(ctx, i),
             Err(e) => {
-                let e = e.to_string();
                 self.melden(tf("Nicht in den Papierkorb verschoben: {e}", &[("e", &e)]));
                 if self.aktuell == Some(i) {
                     self.zeigen(ctx, i);
@@ -422,7 +794,25 @@ impl App {
         }
     }
 
+    /// Position des laufenden Videos für «Fortsetzen» merken (oder vergessen).
+    fn position_merken(&mut self) {
+        let Some(e) = self.aktuell.and_then(|i| self.liste.get(i)) else { return };
+        if e.art == Art::Bild || self.laenge <= 0 {
+            return;
+        }
+        // Musik nur bei langen Stücken (Hörbücher, Sendungen), Videos ab 1 min.
+        let min = if e.art == Art::Musik { 20 * 60_000 } else { 60_000 };
+        let key = e.schluessel();
+        let zeit = self.scrub.unwrap_or(self.zeit);
+        if matches!(self.zustand, Zustand::Ende) {
+            self.positionen.vergessen(&key);
+        } else if matches!(self.zustand, Zustand::Spielt | Zustand::Pause | Zustand::Puffert) {
+            self.positionen.merken(&key, zeit, self.laenge, min);
+        }
+    }
+
     fn anhalten(&mut self) {
+        self.position_merken();
         if let Some(p) = self.player() {
             if p.hat_medium() {
                 p.stop();
@@ -430,11 +820,13 @@ impl App {
         }
         self.video_tex = None;
         self.zustand = Zustand::Nichts;
+        self.frage_fortsetzen = None;
+        self.auto_fortsetzen = None;
     }
 
     fn titel_setzen(&self, ctx: &egui::Context) {
         let t = match self.aktuell.and_then(|i| self.liste.get(i)) {
-            Some(e) => format!("{} – Abspielwerk", e.name),
+            Some(e) => format!("{} – Abspielwerk", e.anzeige()),
             None => "Abspielwerk".to_string(),
         };
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(t));
@@ -444,7 +836,8 @@ impl App {
 
     fn zeigen(&mut self, ctx: &egui::Context, i: usize) {
         let Some(e) = self.liste.get(i) else { return };
-        let (pfad, art) = (e.pfad.clone(), e.art);
+        let (pfad, url, art, key) = (e.pfad.clone(), e.url.clone(), e.art, e.schluessel());
+        self.position_merken();
         if let Some(a) = self.aktuell.filter(|a| *a != i) {
             self.verlauf.push(a);
             if self.verlauf.len() > 500 {
@@ -452,6 +845,7 @@ impl App {
             }
         }
         self.aktuell = Some(i);
+        self.auswahl = Some(i);
         self.scroll_zu = true;
         self.zoom = 1.0;
         self.pan = Vec2::ZERO;
@@ -470,6 +864,10 @@ impl App {
         self.video_size = [0, 0];
         self.bild_fehler = None;
         self.wartet = false;
+        self.sar = None;
+        self.spu_verzoegerung = 0;
+        self.frage_fortsetzen = None;
+        self.auto_fortsetzen = None;
         self.titel_setzen(ctx);
         match art {
             Art::Bild => {
@@ -481,14 +879,20 @@ impl App {
                 self.diashow = false;
                 let (tempo, vol, stumm) = (self.tempo, self.lautstaerke.round() as i32, self.stumm);
                 let fehler = match &mut self.engine {
-                    Engine::Bereit(p) => match p.oeffnen(&pfad) {
-                        Ok(()) => {
-                            p.tempo(tempo);
-                            p.ton(vol, stumm);
-                            None
+                    Engine::Bereit(p) => {
+                        let r = match &url {
+                            Some(u) => p.oeffnen_adresse(u),
+                            None => p.oeffnen(&pfad),
+                        };
+                        match r {
+                            Ok(()) => {
+                                p.tempo(tempo);
+                                p.ton(vol, stumm);
+                                None
+                            }
+                            Err(e) => Some(engine_msg(&e)),
                         }
-                        Err(e) => Some(engine_msg(&e)),
-                    },
+                    }
                     Engine::Laedt(_) => {
                         self.wartet = true;
                         None
@@ -496,8 +900,21 @@ impl App {
                     Engine::Fehlt(_) => Some(vlc_fehlt_text().to_string()),
                 };
                 self.meta_seit = Instant::now().checked_sub(Duration::from_secs(5)).unwrap_or_else(Instant::now);
-                if let Some(f) = fehler {
-                    self.melden(f);
+                self.effekte_neu = true;
+                self.zustand = Zustand::Oeffnet;
+                match fehler {
+                    Some(f) => self.melden(f),
+                    None if !self.wartet => {
+                        self.zuletzt.hinzufuegen(&key);
+                        if let Some(ms) = self.positionen.holen(&key) {
+                            match self.fortsetzen {
+                                Fortsetzen::Fragen => self.frage_fortsetzen = Some((ms, Instant::now())),
+                                Fortsetzen::Immer => self.auto_fortsetzen = Some(ms),
+                                Fortsetzen::Nie => {}
+                            }
+                        }
+                    }
+                    None => {}
                 }
             }
         }
@@ -541,12 +958,9 @@ impl App {
     }
 
     fn weiter(&mut self, ctx: &egui::Context, auto: bool) {
-        match self.naechster(auto) {
-            Some(i) => self.zeigen(ctx, i),
-            None if auto => {
-                // Ende der Liste: stehen bleiben.
-            }
-            None => {}
+        // Auch bei «Eines wiederholen» (gleicher Eintrag) neu starten: libVLC steht am Ende.
+        if let Some(i) = self.naechster(auto) {
+            self.zeigen(ctx, i);
         }
     }
 
@@ -602,8 +1016,10 @@ impl App {
                             p.pause(false);
                             false
                         }
+                        Zustand::Ende | Zustand::Fehler => true,
                         _ => {
                             p.play();
+                            self.effekte_neu = true;
                             false
                         }
                     },
@@ -621,10 +1037,21 @@ impl App {
             }
             None => {
                 if !self.liste.is_empty() {
-                    self.zeigen(ctx, 0);
+                    let i = self.auswahl.filter(|i| *i < self.liste.len()).unwrap_or(0);
+                    self.zeigen(ctx, i);
                 }
             }
         }
+    }
+
+    fn stopp(&mut self) {
+        if self.aktuelle_art() == Some(Art::Bild) {
+            self.diashow = false;
+            return;
+        }
+        self.anhalten();
+        self.zustand = Zustand::Gestoppt;
+        self.zeit = 0;
     }
 
     fn diashow_umschalten(&mut self) {
@@ -643,53 +1070,342 @@ impl App {
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(an));
     }
 
+    fn lautstaerke_aendern(&mut self, d: f32) {
+        self.lautstaerke = (self.lautstaerke + d).clamp(0.0, MAX_LAUTSTAERKE).round();
+        if d > 0.0 {
+            self.stumm = false;
+        }
+        let v = self.lautstaerke;
+        self.osd(tf("Lautstärke {v} %", &[("v", &v)]));
+    }
+
+    fn tempo_setzen(&mut self, r: f32) {
+        if !(r.is_finite() && r > 0.0) {
+            return;
+        }
+        self.tempo = r;
+        if let Some(p) = self.medium_player() {
+            p.tempo(r);
+        }
+        let s = befehl::tempo_text(r);
+        self.osd(tf("Geschwindigkeit {s}", &[("s", &s)]));
+    }
+
+    /// Spuren-Wechsel (B, V): nächste Spur der Liste.
+    fn spur_wechseln(&mut self, ton: bool) {
+        let Some(p) = self.medium_player() else { return };
+        let (spuren, aktiv) = if ton { (p.tonspuren(), p.tonspur()) } else { (p.untertitel_liste(), p.untertitel()) };
+        if spuren.is_empty() {
+            let s = if ton { t("Keine Tonspur") } else { t("Keine Untertitel") };
+            self.osd(s);
+            return;
+        }
+        let pos = spuren.iter().position(|(id, _)| *id == aktiv).unwrap_or(0);
+        let Some((id, name)) = spuren.get(befehl::weiter_index(pos, spuren.len())).cloned() else { return };
+        if ton {
+            p.setze_tonspur(id);
+        } else {
+            p.setze_untertitel(id);
+        }
+        let name = spur_name(id, &name);
+        let s = if ton { tf("Tonspur: {name}", &[("name", &name)]) } else { tf("Untertitel: {name}", &[("name", &name)]) };
+        self.osd(s);
+    }
+
+    fn effekte_anwenden(&self) {
+        let Some(p) = self.player() else { return };
+        if p.kann_equalizer() {
+            if self.eq.an && !self.eq.baender.is_empty() {
+                p.equalizer(Some((self.eq.vor, self.eq.baender.as_slice())));
+            } else {
+                p.equalizer(None);
+            }
+        }
+        if p.kann_anpassen() {
+            p.anpassen(self.anpassung.an.then_some(self.anpassung.werte));
+        }
+        if p.kann_deinterlace() {
+            p.deinterlace(befehl::DEINTERLACE.get(self.deinterlace).copied().filter(|m| !m.is_empty()));
+        }
+    }
+
+    /// Bildschirmfoto des aktuellen Videobilds als PNG (im Hintergrund schreiben).
+    fn schnappschuss(&mut self, ctx: &egui::Context) {
+        let Some(foto) = self.medium_player().filter(|_| self.aktuelle_art() == Some(Art::Video)).and_then(|p| p.foto()) else {
+            self.melden(t("Kein Videobild für ein Bildschirmfoto."));
+            return;
+        };
+        let ordner = self.snap_ordner.clone().filter(|p| p.is_dir()).or_else(standard_bilder_ordner).unwrap_or_else(|| PathBuf::from("."));
+        use chrono::{Datelike, Timelike};
+        let n = chrono::Local::now();
+        let name = merken::schnappschuss_name(n.year(), n.month(), n.day(), n.hour(), n.minute(), n.second());
+        let ziel = merken::freier_pfad(&ordner, &name, &|p: &Path| p.exists());
+        let tx = self.snap_tx.clone();
+        let ctx = ctx.clone();
+        let r = std::thread::Builder::new().name("foto".into()).spawn(move || {
+            let (w, h) = (u32::try_from(foto.breite).unwrap_or(0), u32::try_from(foto.hoehe).unwrap_or(0));
+            let erg = std::panic::catch_unwind(|| image::save_buffer_with_format(&ziel, &foto.rgb, w, h, image::ColorType::Rgb8, image::ImageFormat::Png))
+                .map_err(|_| "PNG".to_string())
+                .and_then(|r| r.map_err(|e| e.to_string()))
+                .map(|()| ziel);
+            let _ = tx.send(erg);
+            ctx.request_repaint();
+        });
+        if let Err(e) = r {
+            self.melden(tf("Nicht gespeichert: {e}", &[("e", &e)]));
+        }
+    }
+
     fn ausfuehren(&mut self, ctx: &egui::Context, a: Aktion) {
+        let bild = self.aktuelle_art() == Some(Art::Bild);
         match a {
-            Aktion::Oeffnen => self.dialog_dateien(ctx),
+            Aktion::Oeffnen => self.dialog_dateien(ctx, false),
+            Aktion::MehrereOeffnen => self.dialog_dateien(ctx, true),
             Aktion::OrdnerOeffnen => self.dialog_ordner(ctx),
+            Aktion::NetzwerkDialog => self.fenster.netzwerk = true,
+            Aktion::ZuletztOeffnen(i) => self.zuletzt_oeffnen(ctx, i),
+            Aktion::ZuletztLeeren => self.zuletzt.v.clear(),
+            Aktion::ListeSpeichern => self.liste_speichern(),
+            Aktion::Beenden => {
+                self.position_merken();
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
             Aktion::Zeigen(i) => {
-                if self.aktuelle_art() == Some(Art::Bild) && self.liste.get(i).is_some_and(|e| e.art != Art::Bild) {
+                if bild && self.liste.get(i).is_some_and(|e| e.art != Art::Bild) {
                     self.diashow = false;
                 }
                 self.zeigen(ctx, i)
             }
             Aktion::Entfernen(i) => self.entfernen(ctx, i),
-            Aktion::Zurueck => self.zurueck(ctx),
-            Aktion::Weiter => self.weiter(ctx, false),
-            Aktion::PlayPause => self.play_pause(ctx),
-            Aktion::Spulen(d) => {
-                let ziel = if self.laenge > 0 { (self.zeit + d).clamp(0, self.laenge) } else { (self.zeit + d).max(0) };
-                if let Some(p) = self.player() {
-                    p.setze_zeit(ziel);
-                }
-                self.zeit = ziel;
-            }
-            Aktion::Springen(ms) => {
-                if let Some(p) = self.player() {
-                    p.setze_zeit(ms);
-                }
-                self.zeit = ms;
-            }
-            Aktion::Vollbild => {
-                let an = !self.vollbild;
-                self.vollbild_setzen(ctx, an);
-            }
-            Aktion::Diashow => self.diashow_umschalten(),
-            Aktion::Drehen(d) => self.drehung = (self.drehung + d) % 4,
-            Aktion::Einpassen => {
-                self.zoom = 1.0;
-                self.pan = Vec2::ZERO;
-            }
-            Aktion::Papierkorb => self.frage_papierkorb = self.aktuell,
             Aktion::Leeren => {
                 self.anhalten();
                 self.liste.clear();
                 self.aktuell = None;
                 self.diashow = false;
-                self.verlauf.clear();
+                self.liste_geaendert();
                 self.bilder.clear();
                 self.titel_setzen(ctx);
             }
+            Aktion::Verschieben(von, vor) => {
+                if let Some(nach) = befehl::verschieben(&mut self.liste, von, vor) {
+                    self.aktuell = self.aktuell.map(|i| befehl::index_nach(i, von, nach));
+                    self.auswahl = Some(nach);
+                    self.verlauf.clear();
+                    self.probe_ab = 0;
+                }
+            }
+            Aktion::PlayPause => self.play_pause(ctx),
+            Aktion::Stopp => self.stopp(),
+            Aktion::Zurueck => self.zurueck(ctx),
+            Aktion::Weiter => self.weiter(ctx, false),
+            Aktion::Spulen(d) => {
+                if bild || self.medium_player().is_none() {
+                    return;
+                }
+                let basis = self.zeit;
+                let ziel = if self.laenge > 0 { basis.saturating_add(d).clamp(0, self.laenge) } else { basis.saturating_add(d).max(0) };
+                if let Some(p) = self.player() {
+                    p.setze_zeit(ziel);
+                }
+                self.zeit = ziel;
+                let s = format!("{} / {}", medien::zeit_text(ziel), medien::zeit_text(self.laenge));
+                self.osd(s);
+            }
+            Aktion::Springen(ms) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_zeit(ms);
+                }
+                self.zeit = ms.max(0);
+            }
+            Aktion::ZeitDialog => {
+                if self.medium_player().is_some() {
+                    self.zeit_eingabe = medien::zeit_text(self.zeit);
+                    self.fenster.zeit = true;
+                }
+            }
+            Aktion::Schneller => self.tempo_setzen(befehl::schneller(self.tempo)),
+            Aktion::Langsamer => self.tempo_setzen(befehl::langsamer(self.tempo)),
+            Aktion::TempoNormal => self.tempo_setzen(1.0),
+            Aktion::Tempo(r) => self.tempo_setzen(r),
+            Aktion::BildFuerBild => {
+                if let Some(p) = self.medium_player().filter(|p| p.kann_bild_fuer_bild()) {
+                    p.bild_fuer_bild();
+                    self.osd(t("Bild für Bild"));
+                }
+            }
+            Aktion::ZeitZeigen => {
+                if self.medium_player().is_some() {
+                    let s = format!("{} / {}", medien::zeit_text(self.zeit), medien::zeit_text(self.laenge));
+                    self.osd(s);
+                }
+            }
+            Aktion::Titel(i) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_titel(i);
+                }
+            }
+            Aktion::Kapitel(i) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_kapitel(i);
+                }
+            }
+            Aktion::WdhWechseln => {
+                self.wdh = match self.wdh {
+                    Wdh::Aus => Wdh::Alle,
+                    Wdh::Alle => Wdh::Eins,
+                    Wdh::Eins => Wdh::Aus,
+                };
+                let s = wdh_text(self.wdh);
+                self.osd(s);
+            }
+            Aktion::Wdh(w) => {
+                self.wdh = match w {
+                    1 => Wdh::Alle,
+                    2 => Wdh::Eins,
+                    _ => Wdh::Aus,
+                };
+            }
+            Aktion::ZufallUmschalten => {
+                self.zufall = !self.zufall;
+                let s = if self.zufall { t("Zufall: an") } else { t("Zufall: aus") };
+                self.osd(s);
+            }
+            Aktion::Lauter => self.lautstaerke_aendern(LAUT_SCHRITT),
+            Aktion::Leiser => self.lautstaerke_aendern(-LAUT_SCHRITT),
+            Aktion::Stumm => {
+                self.stumm = !self.stumm;
+                let s = if self.stumm { t("Stumm") } else { t("Ton an") };
+                self.osd(s);
+            }
+            Aktion::TonspurWechseln => self.spur_wechseln(true),
+            Aktion::Tonspur(id) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_tonspur(id);
+                }
+            }
+            Aktion::Audiogeraet(id) => {
+                if let Some(p) = self.player() {
+                    p.setze_audiogeraet(&id);
+                }
+            }
+            Aktion::StereoModus(m) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_stereo(m);
+                }
+            }
+            Aktion::Vollbild => {
+                let an = !self.vollbild;
+                self.vollbild_setzen(ctx, an);
+            }
+            Aktion::VollbildAus => {
+                if self.vollbild {
+                    self.vollbild_setzen(ctx, false);
+                }
+            }
+            Aktion::Seitenverhaeltnis(i) => {
+                self.seiten = i.min(befehl::SEITEN.len() - 1);
+                let s = seiten_name(self.seiten);
+                self.osd(tf("Seitenverhältnis: {s}", &[("s", &s)]));
+            }
+            Aktion::SeitenWechseln => self.ausfuehren(ctx, Aktion::Seitenverhaeltnis(befehl::weiter_index(self.seiten, befehl::SEITEN.len()))),
+            Aktion::Zuschnitt(i) => {
+                self.zuschnitt = i.min(befehl::ZUSCHNITTE.len() - 1);
+                let s = zuschnitt_name(self.zuschnitt);
+                self.osd(tf("Zuschneiden: {s}", &[("s", &s)]));
+            }
+            Aktion::ZuschnittWechseln => self.ausfuehren(ctx, Aktion::Zuschnitt(befehl::weiter_index(self.zuschnitt, befehl::ZUSCHNITTE.len()))),
+            Aktion::Deinterlace(i) => {
+                if self.player().is_some_and(|p| p.kann_deinterlace()) {
+                    self.deinterlace = i.min(befehl::DEINTERLACE.len() - 1);
+                    self.effekte_anwenden();
+                    let s = deinterlace_name(self.deinterlace);
+                    self.osd(tf("Deinterlace: {s}", &[("s", &s)]));
+                }
+            }
+            Aktion::DeinterlaceWechseln => self.ausfuehren(ctx, Aktion::Deinterlace(befehl::weiter_index(self.deinterlace, befehl::DEINTERLACE.len()))),
+            Aktion::Schnappschuss => self.schnappschuss(ctx),
+            Aktion::Untertitel(id) => {
+                if let Some(p) = self.medium_player() {
+                    p.setze_untertitel(id);
+                }
+            }
+            Aktion::UntertitelWechseln => self.spur_wechseln(false),
+            Aktion::UntertitelDatei => self.untertitel_datei(),
+            Aktion::UntertitelVerzoegerung(d) => {
+                if let Some(p) = self.medium_player().filter(|p| p.kann_untertitel_verzoegerung()) {
+                    let neu = self.spu_verzoegerung.saturating_add(d).clamp(-600_000, 600_000);
+                    p.untertitel_verzoegerung(neu);
+                    self.spu_verzoegerung = neu;
+                    self.osd(tf("Untertitel-Verzögerung: {ms} ms", &[("ms", &neu)]));
+                }
+            }
+            Aktion::UntertitelVerzoegerungNull => {
+                if let Some(p) = self.medium_player().filter(|p| p.kann_untertitel_verzoegerung()) {
+                    p.untertitel_verzoegerung(0);
+                    self.spu_verzoegerung = 0;
+                    self.osd(tf("Untertitel-Verzögerung: {ms} ms", &[("ms", &0)]));
+                }
+            }
+            Aktion::Effekte => self.fenster.effekte = !self.fenster.effekte,
+            Aktion::Medieninfo => {
+                self.fenster.info = !self.fenster.info;
+                self.info_seit = Instant::now().checked_sub(Duration::from_secs(5)).unwrap_or_else(Instant::now);
+            }
+            Aktion::Einstellungen => self.fenster.einstellungen = !self.fenster.einstellungen,
+            Aktion::ListeUmschalten => self.liste_sichtbar = !self.liste_sichtbar,
+            Aktion::Minimal => {
+                self.minimal = !self.minimal;
+                if self.minimal {
+                    self.melden(t("Minimale Ansicht – zurück mit Strg+H oder Rechtsklick ins Bild."));
+                }
+            }
+            Aktion::ImmerOben => {
+                self.oben = !self.oben;
+                let l = if self.oben { egui::WindowLevel::AlwaysOnTop } else { egui::WindowLevel::Normal };
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(l));
+            }
+            Aktion::Tastenkuerzel => self.fenster.tasten = !self.fenster.tasten,
+            Aktion::Ueber => self.fenster.ueber = !self.fenster.ueber,
+            Aktion::Diashow => self.diashow_umschalten(),
+            Aktion::Drehen(d) => {
+                if bild {
+                    self.drehung = (self.drehung + d) % 4
+                }
+            }
+            Aktion::Einpassen => {
+                self.zoom = 1.0;
+                self.pan = Vec2::ZERO;
+            }
+            Aktion::Papierkorb => {
+                if self.aktuell.and_then(|i| self.liste.get(i)).is_some_and(|e| e.url.is_none()) {
+                    self.frage_papierkorb = self.aktuell;
+                }
+            }
+            Aktion::EntfTaste => {
+                if self.liste_fokus && self.liste_sichtbar {
+                    if let Some(i) = self.auswahl.filter(|i| *i < self.liste.len()) {
+                        self.entfernen(ctx, i);
+                    }
+                } else if bild {
+                    self.ausfuehren(ctx, Aktion::Papierkorb);
+                }
+            }
+        }
+    }
+
+    fn untertitel_datei(&mut self) {
+        let Some(p) = self.medium_player().filter(|p| p.kann_untertitel_datei()) else { return };
+        let mut d = rfd::FileDialog::new().set_title(t("Untertiteldatei hinzufügen")).add_filter(t("Untertitel"), &["srt", "ass", "ssa", "sub", "vtt", "idx", "smi", "txt"]);
+        if let Some(dir) = self.aktuell.and_then(|i| self.liste.get(i)).filter(|e| e.url.is_none()).and_then(|e| e.pfad.parent().map(Path::to_path_buf)) {
+            d = d.set_directory(dir);
+        }
+        let Some(datei) = d.pick_file() else { return };
+        let uri = merken::pfad_zu_url(&datei.to_string_lossy());
+        if p.untertitel_datei(&uri) {
+            let name = datei.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            self.osd(tf("Untertitel: {name}", &[("name", &name)]));
+        } else {
+            self.melden(t("Die Untertiteldatei liess sich nicht laden."));
         }
     }
 
@@ -712,6 +1428,16 @@ impl App {
             }
         }
         self.engine = neu;
+        if let Some(p) = self.player() {
+            let vorlagen = p.equalizer_vorlagen();
+            let freq = p.equalizer_baender();
+            self.eq_vorlagen = vorlagen;
+            if self.eq.baender.len() != freq.len() {
+                self.eq.baender = vec![0.0; freq.len()];
+            }
+            self.eq_frequenzen = freq;
+            self.effekte_anwenden();
+        }
         if self.wartet {
             self.wartet = false;
             if let Some(i) = self.aktuell {
@@ -767,6 +1493,65 @@ impl App {
                 }
             }
         }
+        // Fertige Bildschirmfotos
+        while let Ok(r) = self.snap_rx.try_recv() {
+            match r {
+                Ok(p) => {
+                    let p = p.display().to_string();
+                    self.melden(tf("Bildschirmfoto gespeichert: {p}", &[("p", &p)]));
+                }
+                Err(e) => self.melden(tf("Nicht gespeichert: {e}", &[("e", &e)])),
+            }
+        }
+    }
+
+    /// Dauer, Titel und Album der Listeneinträge im Hintergrund lesen.
+    fn proben_pruefen(&mut self, ctx: &egui::Context) {
+        let mut fertig = Vec::new();
+        let mut k = 0;
+        while k < self.proben.len() {
+            match self.proben.get(k).and_then(|p| p.fertig()) {
+                Some(ok) => {
+                    let p = self.proben.remove(k);
+                    fertig.push((ok, p));
+                }
+                None => k += 1,
+            }
+        }
+        for (ok, p) in fertig {
+            let (dauer, titel, album) = if ok { (p.dauer(), p.meta(meta::TITEL), p.meta(meta::ALBUM)) } else { (None, None, None) };
+            if let Some(e) = self.liste.iter_mut().find(|e| e.url.is_none() && e.pfad == p.pfad) {
+                if e.dauer.is_none() {
+                    e.dauer = dauer;
+                }
+                if let Some(ti) = titel.filter(|ti| *ti != e.name) {
+                    if e.titel.is_empty() {
+                        e.titel = ti;
+                    }
+                }
+                if let Some(al) = album {
+                    if e.album.is_empty() {
+                        e.album = al;
+                    }
+                }
+            }
+        }
+        let Engine::Bereit(player) = &self.engine else { return };
+        while self.proben.len() < PROBEN {
+            let Some(i) = (self.probe_ab..self.liste.len()).find(|&i| self.liste.get(i).is_some_and(|e| !e.geprueft)) else {
+                self.probe_ab = self.liste.len();
+                break;
+            };
+            self.probe_ab = i + 1;
+            let Some(e) = self.liste.get_mut(i) else { break };
+            e.geprueft = true;
+            if let Some(p) = player.probe(&e.pfad) {
+                self.proben.push(p);
+            }
+        }
+        if !self.proben.is_empty() {
+            ctx.request_repaint_after(Duration::from_millis(150));
+        }
     }
 
     fn player_pruefen(&mut self, ctx: &egui::Context) {
@@ -774,7 +1559,8 @@ impl App {
             return;
         }
         let musik = self.aktuelle_art() == Some(Art::Musik);
-        let meta_jetzt = musik && self.meta_seit.elapsed() > Duration::from_millis(800);
+        let meta_jetzt = self.meta_seit.elapsed() > Duration::from_millis(if musik { 800 } else { 2000 });
+        let sar_jetzt = !musik && self.sar.is_none() && self.sar_seit.elapsed() > Duration::from_millis(700);
         let (vol, stumm) = (self.lautstaerke.round() as i32, self.stumm);
         let Some(p) = self.player() else { return };
         if !p.hat_medium() {
@@ -787,7 +1573,26 @@ impl App {
             p.ton(vol, stumm);
         }
         let bild = p.neues_bild();
-        let meta = meta_jetzt.then(|| (p.meta(Meta::Titel), p.meta(Meta::Kuenstler), p.meta(Meta::Album), p.meta(Meta::Bild)));
+        let meta = meta_jetzt.then(|| (p.meta(meta::TITEL), p.meta(meta::KUENSTLER), p.meta(meta::ALBUM), p.meta(meta::BILD), p.meta(meta::LAEUFT)));
+        let sar = if sar_jetzt && z == Zustand::Spielt { p.sar() } else { None };
+        // Effekte nach dem Start setzen; «Fortsetzen» erst, wenn libVLC die Länge kennt.
+        let effekte = self.effekte_neu && z == Zustand::Spielt;
+        if let Some(ms) = self.auto_fortsetzen.filter(|_| z == Zustand::Spielt && laenge > 0) {
+            p.setze_zeit(ms);
+            self.auto_fortsetzen = None;
+            let s = medien::zeit_text(ms);
+            self.osd(tf("Fortgesetzt ab {t}", &[("t", &s)]));
+        }
+        if sar_jetzt {
+            self.sar_seit = Instant::now();
+        }
+        if sar.is_some() {
+            self.sar = sar;
+        }
+        if effekte {
+            self.effekte_neu = false;
+            self.effekte_anwenden();
+        }
         self.zustand = z;
         if self.scrub.is_none() {
             self.zeit = zeit;
@@ -800,27 +1605,49 @@ impl App {
                 None => self.video_tex = Some(ctx.load_texture("video", img, tex_opt())),
             }
         }
-        if let Some((ti, ku, al, art)) = meta {
+        if let Some(e) = self.aktuell.and_then(|i| self.liste.get_mut(i)) {
+            if laenge > 0 {
+                e.dauer = Some(laenge);
+            }
+        }
+        if let Some((ti, ku, al, art, laeuft)) = meta {
             self.meta_seit = Instant::now();
-            self.titel = ti.unwrap_or_default();
+            // Radiosender melden das laufende Stück unter «Läuft gerade».
+            self.titel = laeuft.or(ti).unwrap_or_default();
             self.kuenstler = ku.unwrap_or_default();
             self.album = al.unwrap_or_default();
-            if let Some(pf) = art.as_deref().and_then(medien::url_zu_pfad).filter(|p| p.is_file()) {
-                if self.cover_pfad.as_ref() != Some(&pf) {
-                    self.cover_pfad = Some(pf.clone());
-                    self.cover = None;
-                    bild::starten(pf, Zweck::Cover, 1024, self.tx.clone(), ctx.clone());
+            if let Some(e) = self.aktuell.and_then(|i| self.liste.get_mut(i)) {
+                if !self.titel.is_empty() && self.titel != e.name && e.titel != self.titel {
+                    e.titel = self.titel.clone();
+                    let t = format!("{} – Abspielwerk", e.titel);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Title(t));
+                }
+                if !self.album.is_empty() {
+                    e.album = self.album.clone();
+                }
+            }
+            if musik {
+                if let Some(pf) = art.as_deref().and_then(medien::url_zu_pfad).filter(|p| p.is_file()) {
+                    if self.cover_pfad.as_ref() != Some(&pf) {
+                        self.cover_pfad = Some(pf.clone());
+                        self.cover = None;
+                        bild::starten(pf, Zweck::Cover, 1024, self.tx.clone(), ctx.clone());
+                    }
                 }
             }
         }
         match z {
             Zustand::Ende if !self.ende_erledigt => {
                 self.ende_erledigt = true;
+                if let Some(e) = self.aktuell.and_then(|i| self.liste.get(i)) {
+                    let key = e.schluessel();
+                    self.positionen.vergessen(&key);
+                }
                 self.weiter(ctx, true);
             }
             Zustand::Fehler if !self.fehler_erledigt => {
                 self.fehler_erledigt = true;
-                let name = self.aktuell.and_then(|i| self.liste.get(i)).map(|e| e.name.clone()).unwrap_or_default();
+                let name = self.aktuell.and_then(|i| self.liste.get(i)).map(|e| e.anzeige().to_string()).unwrap_or_default();
                 self.melden(tf("{name} lässt sich nicht abspielen.", &[("name", &name)]));
             }
             Zustand::Spielt | Zustand::Oeffnet | Zustand::Puffert => ctx.request_repaint_after(Duration::from_millis(250)),
@@ -831,556 +1658,36 @@ impl App {
         }
     }
 
+    /// Tasten wie in VLC (befehl::aus_taste); gehandhabte Tasten werden verbraucht, damit
+    /// z. B. die Leertaste nicht zusätzlich einen Knopf auslöst.
     fn tasten(&mut self, ctx: &egui::Context) -> Vec<Aktion> {
         let mut a = Vec::new();
         if ctx.wants_keyboard_input() || self.frage_papierkorb.is_some() {
             return a;
         }
-        let k = |key: egui::Key| ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, key));
         let bild = self.aktuelle_art() == Some(Art::Bild);
-        if k(egui::Key::Space) {
-            a.push(Aktion::PlayPause);
+        let evs: Vec<(egui::Key, egui::Modifiers)> = ctx.input(|i| {
+            i.events
+                .iter()
+                .filter_map(|e| match e {
+                    egui::Event::Key { key, pressed: true, modifiers, .. } => Some((*key, *modifiers)),
+                    _ => None,
+                })
+                .collect()
+        });
+        let mut verbraucht = Vec::new();
+        for (key, m) in evs {
+            let Some(tk) = taste_von(key) else { continue };
+            let mods = Mods { shift: m.shift, strg: m.command, alt: m.alt };
+            if let Some(akt) = befehl::aus_taste(tk, mods, bild) {
+                a.push(akt);
+                verbraucht.push(key);
+            }
         }
-        if k(egui::Key::ArrowLeft) {
-            a.push(if bild { Aktion::Zurueck } else { Aktion::Spulen(-SPRUNG_MS) });
-        }
-        if k(egui::Key::ArrowRight) {
-            a.push(if bild { Aktion::Weiter } else { Aktion::Spulen(SPRUNG_MS) });
-        }
-        if k(egui::Key::ArrowUp) {
-            self.lautstaerke = (self.lautstaerke + 5.0).min(100.0);
-        }
-        if k(egui::Key::ArrowDown) {
-            self.lautstaerke = (self.lautstaerke - 5.0).max(0.0);
-        }
-        if k(egui::Key::F) {
-            a.push(Aktion::Vollbild);
-        }
-        if k(egui::Key::Escape) && self.vollbild {
-            self.vollbild_setzen(ctx, false);
-        }
-        if k(egui::Key::M) {
-            self.stumm = !self.stumm;
-        }
-        if k(egui::Key::N) {
-            a.push(Aktion::Weiter);
-        }
-        if k(egui::Key::P) {
-            a.push(Aktion::Zurueck);
-        }
-        if k(egui::Key::Delete) && self.aktuell.is_some() {
-            a.push(Aktion::Papierkorb);
+        if !verbraucht.is_empty() {
+            ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Key { key, pressed: true, .. } if verbraucht.contains(key))));
         }
         a
-    }
-
-    // ------------------------------------------------------------------ Leisten
-
-    fn kopf(&mut self, ui: &mut Ui) -> Option<Aktion> {
-        let mut a = None;
-        stil::titel(ui, "Abspielwerk");
-        if stil::knopf(ui, Sym::Datei, t("Öffnen …")).clicked() {
-            a = Some(Aktion::Oeffnen);
-        }
-        if stil::knopf(ui, Sym::OrdnerAuf, t("Ordner öffnen …")).clicked() {
-            a = Some(Aktion::OrdnerOeffnen);
-        }
-        stil::trenner(ui);
-        let hinweis = if self.liste_sichtbar { t("Wiedergabeliste ausblenden") } else { t("Wiedergabeliste einblenden") };
-        if stil::leise(ui, true, Sym::Ebenen, t("Wiedergabeliste"), hinweis).clicked() {
-            self.liste_sichtbar = !self.liste_sichtbar;
-        }
-        let bild = self.aktuelle_art() == Some(Art::Bild);
-        let hat_bilder = self.liste.iter().any(|e| e.art == Art::Bild);
-        let hat_aktuell = self.aktuell.is_some();
-        let hat_liste = !self.liste.is_empty();
-        let info = match &self.engine {
-            Engine::Bereit(p) => format!("libVLC {}", p.version()),
-            Engine::Laedt(_) => t("libVLC wird geladen …").to_string(),
-            Engine::Fehlt(_) => vlc_fehlt_text().to_string(),
-        };
-        let diashow = self.diashow;
-        let diashow_s = &mut self.diashow_s;
-        stil::rechts(ui, |ui| {
-            stil::menue(ui, true, Sym::Mehr, t("Mehr"), |ui| {
-                let (s, txt) = if diashow { (Sym::Stopp, t("Diashow beenden")) } else { (Sym::Play, t("Diashow starten")) };
-                if stil::eintrag(ui, hat_bilder, s, txt).clicked() {
-                    a = Some(Aktion::Diashow);
-                }
-                ui.add_space(2.0);
-                stil::feld(ui, t("Diashow: Sekunden pro Bild"), |ui| {
-                    stil::wahl(ui, diashow_s, &[(2.0, "2"), (3.0, "3"), (5.0, "5"), (10.0, "10"), (20.0, "20")]);
-                });
-                ui.separator();
-                if stil::eintrag(ui, bild, Sym::Rueckgaengig, t("Nach links drehen")).clicked() {
-                    a = Some(Aktion::Drehen(3));
-                }
-                if stil::eintrag(ui, bild, Sym::Aktualisieren, t("Nach rechts drehen")).clicked() {
-                    a = Some(Aktion::Drehen(1));
-                }
-                if stil::eintrag(ui, bild, Sym::Raster, t("Einpassen")).clicked() {
-                    a = Some(Aktion::Einpassen);
-                }
-                ui.separator();
-                if stil::eintrag(ui, hat_aktuell, Sym::Papierkorb, t("In Papierkorb …")).clicked() {
-                    a = Some(Aktion::Papierkorb);
-                }
-                if stil::eintrag(ui, hat_liste, Sym::Kreuz, t("Liste leeren")).clicked() {
-                    a = Some(Aktion::Leeren);
-                }
-                ui.separator();
-                stil::hinweis(ui, &info);
-            });
-        });
-        a
-    }
-
-    fn seite(&mut self, ui: &mut Ui) -> Option<Aktion> {
-        let mut a = None;
-        ui.horizontal(|ui| {
-            stil::symbol(ui, Sym::Ebenen, 18.0, stil::akzent());
-            ui.label(RichText::new(t("Wiedergabeliste")).size(14.5).strong());
-            let n = self.liste.len();
-            stil::rechts(ui, |ui| {
-                stil::grau(ui, &n.to_string());
-            });
-        });
-        if self.liste.is_empty() {
-            stil::hinweis(ui, t("Dateien hineinziehen oder einen Ordner öffnen."));
-            return a;
-        }
-        let w = ui.available_width();
-        let alt = ui.spacing().item_spacing.y;
-        ui.spacing_mut().item_spacing.y = 2.0;
-        for (i, e) in self.liste.iter().enumerate() {
-            let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 30.0), Sense::click());
-            let an = self.aktuell == Some(i);
-            if an && self.scroll_zu {
-                resp.scroll_to_me(Some(Align::Center));
-            }
-            if ui.is_rect_visible(rect) {
-                if an {
-                    ui.painter().rect_filled(rect, 7.0, stil::toenung());
-                } else if resp.hovered() {
-                    ui.painter().rect_filled(rect, 7.0, thema::hover());
-                }
-                let mut c = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(egui::vec2(6.0, 0.0))).layout(egui::Layout::left_to_right(Align::Center)));
-                c.spacing_mut().item_spacing.x = 8.0;
-                let (txt, farbe) = match e.art {
-                    Art::Video => (t("VIDEO"), stil::blau()),
-                    Art::Musik => (t("MUSIK"), stil::violett()),
-                    Art::Bild => (t("BILD"), stil::gruen()),
-                };
-                stil::marke(&mut c, txt, farbe, 52.0);
-                let text = RichText::new(&e.name).size(13.0).color(if an { thema::text() } else { thema::muted() });
-                c.add(egui::Label::new(if an { text.strong() } else { text }).truncate().selectable(false));
-            }
-            if resp.clicked() {
-                a = Some(Aktion::Zeigen(i));
-            }
-            let resp = if resp.hovered() { resp.on_hover_text(e.pfad.display().to_string()) } else { resp };
-            resp.context_menu(|ui| {
-                if stil::eintrag(ui, true, Sym::Play, t("Anzeigen")).clicked() {
-                    a = Some(Aktion::Zeigen(i));
-                    ui.close_menu();
-                }
-                if stil::eintrag(ui, true, Sym::Kreuz, t("Aus der Liste nehmen")).clicked() {
-                    a = Some(Aktion::Entfernen(i));
-                    ui.close_menu();
-                }
-            });
-        }
-        ui.spacing_mut().item_spacing.y = alt;
-        self.scroll_zu = false;
-        a
-    }
-
-    fn suchleiste(&mut self, ui: &mut Ui, breite: f32) -> Option<i64> {
-        let (rect, resp) = ui.allocate_exact_size(egui::vec2(breite.max(60.0), 22.0), Sense::click_and_drag());
-        let len = self.laenge;
-        let pos = self.scrub.unwrap_or(self.zeit);
-        let frac = if len > 0 { (pos as f64 / len as f64).clamp(0.0, 1.0) as f32 } else { 0.0 };
-        let p = ui.painter();
-        let bahn = Rect::from_center_size(rect.center(), egui::vec2(rect.width(), 5.0));
-        p.rect_filled(bahn, 3.0, thema::border());
-        let voll = Rect::from_min_max(bahn.min, Pos2::new(bahn.left() + bahn.width() * frac, bahn.max.y));
-        p.rect_filled(voll, 3.0, stil::farbe());
-        let aktiv = resp.hovered() || resp.dragged();
-        if len > 0 {
-            p.circle(Pos2::new(voll.right(), bahn.center().y), if aktiv { 7.5 } else { 6.0 }, stil::farbe(), Stroke::new(2.0, thema::panel()));
-        }
-        if len <= 0 {
-            return None;
-        }
-        let zeit_bei = |x: f32| (((x - rect.left()) / rect.width().max(1.0)).clamp(0.0, 1.0) as f64 * len as f64) as i64;
-        let mut ziel = None;
-        if resp.dragged() {
-            if let Some(pp) = resp.interact_pointer_pos() {
-                self.scrub = Some(zeit_bei(pp.x));
-            }
-        }
-        if resp.drag_stopped() {
-            ziel = self.scrub.take();
-        } else if resp.clicked() {
-            ziel = resp.interact_pointer_pos().map(|pp| zeit_bei(pp.x));
-        }
-        if let Some(h) = resp.hover_pos() {
-            let txt = medien::zeit_text(zeit_bei(h.x));
-            resp.on_hover_text_at_pointer(txt);
-        }
-        ziel
-    }
-
-    /// Klappmenü, das sich nach oben öffnet (in der Fussleiste).
-    fn menue_oben(ui: &mut Ui, enabled: bool, s: Sym, text: &str, add: impl FnOnce(&mut Ui)) {
-        let resp = stil::knopf_an(ui, enabled, s, text);
-        let id = resp.id.with("oben");
-        if resp.clicked() {
-            ui.memory_mut(|m| m.toggle_popup(id));
-        }
-        egui::popup_above_or_below_widget(ui, id, &resp, egui::AboveOrBelow::Above, egui::PopupCloseBehavior::CloseOnClick, |ui| {
-            ui.set_min_width(220.0);
-            add(ui);
-        });
-    }
-
-    fn fuss(&mut self, ui: &mut Ui) -> Option<Aktion> {
-        if self.aktuelle_art() == Some(Art::Bild) {
-            return self.fuss_bild(ui);
-        }
-        let mut a = None;
-        let medium = matches!(self.aktuelle_art(), Some(Art::Video | Art::Musik));
-        // Zeile 1: Suchleiste und Zeit
-        ui.horizontal(|ui| {
-            let pos = self.scrub.unwrap_or(self.zeit);
-            let txt = format!("{} / {}", medien::zeit_text(pos), medien::zeit_text(self.laenge));
-            let w = ui.available_width() - 150.0;
-            if let Some(z) = self.suchleiste(ui, w) {
-                a = Some(Aktion::Springen(z));
-            }
-            ui.add_space(6.0);
-            ui.label(RichText::new(txt).monospace().size(13.0).color(thema::muted()));
-        });
-        ui.add_space(2.0);
-        // Zeile 2: Knöpfe
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 6.0;
-            if stil::leise(ui, !self.liste.is_empty(), Sym::Anfang, "", t("Zurück (P)")).clicked() {
-                a = Some(Aktion::Zurueck);
-            }
-            let spielt = matches!(self.zustand, Zustand::Spielt | Zustand::Oeffnet | Zustand::Puffert) && medium;
-            if stil::haupt(ui, !self.liste.is_empty(), if spielt { Sym::Pause } else { Sym::Play }, "").on_hover_text(t("Abspielen / Pause (Leertaste)")).clicked() {
-                a = Some(Aktion::PlayPause);
-            }
-            if stil::leise(ui, !self.liste.is_empty(), Sym::Ende, "", t("Weiter (N)")).clicked() {
-                a = Some(Aktion::Weiter);
-            }
-            stil::trenner(ui);
-            let stumm_hinweis = if self.stumm { t("Ton einschalten (M)") } else { t("Stumm (M)") };
-            if stil::leise(ui, true, if self.stumm { Sym::Kreuz } else { Sym::Musik }, "", stumm_hinweis).clicked() {
-                self.stumm = !self.stumm;
-            }
-            ui.allocate_ui(egui::vec2(170.0, 30.0), |ui| {
-                stil::schieber(ui, &mut self.lautstaerke, 0.0..=100.0, "%", 0);
-            });
-            stil::trenner(ui);
-            let player = match &self.engine {
-                Engine::Bereit(p) if medium && p.hat_medium() => Some(p),
-                _ => None,
-            };
-            Self::menue_oben(ui, player.is_some(), Sym::Musik, t("Tonspur"), |ui| {
-                if let Some(p) = player {
-                    let aktiv = p.tonspur();
-                    let spuren = p.tonspuren();
-                    if spuren.is_empty() {
-                        stil::hinweis(ui, t("Keine Tonspur"));
-                    }
-                    for (id, name) in spuren {
-                        let name = if id < 0 { t("Aus").to_string() } else if name.is_empty() { tf("Spur {n}", &[("n", &id)]) } else { name };
-                        if stil::eintrag(ui, true, if id == aktiv { Sym::Haken } else { Sym::Musik }, &name).clicked() {
-                            p.setze_tonspur(id);
-                        }
-                    }
-                }
-            });
-            Self::menue_oben(ui, player.is_some(), Sym::Text, t("Untertitel"), |ui| {
-                if let Some(p) = player {
-                    let aktiv = p.untertitel();
-                    let spuren = p.untertitel_liste();
-                    if spuren.is_empty() {
-                        stil::hinweis(ui, t("Keine Untertitel"));
-                    }
-                    for (id, name) in spuren {
-                        let name = if id < 0 { t("Aus").to_string() } else if name.is_empty() { tf("Spur {n}", &[("n", &id)]) } else { name };
-                        if stil::eintrag(ui, true, if id == aktiv { Sym::Haken } else { Sym::Text }, &name).clicked() {
-                            p.setze_untertitel(id);
-                        }
-                    }
-                }
-            });
-            let tempo_txt = format!("{}×", self.tempo);
-            let mut tempo = self.tempo;
-            Self::menue_oben(ui, true, Sym::Uhr, &tempo_txt, |ui| {
-                stil::hinweis(ui, t("Wiedergabe-Geschwindigkeit"));
-                for r in TEMPI {
-                    if stil::eintrag(ui, true, if r == tempo { Sym::Haken } else { Sym::Uhr }, &format!("{r}×")).clicked() {
-                        tempo = r;
-                    }
-                }
-            });
-            if tempo != self.tempo {
-                self.tempo = tempo;
-                if let Some(p) = player {
-                    p.tempo(tempo);
-                }
-            }
-            let (wdh_sym, wdh_txt) = match (self.zufall, self.wdh) {
-                (true, _) => (Sym::Mischen, t("Zufall")),
-                (false, Wdh::Alle) => (Sym::Aktualisieren, t("Alle wiederholen")),
-                (false, Wdh::Eins) => (Sym::Aktualisieren, t("Eines wiederholen")),
-                (false, Wdh::Aus) => (Sym::Pfeil, t("Der Reihe nach")),
-            };
-            let (wdh, zufall) = (&mut self.wdh, &mut self.zufall);
-            Self::menue_oben(ui, true, wdh_sym, wdh_txt, |ui| {
-                stil::hinweis(ui, t("Wiederholen"));
-                for (w, txt) in [(Wdh::Aus, t("Nicht wiederholen")), (Wdh::Alle, t("Ganze Liste wiederholen")), (Wdh::Eins, t("Aktuelles Stück wiederholen"))] {
-                    if stil::eintrag(ui, true, if *wdh == w { Sym::Haken } else { Sym::Aktualisieren }, txt).clicked() {
-                        *wdh = w;
-                    }
-                }
-                ui.separator();
-                if stil::eintrag(ui, true, if *zufall { Sym::Haken } else { Sym::Mischen }, t("Zufällige Reihenfolge")).clicked() {
-                    *zufall = !*zufall;
-                }
-            });
-            stil::rechts(ui, |ui| {
-                let h = if self.vollbild { t("Vollbild beenden (Esc)") } else { t("Vollbild (F)") };
-                if stil::leise(ui, true, Sym::Panorama, "", h).clicked() {
-                    a = Some(Aktion::Vollbild);
-                }
-                if let Some(e) = self.aktuell.and_then(|i| self.liste.get(i)) {
-                    ui.add(egui::Label::new(RichText::new(&e.name).size(13.0).color(thema::muted())).truncate().selectable(false));
-                }
-            });
-        });
-        a
-    }
-
-    fn fuss_bild(&mut self, ui: &mut Ui) -> Option<Aktion> {
-        let mut a = None;
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 6.0;
-            if stil::leise(ui, true, Sym::Anfang, "", t("Vorheriges (←)")).clicked() {
-                a = Some(Aktion::Zurueck);
-            }
-            let h = if self.diashow { t("Diashow anhalten (Leertaste)") } else { t("Diashow starten (Leertaste)") };
-            if stil::haupt(ui, true, if self.diashow { Sym::Pause } else { Sym::Play }, "").on_hover_text(h).clicked() {
-                a = Some(Aktion::Diashow);
-            }
-            if stil::leise(ui, true, Sym::Ende, "", t("Nächstes (→)")).clicked() {
-                a = Some(Aktion::Weiter);
-            }
-            stil::trenner(ui);
-            if stil::leise(ui, true, Sym::Rueckgaengig, "", t("Nach links drehen")).clicked() {
-                a = Some(Aktion::Drehen(3));
-            }
-            if stil::leise(ui, true, Sym::Aktualisieren, "", t("Nach rechts drehen")).clicked() {
-                a = Some(Aktion::Drehen(1));
-            }
-            if stil::knopf_text(ui, self.zoom != 1.0 || self.pan != Vec2::ZERO, t("Einpassen")).clicked() {
-                a = Some(Aktion::Einpassen);
-            }
-            stil::grau(ui, &format!("{:.0} %", self.zoom_prozent()));
-            stil::trenner(ui);
-            if self.diashow {
-                stil::grau(ui, &tf("Diashow: {s} s pro Bild", &[("s", &self.diashow_s)]));
-            }
-            stil::rechts(ui, |ui| {
-                let h = if self.vollbild { t("Vollbild beenden (Esc)") } else { t("Vollbild (F)") };
-                if stil::leise(ui, true, Sym::Panorama, "", h).clicked() {
-                    a = Some(Aktion::Vollbild);
-                }
-                if stil::leise(ui, true, Sym::Papierkorb, "", t("In Papierkorb … (Entf)")).clicked() {
-                    a = Some(Aktion::Papierkorb);
-                }
-                stil::trenner(ui);
-                if let Some(e) = self.aktuell.and_then(|i| self.liste.get(i)) {
-                    let groesse = self.bilder.iter().find(|b| b.pfad == e.pfad).map(|b| format!("  ·  {} × {}", b.size[0], b.size[1])).unwrap_or_default();
-                    ui.add(egui::Label::new(RichText::new(format!("{}{}", e.name, groesse)).size(13.0).color(thema::muted())).truncate().selectable(false));
-                }
-            });
-        });
-        a
-    }
-
-    /// Zoom in Prozent der Originalgrösse (für die Anzeige), ungefähr aus dem letzten Bild.
-    fn zoom_prozent(&self) -> f32 {
-        (self.basis * self.zoom * 100.0).clamp(0.0, 100_000.0)
-    }
-
-    // ------------------------------------------------------------------ Anzeige
-
-    fn anzeige(&mut self, ui: &mut Ui) -> Option<Aktion> {
-        let mut a = None;
-        let Some((pfad, art, name)) = self.aktuell.and_then(|i| self.liste.get(i)).map(|e| (e.pfad.clone(), e.art, e.name.clone())) else {
-            stil::leer(ui, Sym::Film, t("Videos, Musik und Bilder"), t("Dateien hineinziehen oder oben öffnen."));
-            ui.vertical_centered(|ui| {
-                ui.add_space(10.0);
-                match &self.engine {
-                    Engine::Fehlt(_) => {
-                        ui.label(RichText::new(vlc_fehlt_text()).color(stil::orange()));
-                    }
-                    Engine::Laedt(_) => {
-                        stil::grau(ui, t("libVLC wird geladen …"));
-                    }
-                    Engine::Bereit(_) => {}
-                }
-            });
-            let r = ui.max_rect();
-            self.meldung_malen(ui, r);
-            return a;
-        };
-        let rect = ui.available_rect_before_wrap();
-        let resp = ui.allocate_rect(rect, Sense::click_and_drag());
-        if resp.double_clicked() {
-            a = Some(Aktion::Vollbild);
-        }
-        let rund = if self.vollbild { 0.0 } else { 10.0 };
-        match art {
-            Art::Video => {
-                ui.painter().rect_filled(rect, rund, Color32::BLACK);
-                match &self.video_tex {
-                    Some(tex) => {
-                        let r = einpassen(rect, self.video_size, f32::INFINITY);
-                        ui.painter().image(tex.id(), r, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
-                    }
-                    None => {
-                        let txt = match &self.engine {
-                            Engine::Fehlt(_) => vlc_fehlt_text().to_string(),
-                            _ if matches!(self.zustand, Zustand::Fehler) => tf("{name} lässt sich nicht abspielen.", &[("name", &name)]),
-                            _ if matches!(self.zustand, Zustand::Spielt) => String::new(),
-                            _ => t("Wird geöffnet …").to_string(),
-                        };
-                        mittig_text(ui, rect, &txt, 15.0, Color32::from_gray(200));
-                    }
-                }
-            }
-            Art::Musik => self.musik_malen(ui, rect, &name),
-            Art::Bild => self.bild_malen(ui, rect, &resp, &pfad, &name),
-        }
-        if !ui.ctx().input(|i| i.raw.hovered_files.is_empty()) {
-            ui.painter().rect(rect.shrink(4.0), 12.0, stil::mix(stil::farbe(), thema::panel(), 0.12), Stroke::new(2.0, stil::farbe()));
-            mittig_text(ui, rect, t("Loslassen, um zur Wiedergabeliste hinzuzufügen"), 17.0, thema::text());
-        }
-        self.meldung_malen(ui, rect);
-        a
-    }
-
-    fn musik_malen(&mut self, ui: &mut Ui, rect: Rect, name: &str) {
-        let p = ui.painter();
-        let seite = (rect.height() * 0.55).min(rect.width() * 0.6).clamp(80.0, 440.0);
-        let block_h = seite + 96.0;
-        let oben = rect.center().y - block_h / 2.0;
-        let cover_r = Rect::from_min_size(Pos2::new(rect.center().x - seite / 2.0, oben), Vec2::splat(seite));
-        if let Some(c) = &self.cover {
-            p.image(c.tex.id(), einpassen(cover_r, c.size, f32::INFINITY), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
-        } else if let Some(tex) = &self.video_tex {
-            // Manche Dateien liefern das Albumbild als Videobild.
-            p.image(tex.id(), einpassen(cover_r, self.video_size, f32::INFINITY), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
-        } else {
-            p.rect_filled(cover_r, 18.0, stil::toenung());
-            stil::sym(p, Rect::from_center_size(cover_r.center(), Vec2::splat(seite * 0.42)), Sym::Musik, stil::akzent());
-        }
-        let titel = if self.titel.is_empty() { name.to_string() } else { self.titel.clone() };
-        let breite = rect.width() - 40.0;
-        let mut y = cover_r.bottom() + 18.0;
-        for (text, gr, farbe, stark) in [(titel, 20.0, thema::text(), true), (self.kuenstler.clone(), 15.0, thema::text(), false), (self.album.clone(), 13.5, thema::muted(), false)] {
-            if text.is_empty() {
-                continue;
-            }
-            let font = egui::FontId::proportional(gr);
-            let mut job = egui::text::LayoutJob::simple_singleline(text, font, farbe);
-            job.wrap = egui::text::TextWrapping::truncate_at_width(breite.max(40.0));
-            let g = ui.fonts(|f| f.layout_job(job));
-            let pos = Pos2::new(rect.center().x - g.size().x / 2.0, y);
-            if stark {
-                // etwas kräftiger: doppelt mit Versatz zeichnen
-                ui.painter().galley(pos + egui::vec2(0.4, 0.0), g.clone(), farbe);
-            }
-            ui.painter().galley(pos, g.clone(), farbe);
-            y += g.size().y + 6.0;
-        }
-    }
-
-    fn bild_malen(&mut self, ui: &mut Ui, rect: Rect, resp: &egui::Response, pfad: &Path, name: &str) {
-        let Some(b) = self.bilder.iter().find(|b| b.pfad == pfad) else {
-            match &self.bild_fehler {
-                Some((p, e)) if p == pfad => {
-                    let e = engine_msg(e);
-                    mittig_text(ui, rect, &tf("{name} lässt sich nicht anzeigen: {e}", &[("name", &name), ("e", &e)]), 15.0, stil::rot());
-                }
-                _ => mittig_text(ui, rect, t("Bild wird geladen …"), 15.0, thema::muted()),
-            }
-            return;
-        };
-        let (tex, size) = (b.tex.id(), b.size);
-        let gedreht = self.drehung % 2 == 1;
-        let (w, h) = if gedreht { (size[1] as f32, size[0] as f32) } else { (size[0] as f32, size[1] as f32) };
-        if w < 1.0 || h < 1.0 {
-            return;
-        }
-        // Einpassen, kleine Bilder aber nicht über die Originalgrösse vergrössern.
-        let basis = (rect.width() / w).min(rect.height() / h).min(1.0);
-        self.basis = basis;
-        // Zoom mit dem Mausrad um den Mauszeiger, Verschieben durch Ziehen.
-        if resp.hovered() {
-            let (scroll, zd) = ui.input(|i| (i.smooth_scroll_delta.y, i.zoom_delta()));
-            let f = (scroll / 300.0).exp() * zd;
-            if (f - 1.0).abs() > 1e-4 && f.is_finite() {
-                let neu = (self.zoom * f).clamp(0.05, 40.0);
-                let f = neu / self.zoom;
-                if let Some(ptr) = resp.hover_pos() {
-                    let rel = ptr - rect.center();
-                    self.pan = (self.pan - rel) * f + rel;
-                } else {
-                    self.pan *= f;
-                }
-                self.zoom = neu;
-            }
-        }
-        if resp.dragged() {
-            self.pan += resp.drag_delta();
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
-        } else if resp.hovered() && self.zoom > 1.0 {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        let s = basis * self.zoom;
-        let r = Rect::from_center_size(rect.center() + self.pan, egui::vec2(w * s, h * s));
-        let p = ui.painter().with_clip_rect(rect);
-        let uv = [Pos2::new(0.0, 0.0), Pos2::new(1.0, 0.0), Pos2::new(1.0, 1.0), Pos2::new(0.0, 1.0)];
-        let ecken = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom()];
-        let k = (self.drehung % 4) as usize;
-        let mut m = egui::Mesh::with_texture(tex);
-        for (i, e) in ecken.iter().enumerate() {
-            m.vertices.push(egui::epaint::Vertex { pos: *e, uv: uv[(i + 4 - k) % 4], color: Color32::WHITE });
-        }
-        m.indices = vec![0, 1, 2, 0, 2, 3];
-        p.add(egui::Shape::mesh(m));
-    }
-
-    fn meldung_malen(&mut self, ui: &mut Ui, rect: Rect) {
-        let Some((text, seit)) = &self.meldung else { return };
-        let alter = seit.elapsed();
-        if alter > Duration::from_secs(7) {
-            self.meldung = None;
-            return;
-        }
-        ui.ctx().request_repaint_after(Duration::from_secs(7) - alter);
-        let breite = (rect.width() - 60.0).clamp(120.0, 640.0);
-        let g = ui.painter().layout(text.clone(), egui::FontId::proportional(14.0), thema::text(), breite);
-        let box_r = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 20.0 + g.size().y / 2.0 + 10.0), g.size() + egui::vec2(28.0, 20.0));
-        ui.painter().rect(box_r, 10.0, thema::panel(), Stroke::new(1.0, stil::mix(stil::orange(), thema::border(), 0.6)));
-        ui.painter().galley(box_r.min + egui::vec2(14.0, 10.0), g, thema::text());
     }
 
     fn leisten_zeigen(&self) -> bool {
@@ -1388,7 +1695,97 @@ impl App {
             return true;
         }
         let spielt = matches!(self.zustand, Zustand::Spielt) || self.diashow;
-        !spielt || self.maus_seit.elapsed() < Duration::from_millis(2500)
+        let ueber = match (self.overlay, self.maus_pos) {
+            (Some(r), Some(p)) => r.expand(8.0).contains(p),
+            _ => false,
+        };
+        !spielt || ueber || self.maus_seit.elapsed() < VOLLBILD_AUSBLENDEN
+    }
+}
+
+/// Wiedergabelisten, die sich öffnen lassen
+const LISTEN: &[&str] = &["m3u", "m3u8"];
+
+fn ist_liste(p: &Path) -> bool {
+    p.extension().and_then(|e| e.to_str()).is_some_and(|e| LISTEN.iter().any(|l| e.eq_ignore_ascii_case(l)))
+}
+
+fn standard_bilder_ordner() -> Option<PathBuf> {
+    let home = if cfg!(windows) { std::env::var_os("USERPROFILE") } else { std::env::var_os("HOME") }.map(PathBuf::from);
+    let ud = if cfg!(target_os = "linux") {
+        let conf = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).filter(|p| p.is_absolute()).or_else(|| home.as_ref().map(|h| h.join(".config")));
+        conf.and_then(|c| std::fs::read_to_string(c.join("user-dirs.dirs")).ok())
+    } else {
+        None
+    };
+    merken::bilder_ordner(home.as_deref(), ud.as_deref(), &|p: &Path| p.is_dir())
+}
+
+fn taste_von(k: egui::Key) -> Option<Taste> {
+    use egui::Key;
+    Some(match k {
+        Key::Space => Taste::Leer,
+        Key::ArrowLeft => Taste::Links,
+        Key::ArrowRight => Taste::Rechts,
+        Key::ArrowUp => Taste::Hoch,
+        Key::ArrowDown => Taste::Runter,
+        Key::Escape => Taste::Esc,
+        Key::Delete => Taste::Entf,
+        Key::Plus => Taste::Plus,
+        Key::Minus => Taste::Minus,
+        Key::Equals => Taste::Gleich,
+        Key::F1 => Taste::F1,
+        _ => {
+            let n = k.name();
+            let mut it = n.chars();
+            let c = it.next()?;
+            if it.next().is_some() || !c.is_ascii_alphabetic() {
+                return None;
+            }
+            Taste::Buchstabe(c.to_ascii_uppercase())
+        }
+    })
+}
+
+fn spur_name(id: i32, name: &str) -> String {
+    if id < 0 {
+        t("Aus").to_string()
+    } else if name.is_empty() {
+        tf("Spur {n}", &[("n", &id)])
+    } else {
+        name.to_string()
+    }
+}
+
+fn wdh_text(w: Wdh) -> &'static str {
+    match w {
+        Wdh::Aus => t("Nicht wiederholen"),
+        Wdh::Alle => t("Ganze Liste wiederholen"),
+        Wdh::Eins => t("Aktuelles Stück wiederholen"),
+    }
+}
+
+fn seiten_name(i: usize) -> String {
+    match befehl::SEITEN.get(i) {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => t("Standard").to_string(),
+    }
+}
+
+fn zuschnitt_name(i: usize) -> String {
+    match befehl::ZUSCHNITTE.get(i) {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => t("Standard").to_string(),
+    }
+}
+
+fn deinterlace_name(i: usize) -> String {
+    match befehl::DEINTERLACE.get(i) {
+        Some(s) if !s.is_empty() => {
+            let mut c = s.chars();
+            c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+        }
+        _ => t("Aus").to_string(),
     }
 }
 
@@ -1399,7 +1796,18 @@ fn einpassen(rect: Rect, size: [usize; 2], max: f32) -> Rect {
     Rect::from_center_size(rect.center(), egui::vec2(w * s, h * s))
 }
 
-fn mittig_text(ui: &Ui, rect: Rect, text: &str, gr: f32, farbe: Color32) {
+/// Rechteck mit Seitenverhältnis `r` (Breite/Höhe) in `rect` einpassen.
+fn einpassen_verhaeltnis(rect: Rect, r: f64) -> Rect {
+    let r = if r.is_finite() && r > 0.01 { r as f32 } else { 16.0 / 9.0 };
+    let (mut w, mut h) = (rect.width(), rect.width() / r);
+    if h > rect.height() {
+        h = rect.height();
+        w = h * r;
+    }
+    Rect::from_center_size(rect.center(), egui::vec2(w.max(1.0), h.max(1.0)))
+}
+
+fn mittig_text(ui: &egui::Ui, rect: Rect, text: &str, gr: f32, farbe: Color32) {
     if text.is_empty() {
         return;
     }
@@ -1413,6 +1821,7 @@ impl eframe::App for App {
         self.engine_pruefen(ctx);
         self.bilder_pruefen(ctx);
         self.player_pruefen(ctx);
+        self.proben_pruefen(ctx);
 
         // Hineingezogene Dateien
         let fallen: Vec<PathBuf> = ctx.input(|i| i.raw.dropped_files.iter().filter_map(|f| f.path.clone()).collect());
@@ -1455,73 +1864,40 @@ impl eframe::App for App {
         }
 
         let zeigen = self.leisten_zeigen();
-        if self.vollbild && !zeigen {
-            // Leisten ausgeblendet; bei Mausbewegung wieder zeigen.
-        } else if self.vollbild {
-            ctx.request_repaint_after(Duration::from_millis(2600));
+        if self.vollbild && zeigen {
+            // Nach dem Ausblenden einmal neu zeichnen.
+            ctx.request_repaint_after(VOLLBILD_AUSBLENDEN + Duration::from_millis(100));
+        }
+        if !self.vollbild && !self.minimal {
+            self.menueleiste(ctx, &mut aktionen);
         }
         if !self.vollbild {
-            let mut a = None;
-            stil::kopfleiste(ctx, |ui| a = self.kopf(ui));
+            self.overlay = None;
+            let mut a = Vec::new();
+            stil::fussleiste(ctx, |ui| self.fuss(ui, &mut a));
             aktionen.extend(a);
         }
-        if zeigen {
-            let mut a = None;
-            stil::fussleiste(ctx, |ui| a = self.fuss(ui));
-            aktionen.extend(a);
+        if self.liste_sichtbar && !self.vollbild && !self.minimal {
+            self.liste_panel(ctx, &mut aktionen);
         }
-        if self.liste_sichtbar && !self.vollbild {
-            let mut a = None;
-            stil::seitenleiste(ctx, 300.0, |ui| a = self.seite(ui));
-            aktionen.extend(a);
-        }
-        let mut a = None;
-        let schwarz = self.vollbild || self.aktuelle_art() == Some(Art::Video);
-        if schwarz && self.vollbild {
-            egui::CentralPanel::default().frame(egui::Frame::none().fill(Color32::BLACK)).show(ctx, |ui| a = self.anzeige(ui));
+        let mut a = Vec::new();
+        if self.vollbild {
+            egui::CentralPanel::default().frame(egui::Frame::none().fill(Color32::BLACK)).show(ctx, |ui| self.anzeige(ui, &mut a));
         } else {
-            stil::mitte(ctx, |ui| a = self.anzeige(ui));
+            stil::mitte(ctx, |ui| self.anzeige(ui, &mut a));
         }
         aktionen.extend(a);
-
-        // Rückfrage «In Papierkorb»
-        if let Some(i) = self.frage_papierkorb {
-            match self.liste.get(i) {
-                None => self.frage_papierkorb = None,
-                Some(e) => {
-                    let name = e.name.clone();
-                    let (mut ja, mut nein) = (false, false);
-                    egui::Window::new(t("In Papierkorb verschieben?"))
-                        .collapsible(false)
-                        .resizable(false)
-                        .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                        .show(ctx, |ui| {
-                            ui.label(tf("«{name}» in den Papierkorb verschieben?", &[("name", &name)]));
-                            ui.add_space(8.0);
-                            ui.horizontal(|ui| {
-                                if stil::gefahr(ui, true, Sym::Papierkorb, t("In Papierkorb")).clicked() {
-                                    ja = true;
-                                }
-                                if stil::knopf_text(ui, true, t("Abbrechen")).clicked() {
-                                    nein = true;
-                                }
-                            });
-                        });
-                    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-                        nein = true;
-                    }
-                    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-                        ja = true;
-                    }
-                    if ja {
-                        self.frage_papierkorb = None;
-                        self.papierkorb(ctx, i);
-                    } else if nein {
-                        self.frage_papierkorb = None;
-                    }
-                }
+        if self.vollbild {
+            if zeigen {
+                self.vollbild_bedienung(ctx, &mut aktionen);
+            } else {
+                self.overlay = None;
+                // Mauszeiger im Vollbild ausblenden, solange die Bedienung weg ist.
+                ctx.set_cursor_icon(egui::CursorIcon::None);
             }
         }
+
+        self.fenster_zeigen(ctx, &mut aktionen);
 
         for a in aktionen {
             self.ausfuehren(ctx, a);
@@ -1529,6 +1905,7 @@ impl eframe::App for App {
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.position_merken();
         storage.set_string("lautstaerke", format!("{:.0}", self.lautstaerke));
         storage.set_string("stumm", if self.stumm { "1" } else { "0" }.to_string());
         let w = match self.wdh {
@@ -1544,5 +1921,21 @@ impl eframe::App for App {
         if let Some(o) = &self.ordner {
             storage.set_string("ordner", o.display().to_string());
         }
+        storage.set_string("restzeit", if self.rest_zeit { "1" } else { "0" }.to_string());
+        let f = match self.fortsetzen {
+            Fortsetzen::Fragen => "fragen",
+            Fortsetzen::Immer => "immer",
+            Fortsetzen::Nie => "nie",
+        };
+        storage.set_string("fortsetzen", f.to_string());
+        storage.set_string("positionen", self.positionen.to_text());
+        storage.set_string("zuletzt", self.zuletzt.to_text());
+        storage.set_string("equalizer", self.eq.to_text());
+        storage.set_string("anpassung", self.anpassung.to_text());
+        storage.set_string("fotoordner", self.snap_ordner.as_ref().map(|p| p.display().to_string()).unwrap_or_default());
+    }
+
+    fn auto_save_interval(&self) -> Duration {
+        Duration::from_secs(30)
     }
 }

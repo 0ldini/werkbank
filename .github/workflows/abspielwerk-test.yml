@@ -1,0 +1,92 @@
+name: Abspielwerk-Test
+
+# «cargo test» für Abspielwerk (eigene/abspielwerk) unter Linux und Windows. Dazu gehört ein
+# Ende-zu-Ende-Test mit echtem libVLC (Linux: Paket «vlc», Windows: dasselbe libVLC wie im
+# Release über werk-prebuild.sh): ein selbst erzeugtes Video abspielen, Bildschirmfoto,
+# Equalizer, Video-Anpassungen, Deinterlace, Untertiteldatei, Bild für Bild, Adresse, Probe.
+# Veröffentlicht nichts.
+
+on:
+  push:
+    paths: ["eigene/abspielwerk/**", ".github/workflows/abspielwerk-test.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  test:
+    name: Test (${{ matrix.kind }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: linux
+            runner: ubuntu-24.04
+          - kind: windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: eigene/abspielwerk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux-Abhängigkeiten und VLC
+        if: matrix.kind == 'linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev pkg-config \
+            libvlc5 vlc-plugin-base vlc-plugin-video-output
+          echo "ABSPIELWERK_LIBVLC_PFLICHT=1" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: eigene/abspielwerk
+          key: test-${{ matrix.kind }}
+      - name: libVLC holen (wie im Release)
+        if: matrix.kind == 'windows'
+        env:
+          KIND: windows
+        run: |
+          bash ./werk-prebuild.sh
+          lib=$(cygpath -w "$PWD/vendor/bundle/libvlc.dll")
+          plug=$(cygpath -w "$PWD/vendor/bundle/plugins")
+          echo "ABSPIELWERK_LIBVLC=$lib" >> "$GITHUB_ENV"
+          echo "VLC_PLUGIN_PATH=$plug" >> "$GITHUB_ENV"
+          echo "ABSPIELWERK_LIBVLC_PFLICHT=1" >> "$GITHUB_ENV"
+      - name: Testen
+        run: |
+          set -o pipefail
+          cargo test -- --nocapture --test-threads=1 2>&1 | tee "$RUNNER_TEMP/test.log"
+      - name: Fehler melden
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$( (grep -E -A1 '^error(\[E[0-9]+\])?:' "$log" | grep -E '^error|-->' | grep -v 'could not compile' | paste - - | cut -c1-230 | head -60; echo "----"; grep -E -A8 "panicked at|^test .* FAILED|^failures:" "$log" | head -80) | cut -c1-240)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::error title=abspielwerk test ${{ matrix.kind }}::$text"
+      - name: Warnungen melden
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$(grep -E -A1 '^warning' "$log" | grep -E '^warning|-->' | grep -v 'generated [0-9]* warning' | paste - - | cut -c1-200 | head -40)
+          [ -n "$text" ] || exit 0
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::warning title=abspielwerk warnings ${{ matrix.kind }}::$text"
+      - name: Ergebnis
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$(grep -E '^test result:|^test .*(ok|FAILED|ignored)$|übersprungen|libVLC|Videobild|Bildschirmfoto|Equalizer-Vorlagen|Probe WAV|WAV:|SAR|Spuren:|Untertitel:|fertig' "$log" | cut -c1-220 | head -60)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::notice title=abspielwerk tests ${{ matrix.kind }}::$text"
