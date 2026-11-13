@@ -1,14 +1,4 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-nur: wordcraft pdfcraft photocraft vectorcraft gridcraft deckcraft effectcraft filmcraft soundcraft cadcraft lightcraft designcraft
-wordcraft 43349782041
-pdfcraft 43349782041
-photocraft 43349782041
-vectorcraft 43349782041
-gridcraft 43349782041
-deckcraft 43349782041
+nur: effectcraft
+arten: web
 effectcraft 43349782041
-filmcraft 43349782041
-soundcraft 43349782041
-cadcraft 43349782041
-lightcraft 43349782041
-designcraft 43349782041
