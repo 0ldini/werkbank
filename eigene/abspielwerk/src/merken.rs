@@ -254,7 +254,7 @@ pub fn m3u_lesen(text: &str, basis: &Path) -> Vec<String> {
             v.push(l.to_string());
         } else {
             let p = Path::new(l);
-            let voll = if p.is_absolute() || l.as_bytes().get(1) == Some(&b':') { p.to_path_buf() } else { basis.join(p) };
+            let voll = if p.has_root() || l.as_bytes().get(1) == Some(&b':') { p.to_path_buf() } else { basis.join(p) };
             v.push(voll.to_string_lossy().into_owned());
         }
         if v.len() >= 20_000 {
@@ -282,7 +282,7 @@ pub fn bilder_ordner(home: Option<&Path>, user_dirs: Option<&str>, ist_ordner: &
             } else {
                 PathBuf::from(wert)
             };
-            if p.is_absolute() && ist_ordner(&p) {
+            if p.has_root() && ist_ordner(&p) {
                 return Some(p);
             }
         }
@@ -425,13 +425,13 @@ mod tests {
         let home = Path::new("/home/oli");
         let alle = |_: &Path| true;
         let keine = |_: &Path| false;
-        assert_eq!(bilder_ordner(Some(home), Some("# x\nXDG_PICTURES_DIR=\"$HOME/Bilder\"\n"), &alle), Some(PathBuf::from("/home/oli/Bilder")));
-        assert_eq!(bilder_ordner(Some(home), None, &alle), Some(PathBuf::from("/home/oli/Pictures")));
+        assert_eq!(bilder_ordner(Some(home), Some("# x\nXDG_PICTURES_DIR=\"$HOME/Bilder\"\n"), &alle), Some(home.join("Bilder")));
+        assert_eq!(bilder_ordner(Some(home), None, &alle), Some(home.join("Pictures")));
         assert_eq!(bilder_ordner(Some(home), Some("XDG_PICTURES_DIR=\"$HOME/Bilder\""), &keine), Some(PathBuf::from("/home/oli")));
         assert_eq!(bilder_ordner(None, None, &alle), None);
         assert_eq!(schnappschuss_name(2026, 11, 3, 4, 5, 9), "abspielwerk-2026-11-03-04h05m09s.png");
         let da = |p: &Path| p.ends_with("a.png") || p.ends_with("a-2.png");
-        assert_eq!(freier_pfad(Path::new("/b"), "a.png", &da), PathBuf::from("/b/a-3.png"));
-        assert_eq!(freier_pfad(Path::new("/b"), "c.png", &da), PathBuf::from("/b/c.png"));
+        assert_eq!(freier_pfad(Path::new("/b"), "a.png", &da), Path::new("/b").join("a-3.png"));
+        assert_eq!(freier_pfad(Path::new("/b"), "c.png", &da), Path::new("/b").join("c.png"));
     }
 }
