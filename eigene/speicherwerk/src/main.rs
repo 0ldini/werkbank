@@ -1,6 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod doppelt;
+#[cfg(test)]
+mod doppelt_e2e;
+mod doppelt_ui;
 mod scan;
 mod sprache;
 mod stil;

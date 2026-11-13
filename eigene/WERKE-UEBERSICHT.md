@@ -6,7 +6,7 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 
 1. **codewerk** – QR-Codes erstellen, inkl. Swiss QR Bill
 2. **umbenennwerk** – Dateien stapelweise umbenennen
-3. **speicherwerk** – Speicherplatz analysieren (Baum, grösste Dateien, Dateitypen)
+3. **speicherwerk** – Speicherplatz analysieren (Baum, grösste Dateien, Dateitypen) und doppelte Dateien finden
 4. **aufnahmewerk** – Bildschirm aufnehmen (Vollbild/Fenster/Bereich, System-Ton,
    Webcam, Cursor/Klicks, Countdown, Hotkey → MP4/H.264). Mikrofon-Mischung ist
    als Etappe 2 vorgesehen; braucht ffmpeg-nahe Teile bzw. windows-capture 2.0.1.
