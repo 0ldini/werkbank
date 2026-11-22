@@ -120,8 +120,4 @@ impl TlsCtx {
         let p = self.pending.lock().unwrap_or_else(|e| e.into_inner()).clone()?;
         Some(RErr::UntrustedCert { fp: p.0, changed: p.1, detail: p.2 })
     }
-
-    pub fn clear_untrusted(&self) {
-        *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = None;
-    }
 }

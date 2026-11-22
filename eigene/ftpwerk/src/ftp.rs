@@ -96,6 +96,26 @@ impl Stream {
         }
     }
 
+    /// TLS-Handschlag sofort abschliessen. Sonst geschieht er erst beim ersten Lesen/Schreiben –
+    /// bei einer leeren Datei also nie, und der Server meldet «522 SSL handshake failed».
+    fn handshake(&mut self) -> io::Result<()> {
+        match self {
+            Stream::Plain(_) => Ok(()),
+            #[cfg(feature = "tls")]
+            Stream::Tls(s) => {
+                let mut rounds = 0;
+                while s.conn.is_handshaking() {
+                    let (rd, wr) = s.conn.complete_io(&mut s.sock)?;
+                    rounds += 1;
+                    if (rd == 0 && wr == 0) || rounds > 64 {
+                        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "TLS"));
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+
     /// Lesen; ein TLS-Ende ohne «close_notify» (viele FTP-Server) gilt als normales Ende.
     fn read_data(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self.read(buf) {
@@ -415,7 +435,11 @@ impl Ftp {
 
     fn wrap_data(&self, tcp: TcpStream) -> Res<Stream> {
         if self.prot_p {
-            wrap_tls(self.tls.as_ref().ok_or_else(|| RErr::from("TLS"))?, tcp)
+            let mut d = wrap_tls(self.tls.as_ref().ok_or_else(|| RErr::from("TLS"))?, tcp)?;
+            if let Err(e) = d.handshake() {
+                return Err(self.io_err(e));
+            }
+            Ok(d)
         } else {
             Ok(Stream::Plain(tcp))
         }

@@ -750,7 +750,7 @@ impl App {
         if let Some(p) = ptr {
             let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("drag_label")));
             if let Some(r) = target {
-                painter.rect_stroke(r.shrink(2.0), 4.0, egui::Stroke::new(2.0, accent()));
+                painter.rect_stroke(r.shrink(2.0), 4.0_f32, egui::Stroke::new(2.0, accent()));
             }
             let text = match d.names.as_slice() {
                 [one] => one.clone(),
