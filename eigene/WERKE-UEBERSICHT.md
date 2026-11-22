@@ -1,6 +1,6 @@
 # Werke – eigene Rust-Programme für die Werkbank
 
-Elf eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
+Zwölf eigene Werkzeuge, alle in Rust + egui (nativ, Windows), passend zu den
 ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
 (`cargo run --release`); Details stehen im jeweiligen README.
 
@@ -26,6 +26,10 @@ ArtCraft-/Werk-Apps. Jeder Ordner ist ein eigenständiges Cargo-Projekt
    VLC, Lautstärke bis 125 %, Equalizer, Video-Anpassungen, Seitenverhältnis/Zuschneiden,
    Bildschirmfoto, Fortsetzen, Netzwerkstreams; Wiedergabeliste gemischt mit Titel/Dauer/Album,
    Albumbild, Bildbetrachter mit Zoom, Drehen und Diashow)
+12. **ftpwerk** – FTP-, FTPS- und SFTP-Client wie FileZilla (zwei Fenster lokal/Server, Ziehen
+   und Ablegen, Warteschlange mit parallelen Übertragungen und Fortsetzen, Ordner rekursiv,
+   chmod, Verbindungsverwaltung, Rückfrage mit Fingerabdruck bei Zertifikat/Server-Schlüssel;
+   nur Windows und Linux, keine Browser-Version)
 
 ## Stand
 
@@ -47,4 +51,6 @@ meckert: Meldung zurückgeben, dann wird es punktgenau angepasst.
   sind eigener Code
 - **abspielwerk**: libloading (libVLC wird zur Laufzeit geladen und für Windows/macOS beim
   Release-Build mitgeliefert; Linux: System-VLC), image, kamadak-exif, trash, rfd
+- **ftpwerk**: rustls + webpki-roots + sha2 (FTPS), russh + russh-sftp + tokio (SFTP, reines Rust),
+  rfd; FTP und die Listen-Auswertung (MLSD/LIST) sind eigener Code
 - die übrigen: nur egui/eframe (schutzwerk nutzt bordeigene Windows-Befehle)

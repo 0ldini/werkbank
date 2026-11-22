@@ -1,0 +1,165 @@
+name: FTPwerk-Test
+
+# «cargo test» für FTPwerk (eigene/ftpwerk) unter Linux und Windows. Unter Linux laufen dazu
+# echte Server auf diesem Rechner: pyftpdlib (FTP mit MLSD, FTP nur mit LIST, FTPS mit selbst
+# signiertem Zertifikat) und OpenSSH (SFTP mit Passwort und Schlüsseldatei). Der Ende-zu-Ende-Test
+# (src/e2e.rs) prüft Rückfrage mit Fingerabdruck, Hochladen eines Ordners mit UTF-8-Namen und
+# .htaccess, Liste, Herunterladen, Umbenennen, Löschen und Fortsetzen. Veröffentlicht nichts.
+
+on:
+  push:
+    paths: ["eigene/ftpwerk/**", ".github/workflows/ftpwerk-test.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  test:
+    name: Test (${{ matrix.kind }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: linux
+            runner: ubuntu-22.04
+          - kind: windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: eigene/ftpwerk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux-Abhängigkeiten
+        if: matrix.kind == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev pkg-config openssh-server openssl python3-pip
+          python3 -m pip install --user pyftpdlib pyopenssl
+
+      - name: Testserver starten (FTP, FTPS, SFTP)
+        if: matrix.kind == 'linux'
+        run: |
+          set -euo pipefail
+          T="$RUNNER_TEMP/srv"; mkdir -p "$T/ftp" "$T/ftp-list" "$T/ftps"
+          # FTPS: selbst signiertes Zertifikat; Fingerabdruck wie ihn FTPwerk zeigt (SHA-256, «AB:CD:…»)
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout "$T/key.pem" -out "$T/cert.pem" -days 2 -subj "/CN=localhost" 2>/dev/null
+          FTPS_FP=$(openssl x509 -in "$T/cert.pem" -noout -fingerprint -sha256 | cut -d= -f2)
+          cat > "$T/ftpd.py" <<'EOF'
+          import sys
+          from pyftpdlib.authorizers import DummyAuthorizer
+          from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
+          from pyftpdlib.servers import FTPServer
+          kind, root, port, cert, key = sys.argv[1:6]
+          a = DummyAuthorizer()
+          a.add_user("tester", "Gehe1m-ü", root, perm="elradfmwMT")
+          if kind == "ftps":
+              class H(TLS_FTPHandler):
+                  pass
+              H.certfile, H.keyfile = cert, key
+              H.tls_control_required = True
+              H.tls_data_required = True
+          else:
+              class H(FTPHandler):
+                  pass
+          if kind == "list":
+              # wie ältere Webhoster: kein MLSD/MLST, nur LIST
+              H.proto_cmds = {k: v for k, v in FTPHandler.proto_cmds.items() if k not in ("MLSD", "MLST")}
+          H.authorizer = a
+          H.encoding = "utf8"
+          FTPServer(("127.0.0.1", int(port)), H).serve_forever()
+          EOF
+          nohup python3 "$T/ftpd.py" ftp "$T/ftp" 2121 "$T/cert.pem" "$T/key.pem" > "$T/ftp.log" 2>&1 &
+          nohup python3 "$T/ftpd.py" list "$T/ftp-list" 2122 "$T/cert.pem" "$T/key.pem" > "$T/ftp-list.log" 2>&1 &
+          nohup python3 "$T/ftpd.py" ftps "$T/ftps" 2990 "$T/cert.pem" "$T/key.pem" > "$T/ftps.log" 2>&1 &
+
+          # SFTP: eigener sshd auf Port 2222 mit eigenem Host-Schlüssel und Testbenutzer
+          sudo useradd -m -s /bin/bash ftptest
+          echo 'ftptest:Sftp-Gehe1m' | sudo chpasswd
+          ssh-keygen -q -t ed25519 -N "" -f "$T/hostkey"
+          ssh-keygen -q -t ed25519 -N "" -f "$T/userkey"
+          sudo mkdir -p /home/ftptest/.ssh /run/sshd
+          sudo cp "$T/userkey.pub" /home/ftptest/.ssh/authorized_keys
+          sudo chown -R ftptest:ftptest /home/ftptest/.ssh
+          sudo chmod 700 /home/ftptest/.ssh && sudo chmod 600 /home/ftptest/.ssh/authorized_keys
+          cat > "$T/sshd_config" <<EOF
+          Port 2222
+          ListenAddress 127.0.0.1
+          HostKey $T/hostkey
+          PidFile $T/sshd.pid
+          PasswordAuthentication yes
+          KbdInteractiveAuthentication no
+          PubkeyAuthentication yes
+          UsePAM yes
+          AuthorizedKeysFile .ssh/authorized_keys
+          Subsystem sftp internal-sftp
+          StrictModes no
+          EOF
+          sudo /usr/sbin/sshd -t -f "$T/sshd_config"
+          sudo /usr/sbin/sshd -f "$T/sshd_config" -E "$T/sshd.log"
+          SFTP_FP=$(ssh-keygen -lf "$T/hostkey.pub" -E sha256 | awk '{print $2}')
+          sleep 2
+          for p in 2121 2122 2990 2222; do
+            timeout 5 bash -c "</dev/tcp/127.0.0.1/$p" && echo "Port $p bereit" || { echo "::error::Testserver auf Port $p fehlt"; cat "$T"/*.log; exit 1; }
+          done
+          echo "FTPS-Fingerabdruck: $FTPS_FP"
+          echo "SFTP-Fingerabdruck: $SFTP_FP"
+          {
+            echo "FTPWERK_E2E_HOST=127.0.0.1"
+            echo "FTPWERK_E2E_USER=tester"
+            echo "FTPWERK_E2E_PASS=Gehe1m-ü"
+            echo "FTPWERK_E2E_FTP_PORT=2121"
+            echo "FTPWERK_E2E_FTP_LIST_PORT=2122"
+            echo "FTPWERK_E2E_FTPS_PORT=2990"
+            echo "FTPWERK_E2E_FTPS_FP=$FTPS_FP"
+            echo "FTPWERK_E2E_SFTP_PORT=2222"
+            echo "FTPWERK_E2E_SFTP_USER=ftptest"
+            echo "FTPWERK_E2E_SFTP_PASS=Sftp-Gehe1m"
+            echo "FTPWERK_E2E_SFTP_KEY=$T/userkey"
+            echo "FTPWERK_E2E_SFTP_FP=$SFTP_FP"
+          } >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: eigene/ftpwerk
+          key: test-${{ matrix.kind }}
+      - name: Testen
+        run: |
+          set -o pipefail
+          cargo test -- --nocapture --test-threads=2 2>&1 | tee "$RUNNER_TEMP/test.log"
+      - name: Server-Protokolle
+        if: failure() && matrix.kind == 'linux'
+        run: |
+          tail -n 40 "$RUNNER_TEMP"/srv/*.log || true
+      - name: Fehler melden
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$( (grep -E -A1 '^error(\[E[0-9]+\])?:' "$log" | grep -E '^error|-->' | grep -v 'could not compile' | head -40; echo "----"; grep -E -A12 '^error' "$log" | head -60; echo "----"; grep -E -A6 "panicked at|^test .* FAILED|^failures:" "$log" | head -80) | cut -c1-240)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::error title=ftpwerk test ${{ matrix.kind }}::$text"
+      - name: Warnungen melden
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$(grep -E -A1 '^warning' "$log" | grep -E '^warning|-->' | grep -v 'generated [0-9]* warning' | paste - - | cut -c1-200 | head -40)
+          [ -n "$text" ] || exit 0
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::warning title=ftpwerk warnings ${{ matrix.kind }}::$text"
+      - name: Ergebnis
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/test.log"
+          [ -f "$log" ] || exit 0
+          text=$(grep -E '^test result:|^test .*(ok|FAILED|ignored)$|✓|übersprungen' "$log" | cut -c1-200 | head -90)
+          text="${text//'%'/'%25'}"; text="${text//$'\r'/}"; text="${text//$'\n'/'%0A'}"
+          echo "::notice title=ftpwerk tests ${{ matrix.kind }}::$text"
