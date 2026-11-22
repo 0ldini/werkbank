@@ -1,4 +1,3 @@
 # Programme aus Bau-Läufen statt aus Releases: <app> <lauf-id>
-nur: effectcraft
-arten: web
-effectcraft 43349782041
+nur: ftpwerk
+ftpwerk 45010128138

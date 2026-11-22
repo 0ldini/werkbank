@@ -320,6 +320,18 @@ tag = "packwerk-v"
 types = [".zip", ".7z", ".tar", ".gz", ".tgz"]
 no_web = true
 
+[[app]]
+id = "ftpwerk"
+name = "FTPwerk"
+about = "FTP-, FTPS- und SFTP-Client"
+about_en = "FTP, FTPS and SFTP client"
+category = "internet"
+color = "#1D4E89"
+repo = "https://github.com/0ldini/werkbank"
+tag = "ftpwerk-v"
+no_web = true
+systeme = ["windows", "linux"]
+
 # ---------------------------------------------------------------------------------------------
 # Fremdprogramme
 
