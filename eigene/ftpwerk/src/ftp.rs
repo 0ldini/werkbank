@@ -23,6 +23,8 @@ const MAX_LINE: usize = 64 * 1024;
 const MAX_REPLY_LINES: usize = 4000;
 /// Grösste Ordnerliste in Bytes (MLSD/LIST); reicht für weit über 100 000 Einträge.
 const MAX_LISTING: usize = 64 * 1024 * 1024;
+/// Wie lange nach dem Hochladen auf das Schliessen durch den Server gewartet wird.
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(15);
 
 // ---------------------------------------------------------------- TLS-Anbindung (oder Platzhalter)
 
@@ -81,17 +83,31 @@ impl Stream {
     }
 
     /// Sendeseite sauber beenden (bei TLS mit «close_notify»), damit der Server das Ende erkennt.
+    /// Danach wird gewartet, bis der Server seinerseits schliesst: Hat er noch etwas geschickt,
+    /// das niemand gelesen hat (bei TLS 1.3 z. B. Sitzungs-Tickets), würde ein sofortiges
+    /// Schliessen die Verbindung hart abbrechen (RST) – und der Server verlöre das Ende der Datei.
     fn finish(&mut self) {
-        match self {
+        let sock = match self {
             Stream::Plain(s) => {
                 let _ = s.flush();
-                let _ = s.shutdown(Shutdown::Write);
+                s
             }
             #[cfg(feature = "tls")]
             Stream::Tls(s) => {
                 s.conn.send_close_notify();
                 let _ = s.flush();
-                let _ = s.sock.shutdown(Shutdown::Write);
+                &mut s.sock
+            }
+        };
+        let _ = sock.shutdown(Shutdown::Write);
+        let _ = sock.set_read_timeout(Some(DRAIN_TIMEOUT));
+        let mut sink = [0u8; 4096];
+        let mut total = 0usize;
+        // Rohe Bytes bis zum Ende lesen und verwerfen (höchstens 1 MB, höchstens DRAIN_TIMEOUT je Versuch).
+        while total < 1024 * 1024 {
+            match sock.read(&mut sink) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => total = total.saturating_add(n),
             }
         }
     }
