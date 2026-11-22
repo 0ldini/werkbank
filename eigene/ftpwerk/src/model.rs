@@ -440,6 +440,33 @@ pub fn trust_check(trusted: &[String], fp: &str, ca_valid: bool) -> TrustCheck {
     TrustCheck::Ask { changed: trusted.iter().any(|t| !t.trim().is_empty()) }
 }
 
+// ---------------------------------------------------------------- Teil-Dateien
+
+/// Endung der Teil-Dateien, in die FTPwerk überträgt. Erst wenn alles da ist und die Grösse
+/// stimmt, wird die Teil-Datei auf den Zielnamen umbenannt. Fortgesetzt wird nur aus ihr.
+pub const PART_SUFFIX: &str = ".ftpwerk-teil";
+
+/// «bild.jpg» → «bild.jpg.ftpwerk-teil» (gilt für Namen und ganze Pfade).
+pub fn part_name(name: &str) -> String {
+    format!("{name}{PART_SUFFIX}")
+}
+
+/// Ist das eine Teil-Datei von FTPwerk?
+pub fn is_part_name(name: &str) -> bool {
+    name.ends_with(PART_SUFFIX) && name.len() > PART_SUFFIX.len()
+}
+
+/// «bericht.pdf», 2 → «bericht (2).pdf»; «.htaccess», 2 → «.htaccess (2)»; «a.tar.gz» → «a.tar (2).gz».
+pub fn numbered_name(name: &str, n: u32) -> String {
+    match name.rfind('.') {
+        Some(i) if i > 0 => {
+            let (stem, ext) = name.split_at(i);
+            format!("{stem} ({n}){ext}")
+        }
+        _ => format!("{name} ({n})"),
+    }
+}
+
 /// Höchstzahl Einträge, die aus einer Ordnerliste übernommen werden (schützt den Speicher vor
 /// endlosen Antworten fremder Server).
 pub const MAX_LIST_ENTRIES: usize = 200_000;
@@ -523,6 +550,18 @@ mod tests {
         assert_eq!(trust_check(&[], fp, true), TrustCheck::Accept);
         // leerer Fingerabdruck wird nie als «bekannt» gewertet
         assert_eq!(trust_check(&[String::new()], "", false), TrustCheck::Ask { changed: false });
+    }
+
+    #[test]
+    fn teil_dateien() {
+        assert_eq!(part_name("/www/.htaccess"), "/www/.htaccess.ftpwerk-teil");
+        assert!(is_part_name("a.txt.ftpwerk-teil"));
+        assert!(!is_part_name(".ftpwerk-teil"));
+        assert!(!is_part_name("a.txt"));
+        assert_eq!(numbered_name("bericht.pdf", 2), "bericht (2).pdf");
+        assert_eq!(numbered_name(".htaccess", 2), ".htaccess (2)");
+        assert_eq!(numbered_name("ohne", 3), "ohne (3)");
+        assert_eq!(numbered_name("Grüezi – ü.tär", 2), "Grüezi – ü (2).tär");
     }
 
     #[test]

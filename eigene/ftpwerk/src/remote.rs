@@ -27,6 +27,10 @@ pub trait Remote: Send {
     fn chmod(&mut self, path: &str, mode: u32) -> Res<()>;
     /// Grösse einer Datei, falls der Server sie nennt.
     fn size(&mut self, path: &str) -> Res<Option<u64>>;
+    /// Gibt es diese Datei auf dem Server?
+    fn exists(&mut self, path: &str) -> Res<bool> {
+        Ok(self.size(path)?.is_some())
+    }
     /// Lädt herunter. `resume`: vorhandene Teildatei fortsetzen. Rückgabe: übertragene Bytes (0 = war schon komplett).
     fn download(&mut self, remote: &str, local: &Path, resume: bool, prog: Prog) -> Res<u64>;
     /// Lädt hoch. `resume`: angefangene Datei auf dem Server fortsetzen.

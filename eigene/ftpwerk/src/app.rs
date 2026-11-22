@@ -593,7 +593,7 @@ impl App {
                         let mut ow = s.queue.overwrite();
                         let before = ow;
                         egui::ComboBox::from_id_salt("ow").selected_text(ow_label(ow)).show_ui(ui, |ui| {
-                            for o in [Overwrite::Resume, Overwrite::Overwrite, Overwrite::Skip] {
+                            for o in [Overwrite::Overwrite, Overwrite::Rename, Overwrite::Skip] {
                                 ui.selectable_value(&mut ow, o, ow_label(o));
                             }
                         });
@@ -647,6 +647,7 @@ impl App {
             }
         }
         let mut cancel: Option<u64> = None;
+        let mut discard: Option<u64> = None;
         let mut retry: Option<u64> = None;
         let mut remove: Option<u64> = None;
         egui::ScrollArea::vertical().id_salt("queue_list").auto_shrink([false, false]).show(ui, |ui| {
@@ -672,7 +673,8 @@ impl App {
                         }
                         xfer::DONE => (format!("{} ({})", t("fertig"), human_size(total.max(done))), ok_col()),
                         xfer::SKIPPED => (t("übersprungen").to_string(), ui.visuals().weak_text_color()),
-                        xfer::CANCELLED => (t("abgebrochen").to_string(), warn_col()),
+                        xfer::CANCELLED if j.discard.load(std::sync::atomic::Ordering::Relaxed) => (t("abgebrochen, Teil-Datei verworfen").to_string(), warn_col()),
+                        xfer::CANCELLED => (t("abgebrochen – Teil-Datei bleibt zum Fortsetzen").to_string(), warn_col()),
                         _ => (j.error_text(), err_col()),
                     };
                     if st == xfer::RUN || st == xfer::WAIT {
@@ -681,13 +683,21 @@ impl App {
                     ui.add(egui::Label::new(RichText::new(text).color(col)).truncate());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| match st {
                         xfer::RUN | xfer::WAIT => {
-                            if ui.small_button("✖").on_hover_text(t("Abbrechen")).clicked() {
-                                cancel = Some(j.id);
+                            if !j.discard.load(std::sync::atomic::Ordering::Relaxed) {
+                                if ui.small_button("⊘").on_hover_text(t("Abbrechen und verwerfen (Teil-Datei löschen)")).clicked() {
+                                    discard = Some(j.id);
+                                }
+                                if ui.small_button("✖").on_hover_text(t("Abbrechen (Teil-Datei bleibt zum Fortsetzen)")).clicked() {
+                                    cancel = Some(j.id);
+                                }
                             }
                         }
                         xfer::FAIL | xfer::CANCELLED => {
                             if ui.small_button("🗑").on_hover_text(t("Aus der Liste entfernen")).clicked() {
                                 remove = Some(j.id);
+                            }
+                            if !j.discard.load(std::sync::atomic::Ordering::Relaxed) && ui.small_button("⊘").on_hover_text(t("Teil-Datei verwerfen")).clicked() {
+                                discard = Some(j.id);
                             }
                             if ui.small_button("🔄").on_hover_text(t("Erneut versuchen")).clicked() {
                                 retry = Some(j.id);
@@ -704,6 +714,9 @@ impl App {
         });
         if let Some(id) = cancel {
             s.queue.cancel(id);
+        }
+        if let Some(id) = discard {
+            s.queue.discard(id);
         }
         if let Some(id) = retry {
             s.queue.retry(Some(id));
@@ -808,8 +821,8 @@ impl App {
 
 fn ow_label(o: Overwrite) -> &'static str {
     match o {
-        Overwrite::Resume => t("Fortsetzen / ersetzen"),
-        Overwrite::Overwrite => t("Immer überschreiben"),
+        Overwrite::Overwrite => t("Ersetzen"),
+        Overwrite::Rename => t("Umbenennen"),
         Overwrite::Skip => t("Überspringen"),
     }
 }
@@ -1006,7 +1019,13 @@ fn pane_ui(
             x -= w_size;
             let icon = if e.is_dir { "📁" } else if e.is_link { "🔗" } else { "📄" };
             let name_clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, pos2((x + 4.0).max(rect.left() + 20.0), rect.max.y)));
-            name_clip.text(pos2(rect.left() + 6.0, cy), Align2::LEFT_CENTER, format!("{icon} {}", e.name), font.clone(), col);
+            // Teil-Dateien von FTPwerk (abgebrochene Übertragungen) deutlich markieren
+            let (label, col) = if crate::model::is_part_name(&e.name) && !e.is_dir {
+                (format!("⏸ {}   {}", e.name, t("(unvollständig – FTPwerk setzt hier fort)")), if selected { col } else { warn_col() })
+            } else {
+                (format!("{icon} {}", e.name), col)
+            };
+            name_clip.text(pos2(rect.left() + 6.0, cy), Align2::LEFT_CENTER, label, font.clone(), col);
 
             if resp.clicked() {
                 select_click = Some(i);

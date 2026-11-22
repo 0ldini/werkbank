@@ -13,7 +13,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use crate::model::{rjoin, rparent, Entry, Proto, RErr, Res, Site};
+use crate::model::{is_part_name, numbered_name, part_name, rjoin, rname, rparent, Entry, Proto, RErr, Res, Site};
 use crate::remote::{self, Remote, Tick};
 use crate::sprache::{t, tf};
 use crate::store::{Overwrite, Trust};
@@ -73,6 +73,14 @@ pub struct Job {
     pub status: AtomicU8,
     pub error: Mutex<String>,
     pub cancel: AtomicBool,
+    /// «Abbrechen und verwerfen»: die Teil-Datei wird gelöscht.
+    pub discard: AtomicBool,
+    /// Pfad der Teil-Datei, in die gerade übertragen wird (lokal oder auf dem Server).
+    pub part: Mutex<String>,
+    /// Ab diesem Byte wurde zuletzt fortgesetzt (0 = von vorn).
+    pub resumed_from: AtomicU64,
+    /// Nur für Tests: nach so vielen Bytes anhalten, als hätte der Benutzer abgebrochen (0 = aus).
+    pub stop_at: AtomicU64,
 }
 
 impl Job {
@@ -113,8 +121,8 @@ pub struct Queue {
 
 fn ow_to_u8(o: Overwrite) -> u8 {
     match o {
-        Overwrite::Resume => 0,
-        Overwrite::Overwrite => 1,
+        Overwrite::Overwrite => 0,
+        Overwrite::Rename => 1,
         Overwrite::Skip => 2,
     }
 }
@@ -134,9 +142,9 @@ impl Queue {
 
     pub fn overwrite(&self) -> Overwrite {
         match self.overwrite.load(Ordering::Relaxed) {
-            1 => Overwrite::Overwrite,
+            1 => Overwrite::Rename,
             2 => Overwrite::Skip,
-            _ => Overwrite::Resume,
+            _ => Overwrite::Overwrite,
         }
     }
 
@@ -156,6 +164,10 @@ impl Queue {
             status: AtomicU8::new(WAIT),
             error: Mutex::new(String::new()),
             cancel: AtomicBool::new(false),
+            discard: AtomicBool::new(false),
+            part: Mutex::new(String::new()),
+            resumed_from: AtomicU64::new(0),
+            stop_at: AtomicU64::new(0),
         });
         if let Ok(mut j) = self.jobs.lock() {
             j.push(job);
@@ -183,6 +195,22 @@ impl Queue {
         (self.wake)();
     }
 
+    /// «Abbrechen und verwerfen»: abbrechen und die Teil-Datei löschen (lokal oder auf dem
+    /// Server). Ein Übertragungs-Thread erledigt das Löschen.
+    pub fn discard(&self, id: u64) {
+        for j in self.snapshot() {
+            if j.id == id && matches!(j.status(), WAIT | RUN | FAIL | CANCELLED) {
+                j.discard.store(true, Ordering::Relaxed);
+                j.cancel.store(true, Ordering::Relaxed);
+                // Nicht laufende Aufträge einem Thread zum Aufräumen geben
+                let _ = j.status.compare_exchange(FAIL, WAIT, Ordering::Relaxed, Ordering::Relaxed);
+                let _ = j.status.compare_exchange(CANCELLED, WAIT, Ordering::Relaxed, Ordering::Relaxed);
+            }
+        }
+        self.cv.notify_all();
+        (self.wake)();
+    }
+
     pub fn cancel_all(&self) {
         for j in self.snapshot() {
             j.cancel.store(true, Ordering::Relaxed);
@@ -194,7 +222,7 @@ impl Queue {
     /// Fehlgeschlagene oder abgebrochene Aufträge erneut einreihen.
     pub fn retry(&self, id: Option<u64>) {
         for j in self.snapshot() {
-            if (id.is_none() || id == Some(j.id)) && matches!(j.status(), FAIL | CANCELLED) {
+            if (id.is_none() || id == Some(j.id)) && matches!(j.status(), FAIL | CANCELLED) && !j.discard.load(Ordering::Relaxed) {
                 j.cancel.store(false, Ordering::Relaxed);
                 if let Ok(mut e) = j.error.lock() {
                     e.clear();
@@ -548,6 +576,10 @@ fn plan_download_dir(c: &mut dyn Remote, remote: &str, local: &Path, q: &Queue, 
     std::fs::create_dir_all(local)?;
     let mut n = 0;
     for e in c.list(remote)? {
+        // eigene Teil-Dateien (unfertige Übertragungen) nicht mitnehmen
+        if is_part_name(&e.name) {
+            continue;
+        }
         let Some(name) = safe_local_name(&e.name) else { continue };
         let rp = rjoin(remote, &e.name);
         let lp = local.join(&name);
@@ -574,6 +606,9 @@ fn plan_upload_dir(c: &mut dyn Remote, local: &Path, remote: &str, root: &str, q
     entries.sort_by_key(|e| e.file_name());
     for e in entries {
         let name = e.file_name().to_string_lossy().to_string();
+        if is_part_name(&name) {
+            continue;
+        }
         let lp = e.path();
         let rp = rjoin(remote, &name);
         let Ok(ft) = e.file_type() else { continue };
@@ -599,11 +634,14 @@ fn worker_loop(site: Site, trust: Arc<Mutex<Trust>>, queue: Arc<Queue>, log: Sen
         match result {
             Ok(skipped) => job.status.store(if skipped { SKIPPED } else { DONE }, Ordering::Relaxed),
             Err(RErr::Cancelled) => {
-                job.status.store(CANCELLED, Ordering::Relaxed);
                 // Nach einem Abbruch ist der Datenstrom in unklarem Zustand: Verbindung neu aufbauen
                 if let Some(mut c) = conn.take() {
                     c.close();
                 }
+                if job.discard.load(Ordering::Relaxed) && !queue.stop.load(Ordering::Relaxed) {
+                    discard_part(&job, &mut conn, &|| connect_site(&site, &trust, &log), &log);
+                }
+                job.status.store(CANCELLED, Ordering::Relaxed);
             }
             Err(e) => {
                 *job.error.lock().unwrap_or_else(|p| p.into_inner()) = e.to_string();
@@ -646,39 +684,7 @@ fn run_job(
         let ow = queue.overwrite();
         let c = conn.as_mut().map(|c| c.as_mut()).ok_or_else(|| RErr::Msg(t("Nicht verbunden.").to_string()))?;
         job.done.store(0, Ordering::Relaxed);
-
-        let mut prog = |tick: Tick| -> bool {
-            match tick {
-                Tick::Start { offset, total } => {
-                    if total > 0 {
-                        job.total.store(total, Ordering::Relaxed);
-                    }
-                    job.done.store(offset, Ordering::Relaxed);
-                }
-                Tick::Bytes(n) => {
-                    job.done.fetch_add(n, Ordering::Relaxed);
-                }
-            }
-            !(job.cancel.load(Ordering::Relaxed) || queue.stop.load(Ordering::Relaxed))
-        };
-
-        let outcome: Res<bool> = (|| {
-            if job.up {
-                if ow == Overwrite::Skip && c.size(&job.remote).ok().flatten().is_some() {
-                    return Ok(true);
-                }
-                ensure_remote_dirs(c, &job.root_remote, &rparent(&job.remote), made)?;
-                c.upload(&job.local, &job.remote, ow == Overwrite::Resume, &mut prog).map(|_| false)
-            } else {
-                if ow == Overwrite::Skip && job.local.exists() {
-                    return Ok(true);
-                }
-                if let Some(parent) = job.local.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                c.download(&job.remote, &job.local, ow == Overwrite::Resume, &mut prog).map(|_| false)
-            }
-        })();
+        let outcome = transfer(c, job, ow, made, &|| queue.stop.load(Ordering::Relaxed));
 
         match outcome {
             Err(e) if e.is_disconnect() && attempt < 3 => {
@@ -691,6 +697,180 @@ fn run_job(
                 thread::sleep(Duration::from_millis(800 * attempt as u64));
             }
             other => return other,
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Teil-Dateien und Ziel
+
+/// Was mit einer Übertragung geschieht. Grundsatz: geschrieben wird immer in die eigene
+/// Teil-Datei «<ziel>.ftpwerk-teil»; an eine vorhandene (fremde) Zieldatei wird nie angehängt.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Plan {
+    /// Ziel gibt es schon, Einstellung «Überspringen».
+    Skip,
+    /// Ziel gibt es schon, Einstellung «Umbenennen»: neuen freien Namen suchen.
+    NewName,
+    /// In die Teil-Datei übertragen; `resume`: die eigene Teil-Datei fortsetzen.
+    /// `replace`: am Ende eine vorhandene Zieldatei ersetzen (vom Benutzer so gewählt).
+    Go { resume: bool, replace: bool },
+}
+
+/// Entscheidung aus: gibt es das Ziel, gibt es eine eigene Teil-Datei (Grösse), Einstellung.
+pub fn plan(target_exists: bool, own_part: Option<u64>, ow: Overwrite) -> Plan {
+    let resume = own_part.is_some_and(|n| n > 0);
+    if !target_exists {
+        return Plan::Go { resume, replace: false };
+    }
+    match ow {
+        Overwrite::Skip => Plan::Skip,
+        Overwrite::Rename => Plan::NewName,
+        Overwrite::Overwrite => Plan::Go { resume, replace: true },
+    }
+}
+
+/// Vor dem Umbenennen: stimmt die Grösse der Teil-Datei mit der erwarteten überein?
+/// Unbekannte Grössen (Server ohne SIZE) gelten als passend.
+pub fn check_complete(part_size: Option<u64>, expected: Option<u64>) -> Res<()> {
+    match (part_size, expected) {
+        (Some(have), Some(want)) if have != want => Err(RErr::Msg(tf("Datei unvollständig: {got} von {tot} Bytes", &[("got", &have), ("tot", &want)]))),
+        _ => Ok(()),
+    }
+}
+
+/// Lokale Datei «name (n).ext» suchen, die es noch nicht gibt.
+fn free_local(target: &Path) -> Res<PathBuf> {
+    let parent = target.parent().map(Path::to_path_buf).unwrap_or_default();
+    let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    for n in 2..1000 {
+        let cand = parent.join(numbered_name(&name, n));
+        if !cand.exists() {
+            return Ok(cand);
+        }
+    }
+    Err(RErr::Msg(t("Kein freier Dateiname gefunden.").to_string()))
+}
+
+/// Datei «name (n).ext» auf dem Server suchen, die es noch nicht gibt.
+fn free_remote(c: &mut dyn Remote, target: &str) -> Res<String> {
+    let (parent, name) = (rparent(target), rname(target));
+    for n in 2..1000 {
+        let cand = rjoin(&parent, &numbered_name(&name, n));
+        if !c.exists(&cand)? {
+            return Ok(cand);
+        }
+    }
+    Err(RErr::Msg(t("Kein freier Dateiname gefunden.").to_string()))
+}
+
+fn local_part(target: &Path) -> PathBuf {
+    let mut s = target.as_os_str().to_os_string();
+    s.push(crate::model::PART_SUFFIX);
+    PathBuf::from(s)
+}
+
+/// Eine Übertragung: in die Teil-Datei, Grösse prüfen, dann auf den Zielnamen umbenennen.
+/// Rückgabe `true` = übersprungen.
+fn transfer(c: &mut dyn Remote, job: &Job, ow: Overwrite, made: &mut HashSet<String>, stop: &dyn Fn() -> bool) -> Res<bool> {
+    let mut prog = |tick: Tick| -> bool {
+        match tick {
+            Tick::Start { offset, total } => {
+                if total > 0 {
+                    job.total.store(total, Ordering::Relaxed);
+                }
+                job.done.store(offset, Ordering::Relaxed);
+                job.resumed_from.store(offset, Ordering::Relaxed);
+            }
+            Tick::Bytes(n) => {
+                let done = job.done.fetch_add(n, Ordering::Relaxed).saturating_add(n);
+                let at = job.stop_at.load(Ordering::Relaxed);
+                if at > 0 && done >= at {
+                    job.stop_at.store(0, Ordering::Relaxed);
+                    job.cancel.store(true, Ordering::Relaxed);
+                }
+            }
+        }
+        !(job.cancel.load(Ordering::Relaxed) || stop())
+    };
+    if job.up {
+        ensure_remote_dirs(c, &job.root_remote, &rparent(&job.remote), made)?;
+        let mut target = job.remote.clone();
+        let mut p = plan(c.exists(&target)?, c.size(&part_name(&target))?, ow);
+        if p == Plan::NewName {
+            target = free_remote(c, &target)?;
+            p = plan(false, c.size(&part_name(&target))?, ow);
+        }
+        let Plan::Go { resume, replace } = p else { return Ok(true) };
+        let part = part_name(&target);
+        *job.part.lock().unwrap_or_else(|e| e.into_inner()) = part.clone();
+        let total = std::fs::metadata(&job.local)?.len();
+        // Die alte Zieldatei (z. B. .htaccess auf dem Webspace) bleibt bis zum Umbenennen unberührt.
+        c.upload(&job.local, &part, resume, &mut prog)?;
+        check_complete(c.size(&part)?, Some(total))?;
+        if let Err(e) = c.rename(&part, &target) {
+            // SFTP (Version 3) und manche FTP-Server benennen nicht auf ein vorhandenes Ziel um:
+            // dann – nur wenn «Ersetzen» gewählt ist – das alte Ziel löschen und erneut umbenennen.
+            if replace && c.exists(&target)? {
+                c.remove_file(&target)?;
+                c.rename(&part, &target)?;
+            } else {
+                return Err(e);
+            }
+        }
+        Ok(false)
+    } else {
+        if let Some(parent) = job.local.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let own = |t: &Path| std::fs::metadata(local_part(t)).ok().filter(|m| m.is_file()).map(|m| m.len());
+        let mut target = job.local.clone();
+        let mut p = plan(target.exists(), own(&target), ow);
+        if p == Plan::NewName {
+            target = free_local(&target)?;
+            p = plan(false, own(&target), ow);
+        }
+        let Plan::Go { resume, .. } = p else { return Ok(true) };
+        let part = local_part(&target);
+        *job.part.lock().unwrap_or_else(|e| e.into_inner()) = part.display().to_string();
+        let expected = c.size(&job.remote).ok().flatten();
+        c.download(&job.remote, &part, resume, &mut prog)?;
+        check_complete(std::fs::metadata(&part).ok().map(|m| m.len()), expected)?;
+        // Umbenennen ersetzt eine vorhandene Datei in einem Schritt (Windows und Linux).
+        std::fs::rename(&part, &target)?;
+        Ok(false)
+    }
+}
+
+/// «Abbrechen und verwerfen»: Teil-Datei löschen (Server: dazu bei Bedarf neu verbinden).
+fn discard_part(job: &Job, conn: &mut Option<Box<dyn Remote>>, connect: &dyn Fn() -> Res<Box<dyn Remote>>, log: &Sender<String>) {
+    let part = job.part.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let part = if part.is_empty() {
+        if job.up {
+            part_name(&job.remote)
+        } else {
+            local_part(&job.local).display().to_string()
+        }
+    } else {
+        part
+    };
+    if !job.up {
+        let _ = std::fs::remove_file(&part);
+        return;
+    }
+    if conn.is_none() {
+        match connect() {
+            Ok(c) => *conn = Some(c),
+            Err(e) => {
+                let _ = log.send(tf("Teil-Datei «{p}» nicht gelöscht: {e}", &[("p", &part), ("e", &e)]));
+                return;
+            }
+        }
+    }
+    if let Some(c) = conn.as_mut() {
+        if c.exists(&part).unwrap_or(false) {
+            if let Err(e) = c.remove_file(&part) {
+                let _ = log.send(tf("Teil-Datei «{p}» nicht gelöscht: {e}", &[("p", &part), ("e", &e)]));
+            }
         }
     }
 }
@@ -732,6 +912,25 @@ mod tests {
     #[derive(Default)]
     struct Mock {
         fs: BTreeMap<String, Option<Vec<u8>>>,
+        /// Server, der beim Hochladen still die Hälfte verliert
+        lossy: bool,
+    }
+
+    /// Daten in Blöcken übertragen, mit Fortschritt und Abbruch wie echte Verbindungen.
+    fn pump(data: &[u8], offset: usize, prog: Prog, out: &mut Vec<u8>) -> Res<u64> {
+        let total = data.len() as u64;
+        if !prog(Tick::Start { offset: offset as u64, total }) {
+            return Err(RErr::Cancelled);
+        }
+        let mut sent = 0u64;
+        for ch in data.get(offset..).unwrap_or(&[]).chunks(1000) {
+            out.extend_from_slice(ch);
+            sent += ch.len() as u64;
+            if !prog(Tick::Bytes(ch.len() as u64)) {
+                return Err(RErr::Cancelled);
+            }
+        }
+        Ok(sent)
     }
 
     impl Remote for Mock {
@@ -760,6 +959,10 @@ mod tests {
             Ok(())
         }
         fn rename(&mut self, from: &str, to: &str) -> Res<()> {
+            // wie SFTP Version 3: nicht auf ein vorhandenes Ziel
+            if self.fs.contains_key(to) {
+                return Err(RErr::Msg("550 exists".into()));
+            }
             let v = self.fs.remove(from).ok_or(RErr::Msg("550".into()))?;
             self.fs.insert(to.to_string(), v);
             Ok(())
@@ -786,20 +989,35 @@ mod tests {
         fn size(&mut self, path: &str) -> Res<Option<u64>> {
             Ok(self.fs.get(path).and_then(|v| v.as_ref()).map(|d| d.len() as u64))
         }
-        fn download(&mut self, remote: &str, local: &Path, _resume: bool, _prog: Prog) -> Res<u64> {
+        fn download(&mut self, remote: &str, local: &Path, resume: bool, prog: Prog) -> Res<u64> {
             let d = self.fs.get(remote).cloned().flatten().ok_or(RErr::Msg("550".into()))?;
-            std::fs::write(local, &d)?;
-            Ok(d.len() as u64)
+            let mut have = if resume { std::fs::read(local).unwrap_or_default() } else { Vec::new() };
+            if have.len() > d.len() {
+                have.clear();
+            }
+            let off = have.len();
+            let r = pump(&d, off, prog, &mut have);
+            std::fs::write(local, &have)?;
+            r
         }
-        fn upload(&mut self, local: &Path, remote: &str, _resume: bool, _prog: Prog) -> Res<u64> {
+        fn upload(&mut self, local: &Path, remote: &str, resume: bool, prog: Prog) -> Res<u64> {
             let parent = rparent(remote);
             if parent != "/" && !matches!(self.fs.get(&parent), Some(None)) {
                 return Err(RErr::Msg(format!("553 kein Ordner {parent}")));
             }
             let d = std::fs::read(local)?;
-            let n = d.len() as u64;
-            self.fs.insert(remote.to_string(), Some(d));
-            Ok(n)
+            let mut have = if resume { self.fs.get(remote).cloned().flatten().unwrap_or_default() } else { Vec::new() };
+            if have.len() > d.len() {
+                have.clear();
+            }
+            let off = have.len();
+            let r = pump(&d, off, prog, &mut have);
+            if self.lossy {
+                let half = have.len() / 2;
+                have.truncate(half);
+            }
+            self.fs.insert(remote.to_string(), Some(have));
+            r
         }
         fn keepalive(&mut self) -> Res<()> {
             Ok(())
@@ -808,7 +1026,7 @@ mod tests {
     }
 
     fn queue() -> Arc<Queue> {
-        Queue::new(Arc::new(|| {}), Overwrite::Resume)
+        Queue::new(Arc::new(|| {}), Overwrite::Overwrite)
     }
 
     #[test]
@@ -886,6 +1104,148 @@ mod tests {
     }
 
     #[test]
+    fn entscheidung_nie_an_fremde_datei_anhaengen() {
+        use Overwrite as O;
+        // Ziel fehlt: neu, oder eigene Teil-Datei fortsetzen
+        assert_eq!(plan(false, None, O::Overwrite), Plan::Go { resume: false, replace: false });
+        assert_eq!(plan(false, Some(500), O::Skip), Plan::Go { resume: true, replace: false });
+        assert_eq!(plan(false, Some(0), O::Overwrite), Plan::Go { resume: false, replace: false });
+        // Ziel vorhanden (fremd): nie anhängen, sondern Einstellung
+        assert_eq!(plan(true, None, O::Skip), Plan::Skip);
+        assert_eq!(plan(true, None, O::Rename), Plan::NewName);
+        assert_eq!(plan(true, None, O::Overwrite), Plan::Go { resume: false, replace: true });
+        assert_eq!(plan(true, Some(10), O::Overwrite), Plan::Go { resume: true, replace: true });
+        // Grössenprüfung vor dem Umbenennen
+        assert!(check_complete(Some(5), Some(5)).is_ok());
+        assert!(check_complete(Some(4), Some(5)).is_err());
+        assert!(check_complete(None, Some(5)).is_ok());
+        assert!(check_complete(Some(5), None).is_ok());
+    }
+
+    fn job(q: &Arc<Queue>, up: bool, remote: &str, local: &Path) -> Arc<Job> {
+        q.add(up, remote.into(), local.to_path_buf(), "/".into(), 0);
+        q.snapshot().pop().unwrap()
+    }
+
+    fn tmp(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("ftpwerk-teil-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn data(n: usize) -> Vec<u8> {
+        (0..n).map(|i| (i * 7 % 251) as u8).collect()
+    }
+
+    #[test]
+    fn herunterladen_fremde_kleinere_datei_bleibt() {
+        let d = tmp("fremd");
+        let mut m = Mock::default();
+        m.fs.insert("/a.bin".into(), Some(data(5000)));
+        let target = d.join("a.bin");
+        let q = queue();
+        let no = || false;
+        // «Überspringen»: fremde Datei unverändert, nichts angehängt
+        std::fs::write(&target, b"fremd").unwrap();
+        assert!(transfer(&mut m, &job(&q, false, "/a.bin", &target), Overwrite::Skip, &mut HashSet::new(), &no).unwrap());
+        assert_eq!(std::fs::read(&target).unwrap(), b"fremd");
+        // «Umbenennen»: fremde Datei bleibt, neue unter «a (2).bin»
+        assert!(!transfer(&mut m, &job(&q, false, "/a.bin", &target), Overwrite::Rename, &mut HashSet::new(), &no).unwrap());
+        assert_eq!(std::fs::read(&target).unwrap(), b"fremd");
+        assert_eq!(std::fs::read(d.join("a (2).bin")).unwrap(), data(5000));
+        // «Ersetzen»: ganz neu, nie angehängt
+        let j = job(&q, false, "/a.bin", &target);
+        transfer(&mut m, &j, Overwrite::Overwrite, &mut HashSet::new(), &no).unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), data(5000));
+        assert_eq!(j.resumed_from.load(Ordering::Relaxed), 0);
+        assert!(!local_part(&target).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn herunterladen_abbrechen_fortsetzen_verwerfen() {
+        let d = tmp("teil");
+        let mut m = Mock::default();
+        m.fs.insert("/b.bin".into(), Some(data(8000)));
+        let target = d.join("b.bin");
+        std::fs::write(&target, b"alte Fassung").unwrap();
+        let q = queue();
+        let no = || false;
+        let j = job(&q, false, "/b.bin", &target);
+        j.stop_at.store(3000, Ordering::Relaxed);
+        assert_eq!(transfer(&mut m, &j, Overwrite::Overwrite, &mut HashSet::new(), &no), Err(RErr::Cancelled));
+        // alte Datei unberührt, eigene Teil-Datei liegt daneben
+        assert_eq!(std::fs::read(&target).unwrap(), b"alte Fassung");
+        assert_eq!(std::fs::metadata(local_part(&target)).unwrap().len(), 3000);
+        // Fortsetzen aus der eigenen Teil-Datei
+        j.cancel.store(false, Ordering::Relaxed);
+        transfer(&mut m, &j, Overwrite::Overwrite, &mut HashSet::new(), &no).unwrap();
+        assert_eq!(j.resumed_from.load(Ordering::Relaxed), 3000);
+        assert_eq!(std::fs::read(&target).unwrap(), data(8000));
+        assert!(!local_part(&target).exists());
+        // Abbrechen und verwerfen: Teil-Datei weg
+        let j2 = job(&q, false, "/b.bin", &d.join("c.bin"));
+        j2.stop_at.store(2000, Ordering::Relaxed);
+        let _ = transfer(&mut m, &j2, Overwrite::Overwrite, &mut HashSet::new(), &no);
+        assert!(local_part(&d.join("c.bin")).exists());
+        let (tx, _rx) = channel();
+        discard_part(&j2, &mut None, &|| Err(RErr::Msg("x".into())), &tx);
+        assert!(!local_part(&d.join("c.bin")).exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn hochladen_alte_datei_bleibt_bis_zum_ende() {
+        let d = tmp("hoch");
+        let local = d.join(".htaccess");
+        std::fs::write(&local, data(9000)).unwrap();
+        let mut m = Mock::default();
+        m.fs.insert("/www".into(), None);
+        m.fs.insert("/www/.htaccess".into(), Some(b"Require all denied".to_vec()));
+        let q = queue();
+        let no = || false;
+        let j = job(&q, true, "/www/.htaccess", &local);
+        j.stop_at.store(4000, Ordering::Relaxed);
+        assert_eq!(transfer(&mut m, &j, Overwrite::Overwrite, &mut HashSet::new(), &no), Err(RErr::Cancelled));
+        assert_eq!(m.fs.get("/www/.htaccess"), Some(&Some(b"Require all denied".to_vec())), "alte .htaccess muss bleiben");
+        assert_eq!(m.fs.get("/www/.htaccess.ftpwerk-teil").and_then(|v| v.as_ref()).map(|v| v.len()), Some(4000));
+        // fortsetzen; Server benennt nicht auf vorhandenes Ziel um → bei «Ersetzen» löschen und umbenennen
+        j.cancel.store(false, Ordering::Relaxed);
+        transfer(&mut m, &j, Overwrite::Overwrite, &mut HashSet::new(), &no).unwrap();
+        assert_eq!(j.resumed_from.load(Ordering::Relaxed), 4000);
+        assert_eq!(m.fs.get("/www/.htaccess"), Some(&Some(data(9000))));
+        assert!(!m.fs.contains_key("/www/.htaccess.ftpwerk-teil"));
+        // fremde kleinere Datei auf dem Server: «Umbenennen» lässt sie unverändert
+        m.fs.insert("/www/x.bin".into(), Some(b"fremd".to_vec()));
+        let j = job(&q, true, "/www/x.bin", &local);
+        transfer(&mut m, &j, Overwrite::Rename, &mut HashSet::new(), &no).unwrap();
+        assert_eq!(m.fs.get("/www/x.bin"), Some(&Some(b"fremd".to_vec())));
+        assert_eq!(m.fs.get("/www/x (2).bin"), Some(&Some(data(9000))));
+        // «Überspringen» ebenso
+        assert!(transfer(&mut m, &job(&q, true, "/www/x.bin", &local), Overwrite::Skip, &mut HashSet::new(), &no).unwrap());
+        assert_eq!(m.fs.get("/www/x.bin"), Some(&Some(b"fremd".to_vec())));
+        // Grösse stimmt nicht → nicht umbenennen, altes Ziel bleibt
+        m.lossy = true;
+        let r = transfer(&mut m, &job(&q, true, "/www/x.bin", &local), Overwrite::Overwrite, &mut HashSet::new(), &no);
+        assert!(matches!(r, Err(RErr::Msg(_))), "{r:?}");
+        assert_eq!(m.fs.get("/www/x.bin"), Some(&Some(b"fremd".to_vec())));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn teil_dateien_werden_nicht_mit_uebertragen() {
+        let mut m = Mock::default();
+        m.fs.insert("/d".into(), None);
+        m.fs.insert("/d/a.txt".into(), Some(b"a".to_vec()));
+        m.fs.insert("/d/b.txt.ftpwerk-teil".into(), Some(b"b".to_vec()));
+        let q = queue();
+        let dl = tmp("plan");
+        assert_eq!(plan_download_dir(&mut m, "/d", &dl, &q, 0).unwrap(), 1);
+        let _ = std::fs::remove_dir_all(&dl);
+    }
+
+    #[test]
     fn warteschlange() {
         let q = queue();
         q.add(true, "/a".into(), PathBuf::from("a"), "/".into(), 10);
@@ -898,6 +1258,15 @@ mod tests {
         j.status.store(FAIL, Ordering::Relaxed);
         q.retry(None);
         assert_eq!(q.counts(), (2, 0, 0, 0));
+        // verwerfen: abgebrochener Auftrag geht zum Aufräumen zurück an einen Thread, nicht wiederholbar
+        q.cancel(1);
+        j.status.store(CANCELLED, Ordering::Relaxed);
+        q.discard(1);
+        assert!(j.discard.load(Ordering::Relaxed) && j.cancel.load(Ordering::Relaxed));
+        assert_eq!(j.status(), WAIT);
+        j.status.store(CANCELLED, Ordering::Relaxed);
+        q.retry(Some(1));
+        assert_eq!(j.status(), CANCELLED);
         q.set_paused(true);
         q.stop.store(true, Ordering::Relaxed);
         assert!(q.next_job().is_none());

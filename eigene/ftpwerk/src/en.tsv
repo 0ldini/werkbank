@@ -55,8 +55,7 @@ fertig	done
 abgebrochen	cancelled
 Aus der Liste entfernen	Remove from list
 Erneut versuchen	Try again
-Fortsetzen / ersetzen	Resume / replace
-Immer überschreiben	Always overwrite
+Ersetzen	Replace
 Überspringen	Skip
 Lokal	Local
 Heimordner	Home folder
@@ -184,3 +183,11 @@ SSH konnte nicht gestartet werden: {e}	SSH could not be started: {e}
 Antwort des Servers ist zu lang.	The server's reply is too long.
 Verbindung in unklarem Zustand – verbinde neu.	Connection in an unclear state – reconnecting.
 Ordnerliste ist zu gross.	The folder listing is too large.
+Kein freier Dateiname gefunden.	No free file name found.
+Teil-Datei «{p}» nicht gelöscht: {e}	Partial file “{p}” not deleted: {e}
+Abbrechen und verwerfen (Teil-Datei löschen)	Cancel and discard (delete partial file)
+Abbrechen (Teil-Datei bleibt zum Fortsetzen)	Cancel (partial file kept for resuming)
+Teil-Datei verwerfen	Discard partial file
+abgebrochen, Teil-Datei verworfen	cancelled, partial file discarded
+abgebrochen – Teil-Datei bleibt zum Fortsetzen	cancelled – partial file kept for resuming
+(unvollständig – FTPwerk setzt hier fort)	(incomplete – FTPwerk resumes here)

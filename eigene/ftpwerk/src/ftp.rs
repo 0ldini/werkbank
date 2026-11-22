@@ -634,6 +634,24 @@ impl Remote for Ftp {
         self.do_size(path)
     }
 
+    fn exists(&mut self, path: &str) -> Res<bool> {
+        if self.feat_size {
+            if self.do_size(path)?.is_some() {
+                return Ok(true);
+            }
+            if self.feat_size {
+                return Ok(false);
+            }
+        }
+        // Server ohne SIZE: im Ordner nachsehen
+        let (parent, name) = (crate::model::rparent(path), crate::model::rname(path));
+        match self.do_list(&parent) {
+            Ok(v) => Ok(v.iter().any(|e| e.name == name)),
+            Err(RErr::Msg(_)) => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
     fn download(&mut self, remote: &str, local: &Path, resume: bool, prog: Prog) -> Res<u64> {
         clean(remote)?;
         let total = self.do_size(remote).unwrap_or(None);

@@ -291,6 +291,98 @@ fn full_cycle(site: Site, trusted_fp: Option<String>) {
     }
     c.close();
 
+    // ---- Teil-Dateien: nie an fremde Dateien anhängen, alte Datei bleibt bis zum Ende intakt
+    let mut c = remote::connect(&site, &fps, None).expect("Verbindung für Prüfungen");
+    let fetch = |c: &mut Box<dyn remote::Remote>, path: &str| -> Vec<u8> {
+        let tmp = base_local.join("pruefen.tmp");
+        let _ = std::fs::remove_file(&tmp);
+        c.download(path, &tmp, false, &mut |_| true).expect("zurückladen");
+        std::fs::read(&tmp).expect("lesen")
+    };
+
+    // Herunterladen: fremde kleinere Datei gleichen Namens
+    let dl2 = base_local.join("ziel2");
+    std::fs::create_dir_all(&dl2).expect("Ziel");
+    std::fs::write(dl2.join("gross.bin"), b"fremd").expect("Datei");
+    for (ow, what) in [(Overwrite::Skip, "Überspringen"), (Overwrite::Rename, "Umbenennen")] {
+        s.queue.set_overwrite(ow);
+        s.send(Cmd::PlanDownload { items: vec![(rjoin(&rdir, "gross.bin"), false, 1_500_000)], local_dir: dl2.clone() });
+        wait_ev(&s, "Herunterladen planen", 60, |e| matches!(e, Ev::Queued(_)));
+        wait_queue(&s, what);
+        assert_eq!(std::fs::read(dl2.join("gross.bin")).expect("lesen"), b"fremd", "{name}: fremde lokale Datei verändert ({what})");
+    }
+    assert!(std::fs::read(dl2.join("gross (2).bin")).expect("umbenannte Kopie") == full, "{name}: umbenannte Kopie weicht ab");
+    s.queue.set_overwrite(Overwrite::Overwrite);
+    s.send(Cmd::PlanDownload { items: vec![(rjoin(&rdir, "gross.bin"), false, 1_500_000)], local_dir: dl2.clone() });
+    wait_ev(&s, "Herunterladen planen", 60, |e| matches!(e, Ev::Queued(_)));
+    wait_queue(&s, "Ersetzen");
+    assert!(std::fs::read(dl2.join("gross.bin")).expect("lesen") == full, "{name}: ersetzte Datei weicht ab (angehängt?)");
+    assert!(!dl2.join(format!("gross.bin{}", crate::model::PART_SUFFIX)).exists(), "{name}: Teil-Datei übrig");
+    println!("{name}: fremde kleinere lokale Datei nie angehängt (Überspringen/Umbenennen/Ersetzen) ✓");
+
+    // Hochladen: fremde kleinere Datei gleichen Namens auf dem Server
+    let up_dir = base_local.join("hoch2");
+    std::fs::create_dir_all(&up_dir).expect("Ordner");
+    let fremd_local = up_dir.join("fremd.bin");
+    std::fs::write(&fremd_local, b"fremd auf dem Server").expect("Datei");
+    c.upload(&fremd_local, &rjoin(&base, "fremd.bin"), false, &mut |_| true).expect("fremde Datei anlegen");
+    std::fs::write(&fremd_local, &up_data).expect("Datei");
+    for (ow, what) in [(Overwrite::Skip, "Überspringen"), (Overwrite::Rename, "Umbenennen")] {
+        s.queue.set_overwrite(ow);
+        s.send(Cmd::PlanUpload { items: vec![fremd_local.clone()], remote_dir: base.clone() });
+        wait_ev(&s, "Hochladen planen", 60, |e| matches!(e, Ev::Queued(_)));
+        wait_queue(&s, what);
+        assert_eq!(fetch(&mut c, &rjoin(&base, "fremd.bin")), b"fremd auf dem Server", "{name}: fremde Server-Datei verändert ({what})");
+    }
+    assert!(fetch(&mut c, &rjoin(&base, "fremd (2).bin")) == up_data, "{name}: umbenannte Server-Kopie weicht ab");
+    println!("{name}: fremde kleinere Server-Datei nie angehängt (Überspringen/Umbenennen) ✓");
+
+    // Abgebrochener Upload: alte Datei (wie .htaccess) bleibt bis zum Ende intakt, dann fortsetzen
+    let alt = rjoin(&base, "alt.bin");
+    std::fs::write(&fremd_local, b"alte Fassung").expect("Datei");
+    c.upload(&fremd_local, &alt, false, &mut |_| true).expect("alte Datei anlegen");
+    let neu_local = up_dir.join("alt.bin");
+    std::fs::write(&neu_local, &up_data).expect("Datei");
+    s.queue.set_overwrite(Overwrite::Overwrite);
+    s.queue.set_paused(true);
+    s.send(Cmd::PlanUpload { items: vec![neu_local.clone()], remote_dir: base.clone() });
+    wait_ev(&s, "Hochladen planen", 60, |e| matches!(e, Ev::Queued(_)));
+    let job = s.queue.snapshot().into_iter().rfind(|j| j.name() == "alt.bin").expect("Auftrag");
+    job.stop_at.store(600_000, Ordering::Relaxed);
+    s.queue.set_paused(false);
+    wait_queue(&s, "abgebrochener Upload");
+    assert_eq!(job.status(), xfer::CANCELLED, "{name}: Upload hätte abbrechen sollen");
+    assert_eq!(fetch(&mut c, &alt), b"alte Fassung", "{name}: alte Datei während des Uploads verändert!");
+    let teil = crate::model::part_name("alt.bin");
+    assert!(list(&s, &base).iter().any(|e| e.name == teil), "{name}: Teil-Datei fehlt nach Abbruch");
+    s.queue.retry(Some(job.id));
+    wait_queue(&s, "Upload fortsetzen");
+    assert_eq!(job.status(), xfer::DONE);
+    let from = job.resumed_from.load(Ordering::Relaxed);
+    assert!(fetch(&mut c, &alt) == up_data, "{name}: fortgesetzter Upload weicht ab");
+    assert!(!list(&s, &base).iter().any(|e| e.name == teil), "{name}: Teil-Datei nach Erfolg übrig");
+    println!("{name}: abgebrochener Upload – alte Datei blieb intakt, fortgesetzt ab {from} Bytes, dann ersetzt ✓");
+
+    // Abbrechen und verwerfen: Teil-Datei auf dem Server wird gelöscht
+    s.queue.set_paused(true);
+    s.send(Cmd::PlanUpload { items: vec![neu_local.clone()], remote_dir: base.clone() });
+    wait_ev(&s, "Hochladen planen", 60, |e| matches!(e, Ev::Queued(_)));
+    let job = s.queue.snapshot().into_iter().rfind(|j| j.name() == "alt.bin" && j.status() == xfer::WAIT).expect("Auftrag");
+    job.stop_at.store(600_000, Ordering::Relaxed);
+    s.queue.set_paused(false);
+    wait_queue(&s, "zweiter Abbruch");
+    assert!(list(&s, &base).iter().any(|e| e.name == teil), "{name}: Teil-Datei fehlt nach zweitem Abbruch");
+    s.queue.discard(job.id);
+    let end = Instant::now() + Duration::from_secs(60);
+    while job.status() != xfer::CANCELLED {
+        assert!(Instant::now() < end, "{name}: Verwerfen dauert zu lange");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    assert!(!list(&s, &base).iter().any(|e| e.name == teil), "{name}: Teil-Datei nach «verwerfen» noch da");
+    assert!(fetch(&mut c, &alt) == up_data, "{name}: Ziel durch Verwerfen verändert");
+    println!("{name}: Abbrechen und verwerfen löscht die Teil-Datei ✓");
+    c.close();
+
     // Löschen (rekursiv) und prüfen, dass nichts übrig ist
     s.send(Cmd::Delete(vec![(base.clone(), true)]));
     wait_ev(&s, "Löschen", 120, |e| matches!(e, Ev::Changed(_)));

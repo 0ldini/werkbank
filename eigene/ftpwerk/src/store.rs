@@ -318,27 +318,32 @@ impl Trust {
 
 // ---------------------------------------------------------------- Einstellungen
 
+/// Was geschieht, wenn es am Ziel schon eine Datei gleichen Namens gibt. Angehängt wird an eine
+/// solche Datei nie: fortgesetzt wird nur eine eigene Teil-Datei «<name>.ftpwerk-teil».
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Overwrite {
-    /// Angefangene Dateien fortsetzen, sonst überschreiben.
-    Resume,
+    /// Ersetzen (die alte Datei bleibt bis zum vollständigen Empfang unverändert).
     Overwrite,
+    /// Unter neuem Namen ablegen: «name (2).ext».
+    Rename,
+    /// Nicht übertragen.
     Skip,
 }
 
 impl Overwrite {
     pub fn code(self) -> &'static str {
         match self {
-            Overwrite::Resume => "resume",
             Overwrite::Overwrite => "overwrite",
+            Overwrite::Rename => "rename",
             Overwrite::Skip => "skip",
         }
     }
     pub fn from_code(s: &str) -> Overwrite {
         match s.trim() {
-            "overwrite" => Overwrite::Overwrite,
+            "rename" => Overwrite::Rename,
             "skip" => Overwrite::Skip,
-            _ => Overwrite::Resume,
+            // auch das frühere «resume»: Fortsetzen geschieht jetzt von selbst (nur eigene Teil-Dateien)
+            _ => Overwrite::Overwrite,
         }
     }
 }
@@ -353,7 +358,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { parallel: 2, overwrite: Overwrite::Resume, show_hidden: true, last_local: String::new() }
+        Settings { parallel: 2, overwrite: Overwrite::Overwrite, show_hidden: true, last_local: String::new() }
     }
 }
 

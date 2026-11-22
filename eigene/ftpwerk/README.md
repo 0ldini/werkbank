@@ -8,6 +8,13 @@ Keine Browser-Version: ein Browser darf keine rohen FTP-/SSH-Verbindungen öffne
 - Protokolle: FTP, FTPS (explizit und implizit), SFTP (SSH, Passwort oder Schlüsseldatei)
 - Zwei Fenster: lokal links, Server rechts; Doppelklick, Ziehen zwischen den Seiten und Dateien von aussen ins Fenster ziehen
 - Warteschlange mit parallelen Übertragungen, Pause, Abbrechen, Wiederholen, Fortsetzen abgebrochener Dateien, Geschwindigkeit und Restzeit
+- Übertragen wird immer in eine Teil-Datei `<name>.ftpwerk-teil` neben dem Ziel; erst wenn sie
+  vollständig ist (Grösse geprüft), wird sie auf den Zielnamen umbenannt. Eine alte Datei (z. B.
+  `.htaccess` auf dem Webspace) bleibt bis dahin unverändert. Fortgesetzt wird nur aus einer
+  solchen eigenen Teil-Datei, nie an eine vorhandene fremde Datei angehängt; gibt es das Ziel
+  schon, gilt die Einstellung «Ersetzen / Umbenennen (name (2).ext) / Überspringen».
+  «Abbrechen» lässt die Teil-Datei zum Fortsetzen liegen, «Abbrechen und verwerfen» löscht sie.
+  Teil-Dateien sind in den Listen markiert und werden bei Ordner-Übertragungen nicht mitgenommen.
 - Ordner rekursiv hoch-/herunterladen und löschen, Umbenennen, Neuer Ordner, Rechte ändern (chmod)
 - Versteckte Dateien wie `.htaccess` werden angezeigt und mit übertragen (Server ohne MLSD: `LIST -a`)
 - Verbindungsverwaltung (`verbindungen.txt`), Passwörter nur unter Windows verschlüsselt (DPAPI) gespeichert

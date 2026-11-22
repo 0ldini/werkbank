@@ -268,8 +268,16 @@ impl Remote for Sftp {
     fn size(&mut self, path: &str) -> Res<Option<u64>> {
         run(OP_TIMEOUT, async {
             match self.sftp.metadata(path.to_string()).await {
-                Ok(m) => Ok(m.size),
-                Err(_) => Ok(None),
+                Ok(m) => Ok(m.size.or(Some(0))),
+                Err(e) => {
+                    // «gibt es nicht» ist kein Fehler, eine abgerissene Verbindung schon
+                    let r = serr("", e);
+                    if r.is_disconnect() {
+                        Err(r)
+                    } else {
+                        Ok(None)
+                    }
+                }
             }
         })
     }
