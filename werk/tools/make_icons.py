@@ -37,7 +37,7 @@ APPS = {  # id: (Name, Farbe, Zeichen im 24er-Raster)
     "packwerk": ("Packwerk", "#B7791F", '<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/>'),
     "abspielwerk": ("Abspielwerk", "#B5179E", '<circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.7v6.6l5.2-3.3z" fill="#fff"/>'),
     "sicherwerk": ("Sicherwerk", "#3D5A80", '<path d="M5 9a7.5 7.5 0 1 1-1 4"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>'),
-    "ftpwerk": ("FTPwerk", "#0369A1", '<path d="M8 19V5M4.5 8.5L8 5l3.5 3.5"/><path d="M16 5v14M12.5 15.5L16 19l3.5-3.5"/>'),
+    "ftpwerk": ("FTPwerk", "#1D4E89", '<path d="M8 20V6M4.5 9.5L8 6l3.5 3.5"/><path d="M16 4v14M12.5 14.5L16 18l3.5-3.5"/>'),
 }
 AMBER, INK = "#F2B544", "#17181C"
 TILES = '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2" opacity=".45"/>'

@@ -17,7 +17,7 @@ use crate::thema;
 use crate::xfer::{self, Cmd, Ev, Session};
 
 /// Logofarbe von FTPwerk (wie in werk/tools/make_icons.py).
-pub const LOGO: [u8; 3] = [0x03, 0x69, 0xA1];
+pub const LOGO: [u8; 3] = [0x1D, 0x4E, 0x89];
 
 /// Farben aus dem gemeinsamen Werkbank-Stil (passen sich hell/dunkel an).
 pub fn accent() -> Color32 {
